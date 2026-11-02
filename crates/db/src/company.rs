@@ -207,3 +207,36 @@ pub fn save(pool: &Pool, societe: &Company) -> Result<(), Box<dyn Error>> {
     set_const(pool, CLE_DELAI, &societe.delai_paiement_jours.to_string())?;
     Ok(())
 }
+
+/// Entites connues : celles qui portent des constantes de modules, nommees
+/// par leur societe. Une entite sans nom propre reprend celui de l'entite 0.
+pub fn entites(pool: &Pool) -> Result<Vec<(i64, String)>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let societe: Option<String> = conn.exec_first(
+        "SELECT value FROM llx_const \
+         WHERE entity = 0 AND name = 'MAIN_INFO_SOCIETE_NOM' LIMIT 1",
+        (),
+    )?;
+    let societe = societe.unwrap_or_else(|| "Societe".to_string());
+
+    let ids: Vec<i64> = conn.exec(
+        "SELECT DISTINCT entity FROM llx_const \
+         WHERE entity > 0 AND name LIKE 'MAIN_MODULE%' ORDER BY entity ASC",
+        (),
+    )?;
+    let mut sortie = Vec::new();
+    for entity in ids {
+        let nom: Option<String> = conn.exec_first(
+            "SELECT value FROM llx_const \
+             WHERE entity = :entity AND name = 'MAIN_INFO_SOCIETE_NOM' LIMIT 1",
+            params! { "entity" => entity },
+        )?;
+        let libelle = match nom.filter(|n| !n.trim().is_empty()) {
+            Some(n) => n,
+            None if entity == 1 => societe.clone(),
+            None => format!("{societe} (entite {entity})"),
+        };
+        sortie.push((entity, libelle));
+    }
+    Ok(sortie)
+}

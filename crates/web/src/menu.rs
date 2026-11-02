@@ -18,6 +18,8 @@ pub struct Entree {
 pub struct Module {
     pub cle: &'static str,
     pub libelle: &'static str,
+    /// Code du module Dolibarr qui commande son affichage (`MainModule`).
+    pub code: &'static str,
     pub entrees: &'static [Entree],
 }
 
@@ -28,6 +30,7 @@ const fn e(cle: &'static str, libelle: &'static str, lien: &'static str) -> Entr
 pub const MODULES: &[Module] = &[
     Module {
         cle: "accueil",
+        code: "User",
         libelle: "Accueil",
         entrees: &[
             e("accueil", "Mon tableau de bord", "/"),
@@ -36,6 +39,7 @@ pub const MODULES: &[Module] = &[
     },
     Module {
         cle: "tiers",
+        code: "Societe",
         libelle: "Tiers",
         entrees: &[
             e("nouveau", "Nouveau tiers", "/tiers/nouveau"),
@@ -46,6 +50,7 @@ pub const MODULES: &[Module] = &[
     },
     Module {
         cle: "produits",
+        code: "Product",
         libelle: "Produits / Services",
         entrees: &[
             e("nouveau", "Nouveau produit", "/produits/nouveau"),
@@ -55,11 +60,13 @@ pub const MODULES: &[Module] = &[
     },
     Module {
         cle: "chantiers",
+        code: "Projet",
         libelle: "Chantiers",
         entrees: &[e("liste", "Chantiers et tâches", "/chantiers")],
     },
     Module {
         cle: "devis",
+        code: "Propale",
         libelle: "Commerce",
         entrees: &[
             e("nouveau", "Nouvelle proposition", "/devis/nouveau"),
@@ -71,11 +78,13 @@ pub const MODULES: &[Module] = &[
     },
     Module {
         cle: "achats",
+        code: "Fournisseur",
         libelle: "Achats",
         entrees: &[e("fournisseurs", "Fournisseurs et factures", "/achats")],
     },
     Module {
         cle: "factures",
+        code: "Facture",
         libelle: "Facturation",
         entrees: &[
             e("nouveau", "Facture directe", "/factures/nouveau"),
@@ -87,6 +96,7 @@ pub const MODULES: &[Module] = &[
     },
     Module {
         cle: "banques",
+        code: "Banque",
         libelle: "Banques",
         entrees: &[
             e("comptes", "Comptes et écritures", "/banques"),
@@ -95,21 +105,25 @@ pub const MODULES: &[Module] = &[
     },
     Module {
         cle: "comptabilite",
+        code: "Comptabilite",
         libelle: "Comptabilité",
         entrees: &[e("journaux", "Journaux et TVA", "/comptabilite")],
     },
     Module {
         cle: "documents",
+        code: "ECM",
         libelle: "Documents",
         entrees: &[e("ged", "Documents archivés", "/documents")],
     },
     Module {
         cle: "agenda",
+        code: "Agenda",
         libelle: "Agenda",
         entrees: &[e("evenements", "Événements", "/agenda")],
     },
     Module {
         cle: "outils",
+        code: "User",
         libelle: "Outils",
         entrees: &[
             e("societe", "Société ou organisation", "/parametres"),

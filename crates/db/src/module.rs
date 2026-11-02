@@ -274,6 +274,23 @@ pub fn definir_actif(
     Ok(())
 }
 
+/// Cree les constantes manquantes des modules portes, sans toucher a celles
+/// qui existent : un module desactive a la main doit le rester apres un
+/// redemarrage.
+pub fn semer_modules_portes(pool: &Pool, entity: i64) -> Result<usize, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let mut n = 0;
+    for module in CATALOGUE.iter().filter(|m| m.porte) {
+        conn.exec_drop(
+            "INSERT IGNORE INTO llx_const (name, entity, value, type, visible) \
+             VALUES (:name, :entity, '1', 'chaine', 1)",
+            params! { "name" => cle_constante(module), "entity" => entity },
+        )?;
+        n += 1;
+    }
+    Ok(n)
+}
+
 /// Active d'emblee les modules dont un ecran existe : une installation neuve
 /// doit etre utilisable sans passer par la page de configuration.
 pub fn activer_modules_portes(pool: &Pool, entity: i64) -> Result<usize, Box<dyn Error>> {

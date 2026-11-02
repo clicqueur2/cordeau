@@ -4,8 +4,10 @@
 //! suivis d'une redirection ; le message de confirmation passe par `?ok=`.
 
 mod api;
+mod entite;
 pub(crate) mod journal_erreurs;
 mod menu;
+mod menu_actif;
 mod pages;
 pub(crate) mod ui;
 
@@ -23,11 +25,13 @@ use db::Pool;
 use maud::{html, Markup};
 use rust_decimal::Decimal;
 
-const ENTITY: i64 = 1;
+// L'entite courante vient de la session : voir `entite::courante()`.
 
 #[derive(Clone, Debug)]
 struct Session {
     login: String,
+    /// Entite (societe) dans laquelle travaille la session.
+    entity: i64,
     admin: bool,
     expire: SystemTime,
 }
@@ -90,8 +94,18 @@ async fn main() {
     let dsn = std::env::var("DOLIBARR_DSN")
         .unwrap_or_else(|_| "mysql://root:root@127.0.0.1:3307/dolibarr".to_string());
     let pool = db::pool(&dsn).expect("connexion MySQL impossible");
+    // Liste des entites (societes) pour le selecteur du bandeau.
+    if let Err(e) = entite::charger(&pool) {
+        eprintln!("liste des entites indisponible : {e}");
+    }
+
+    // Modules actives : la barre de menus en depend.
+    if let Err(e) = menu_actif::charger(&pool, entite::courante()) {
+        eprintln!("chargement des modules impossibles : {e}");
+    }
+
     // Definitions de droits : idempotent, une fois par demarrage.
-    if let Err(e) = db::droit::assurer_definitions(&pool, ENTITY) {
+    if let Err(e) = db::droit::assurer_definitions(&pool, entite::courante()) {
         eprintln!("definitions de droits impossibles : {e}");
     }
 
@@ -111,9 +125,9 @@ async fn main() {
 
     // Installation neuve : les modules dont un ecran existe sont actives
     // d'emblee, comme Dolibarr active un socle a l'installation.
-    match db::module::actifs(&app.pool, ENTITY) {
+    match db::module::actifs(&app.pool, entite::courante()) {
         Ok(actifs) if actifs.is_empty() => {
-            if let Err(e) = db::module::activer_modules_portes(&app.pool, ENTITY) {
+            if let Err(e) = db::module::activer_modules_portes(&app.pool, entite::courante()) {
                 eprintln!("activation des modules impossible : {e}");
             }
         }
@@ -125,6 +139,7 @@ async fn main() {
         .route("/connexion", get(connexion_page).post(connexion))
         .route("/deconnexion", post(deconnexion))
         .route("/compte", get(compte))
+        .route("/entite", post(changer_entite))
         .route("/", get(accueil))
         .route("/recherche", get(recherche))
         .route("/tiers", get(tiers))
@@ -301,6 +316,27 @@ fn lire_cookie(headers: &axum::http::HeaderMap) -> Option<String> {
     None
 }
 
+/// Change l'entite de la session en cours.
+async fn changer_entite(
+    State(app): State<App>,
+    headers: axum::http::HeaderMap,
+    Form(f): Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let entity: i64 = f
+        .get("entity")
+        .and_then(|v| v.parse().ok())
+        .ok_or_else(|| Erreur("entite invalide".into()))?;
+    if let Some(j) = lire_cookie(&headers) {
+        let mut sessions = app.sessions.lock().unwrap();
+        if let Some(s) = sessions.get_mut(&j) {
+            s.entity = entity;
+        }
+    }
+    // La barre de menus et les modules dependent de l'entite.
+    let _ = menu_actif::charger(&app.pool, entity);
+    Ok(Redirect::to("/"))
+}
+
 async fn garde(
     State(app): State<App>,
     req: axum::extract::Request,
@@ -337,7 +373,7 @@ async fn garde(
                 .ok()
                 .flatten()
                 .map(|u| {
-                    db::groupe::droits_effectifs(&app.pool, ENTITY, u.rowid)
+                    db::groupe::droits_effectifs(&app.pool, entite::courante(), u.rowid)
                         .map(|d| d.contains(&id_droit))
                         .unwrap_or(true)
                 })
@@ -365,8 +401,17 @@ async fn garde(
     }
 
     let mut req = req;
-    req.extensions_mut().insert(courant);
-    next.run(req).await
+    req.extensions_mut().insert(courant.clone());
+    // Toute la requete travaille dans l'entite de la session.
+    let entite_courante = entite_de_session(&app, req.headers()).unwrap_or(1);
+    entite::avec(entite_courante, next.run(req)).await
+}
+
+/// Entite portee par le cookie de session, 1 si inconnue.
+fn entite_de_session(app: &App, headers: &axum::http::HeaderMap) -> Option<i64> {
+    let j = lire_cookie(headers)?;
+    let s = app.sessions.lock().unwrap();
+    s.get(&j).map(|x| x.entity)
 }
 
 async fn compte(
@@ -376,7 +421,7 @@ async fn compte(
 ) -> Res<Markup> {
     let u = db::user::par_login(&app.pool, &courant.login)?;
     let groupes = match &u {
-        Some(u) => db::user::groupes(&app.pool, ENTITY, u.rowid)?,
+        Some(u) => db::user::groupes(&app.pool, entite::courante(), u.rowid)?,
         None => Vec::new(),
     };
     let noms_groupes = groupes
@@ -452,6 +497,8 @@ async fn connexion(State(app): State<App>, Form(f): Form<HashMap<String, String>
                 j.clone(),
                 Session {
                     login: u.login.clone(),
+                    // Une session neuve demarre sur l'entite du compte.
+                    entity: u.entity,
                     admin: u.admin,
                     expire: SystemTime::now() + DUREE_SESSION,
                 },
@@ -503,7 +550,7 @@ fn en_retard(echeance: Option<&str>, statut: i16, paye: i16, jour: &str) -> bool
 pub fn nom_tiers(pool: &Pool, fk: Option<i64>) -> Res<String> {
     match fk {
         None => Ok(String::new()),
-        Some(id) => Ok(db::party::get(pool, ENTITY, id)?
+        Some(id) => Ok(db::party::get(pool, entite::courante(), id)?
             .map(|p| p.nom)
             .unwrap_or_else(|| format!("(tiers {id} absent)"))),
     }
@@ -519,7 +566,14 @@ fn pluriel(n: usize, singulier: &str, pluriel: &str) -> String {
 
 fn tracer(app: &App, fk_soc: Option<i64>, elementtype: &str, fk_element: i64, label: &str) {
     if let Ok(mut conn) = app.pool.get_conn() {
-        let _ = db::journal::noter(&mut conn, ENTITY, fk_soc, elementtype, fk_element, label);
+        let _ = db::journal::noter(
+            &mut conn,
+            entite::courante(),
+            fk_soc,
+            elementtype,
+            fk_element,
+            label,
+        );
     }
 }
 
@@ -544,8 +598,8 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
     let p = &app.pool;
     let jour = aujourdhui(p)?;
 
-    let factures = db::invoice::list(p, ENTITY, 500, 0)?;
-    let devis_liste = db::proposal::list(p, ENTITY, 500, 0)?;
+    let factures = db::invoice::list(p, entite::courante(), 500, 0)?;
+    let devis_liste = db::proposal::list(p, entite::courante(), 500, 0)?;
 
     let mut facture_total = Decimal::ZERO;
     let mut encaisse = Decimal::ZERO;
@@ -555,7 +609,7 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
         if f.fk_statut < db::invoice::STATUT_VALIDEE {
             continue;
         }
-        let solde = db::payment::balance(p, ENTITY, f.rowid)?;
+        let solde = db::payment::balance(p, entite::courante(), f.rowid)?;
         facture_total += f.total_ttc.unwrap_or_default();
         encaisse += solde.regle;
         if en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour) {
@@ -617,7 +671,7 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
                                 td { (nom_tiers(p, f.fk_soc)?) }
                                 td { (f.date_lim_reglement.clone().unwrap_or_default()) }
                                 td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
-                                td .num { (ui::euros(db::payment::balance(p, ENTITY, f.rowid)?.reste)) }
+                                td .num { (ui::euros(db::payment::balance(p, entite::courante(), f.rowid)?.reste)) }
                                 td { (ui::pastille(f.fk_statut, f.paye, en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour))) }
                             }
                         }
@@ -655,15 +709,15 @@ async fn recherche(
     let terme = q.get("q").cloned().unwrap_or_default();
     let f = terme.to_lowercase();
 
-    let tiers: Vec<_> = db::party::list(p, ENTITY, 500, 0)?
+    let tiers: Vec<_> = db::party::list(p, entite::courante(), 500, 0)?
         .into_iter()
         .filter(|t| f.is_empty() || t.nom.to_lowercase().contains(&f))
         .collect();
-    let devis: Vec<_> = db::proposal::list(p, ENTITY, 200, 0)?
+    let devis: Vec<_> = db::proposal::list(p, entite::courante(), 200, 0)?
         .into_iter()
         .filter(|d| f.is_empty() || d.ref_.to_lowercase().contains(&f))
         .collect();
-    let factures: Vec<_> = db::invoice::list(p, ENTITY, 200, 0)?
+    let factures: Vec<_> = db::invoice::list(p, entite::courante(), 200, 0)?
         .into_iter()
         .filter(|x| f.is_empty() || x.ref_.to_lowercase().contains(&f))
         .collect();
@@ -705,7 +759,7 @@ async fn tiers(State(app): State<App>, Query(q): Query<HashMap<String, String>>)
     let type_ = q.get("type").cloned().unwrap_or_default();
     // `type` vient d'une liste fermee : la condition SQL est choisie ici, jamais
     // construite a partir du texte saisi.
-    let listes: Vec<_> = db::divers::tiers_filtres(&app.pool, ENTITY, &type_, 500)?
+    let listes: Vec<_> = db::divers::tiers_filtres(&app.pool, entite::courante(), &type_, 500)?
         .into_iter()
         .filter(|p| filtre.is_empty() || p.nom.to_lowercase().contains(&filtre))
         .collect();
@@ -758,17 +812,17 @@ async fn tiers(State(app): State<App>, Query(q): Query<HashMap<String, String>>)
 
 async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> Res<Markup> {
     let p = &app.pool;
-    let t = db::party::get(p, ENTITY, id)?.ok_or(Erreur("Tiers introuvable".into()))?;
+    let t = db::party::get(p, entite::courante(), id)?.ok_or(Erreur("Tiers introuvable".into()))?;
     let jour = aujourdhui(p)?;
-    let devis: Vec<_> = db::proposal::list(p, ENTITY, 500, 0)?
+    let devis: Vec<_> = db::proposal::list(p, entite::courante(), 500, 0)?
         .into_iter()
         .filter(|d| d.fk_soc == Some(id))
         .collect();
-    let factures: Vec<_> = db::invoice::list(p, ENTITY, 500, 0)?
+    let factures: Vec<_> = db::invoice::list(p, entite::courante(), 500, 0)?
         .into_iter()
         .filter(|f| f.fk_soc == Some(id))
         .collect();
-    let evts_tiers = db::journal::pour_tiers(p, ENTITY, id, 20)?;
+    let evts_tiers = db::journal::pour_tiers(p, entite::courante(), id, 20)?;
 
     Ok(ui::page(
         "tiers",
@@ -847,7 +901,7 @@ async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> Res<Markup>
                             tr {
                                 td .ref { a href={ "/factures/" (f.rowid) } { (f.ref_) } }
                                 td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
-                                td .num { (ui::euros(db::payment::balance(p, ENTITY, f.rowid)?.reste)) }
+                                td .num { (ui::euros(db::payment::balance(p, entite::courante(), f.rowid)?.reste)) }
                                 td { (ui::pastille(f.fk_statut, f.paye, en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour))) }
                             }
                         }
@@ -861,7 +915,7 @@ async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> Res<Markup>
 // --- produits ---------------------------------------------------------------
 
 async fn produits(State(app): State<App>) -> Res<Markup> {
-    let listes = db::product::list(&app.pool, ENTITY, 500, 0)?;
+    let listes = db::product::list(&app.pool, entite::courante(), 500, 0)?;
     Ok(ui::page(
         "produits",
         "liste",
@@ -895,7 +949,7 @@ async fn produits(State(app): State<App>) -> Res<Markup> {
 
 async fn devis(State(app): State<App>) -> Res<Markup> {
     let p = &app.pool;
-    let listes = db::proposal::list(p, ENTITY, 200, 0)?;
+    let listes = db::proposal::list(p, entite::courante(), 200, 0)?;
     Ok(ui::page(
         "devis",
         "liste",
@@ -932,15 +986,17 @@ async fn devis_fiche(
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
     let p = &app.pool;
-    let d = db::proposal::get(p, ENTITY, id)?.ok_or(Erreur("Devis introuvable".into()))?;
-    let lignes = db::proposal::lines(p, ENTITY, id)?;
-    let reglement = db::reglement::condition(p, ENTITY, d.fk_cond_reglement.unwrap_or(0))
-        .ok()
-        .flatten()
-        .map(|c| c.libelle_fr())
-        .filter(|l| !l.trim().is_empty());
-    let situations = db::situation::situations(p, ENTITY, id)?;
-    let total_devis = db::situation::total_devis(p, ENTITY, id)?;
+    let d =
+        db::proposal::get(p, entite::courante(), id)?.ok_or(Erreur("Devis introuvable".into()))?;
+    let lignes = db::proposal::lines(p, entite::courante(), id)?;
+    let reglement =
+        db::reglement::condition(p, entite::courante(), d.fk_cond_reglement.unwrap_or(0))
+            .ok()
+            .flatten()
+            .map(|c| c.libelle_fr())
+            .filter(|l| !l.trim().is_empty());
+    let situations = db::situation::situations(p, entite::courante(), id)?;
+    let total_devis = db::situation::total_devis(p, entite::courante(), id)?;
     let deja_facture: Decimal = situations.iter().map(|s| s.total_ttc).sum();
     let reste_a_facturer = total_devis - deja_facture;
 
@@ -1078,7 +1134,7 @@ fn table_lignes(
 }
 
 async fn devis_pdf(State(app): State<App>, Path(id): Path<i64>) -> Res<Response> {
-    let rendu = app::devis_pdf(&app.pool, ENTITY, id)?;
+    let rendu = app::devis_pdf(&app.pool, entite::courante(), id)?;
     Ok(pdf_response(&rendu.bytes, &format!("devis-{id}.pdf")))
 }
 
@@ -1096,13 +1152,13 @@ async fn devis_situation(
         .get("date")
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let facture = db::situation::creer(&app.pool, ENTITY, id, pct, date.as_deref())?;
+    let facture = db::situation::creer(&app.pool, entite::courante(), id, pct, date.as_deref())?;
     Ok(Redirect::to(&format!("/factures/{facture}?ok=situation")))
 }
 
 async fn devis_facturer(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
-    let nouveau = db::invoice::create_from_proposal(&app.pool, ENTITY, id)?;
-    if let Some(d) = db::proposal::get(&app.pool, ENTITY, id)? {
+    let nouveau = db::invoice::create_from_proposal(&app.pool, entite::courante(), id)?;
+    if let Some(d) = db::proposal::get(&app.pool, entite::courante(), id)? {
         tracer(
             &app,
             d.fk_soc,
@@ -1119,7 +1175,7 @@ async fn devis_facturer(State(app): State<App>, Path(id): Path<i64>) -> Res<Redi
 async fn factures(State(app): State<App>) -> Res<Markup> {
     let p = &app.pool;
     let jour = aujourdhui(p)?;
-    let listes = db::invoice::list(p, ENTITY, 200, 0)?;
+    let listes = db::invoice::list(p, entite::courante(), 200, 0)?;
     Ok(ui::page(
         "factures",
         "liste",
@@ -1139,7 +1195,7 @@ async fn factures(State(app): State<App>) -> Res<Markup> {
                                 td { (nom_tiers(p, f.fk_soc)?) }
                                 td { (f.date_lim_reglement.clone().unwrap_or_default()) }
                                 td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
-                                td .num { (ui::euros(db::payment::balance(p, ENTITY, f.rowid)?.reste)) }
+                                td .num { (ui::euros(db::payment::balance(p, entite::courante(), f.rowid)?.reste)) }
                                 td { (ui::pastille(f.fk_statut, f.paye, en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour))) }
                             }
                         }
@@ -1157,17 +1213,19 @@ async fn factures_fiche(
 ) -> Res<Markup> {
     let p = &app.pool;
     let jour = aujourdhui(p)?;
-    let f = db::invoice::get(p, ENTITY, id)?.ok_or(Erreur("Facture introuvable".into()))?;
-    let lignes = db::invoice::lines(p, ENTITY, id)?;
-    let solde = db::payment::balance(p, ENTITY, id)?;
-    let reglements = db::payment::list_for_invoice(p, ENTITY, id)?;
-    let docs = db::ged::pour_element(p, ENTITY, "facture", id)?;
-    let evts = db::journal::pour_element(p, ENTITY, "facture", id)?;
-    let reglement = db::reglement::condition(p, ENTITY, f.fk_cond_reglement.unwrap_or(0))
-        .ok()
-        .flatten()
-        .map(|c| c.libelle_fr())
-        .filter(|l| !l.trim().is_empty());
+    let f =
+        db::invoice::get(p, entite::courante(), id)?.ok_or(Erreur("Facture introuvable".into()))?;
+    let lignes = db::invoice::lines(p, entite::courante(), id)?;
+    let solde = db::payment::balance(p, entite::courante(), id)?;
+    let reglements = db::payment::list_for_invoice(p, entite::courante(), id)?;
+    let docs = db::ged::pour_element(p, entite::courante(), "facture", id)?;
+    let evts = db::journal::pour_element(p, entite::courante(), "facture", id)?;
+    let reglement =
+        db::reglement::condition(p, entite::courante(), f.fk_cond_reglement.unwrap_or(0))
+            .ok()
+            .flatten()
+            .map(|c| c.libelle_fr())
+            .filter(|l| !l.trim().is_empty());
 
     Ok(ui::page(
         "factures",
@@ -1272,18 +1330,18 @@ async fn factures_fiche(
 }
 
 async fn factures_pdf(State(app): State<App>, Path(id): Path<i64>) -> Res<Response> {
-    let rendu = app::facture_pdf(&app.pool, ENTITY, id)?;
+    let rendu = app::facture_pdf(&app.pool, entite::courante(), id)?;
     Ok(pdf_response(&rendu.bytes, &format!("facture-{id}.pdf")))
 }
 
 async fn factures_avoir(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
-    let avoir = db::invoice::create_avoir(&app.pool, ENTITY, id)?;
+    let avoir = db::invoice::create_avoir(&app.pool, entite::courante(), id)?;
     Ok(Redirect::to(&format!("/factures/{avoir}?ok=avoir")))
 }
 
 async fn factures_valider(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
-    db::invoice::validate(&app.pool, ENTITY, id)?;
-    if let Some(f) = db::invoice::get(&app.pool, ENTITY, id)? {
+    db::invoice::validate(&app.pool, entite::courante(), id)?;
+    if let Some(f) = db::invoice::get(&app.pool, entite::courante(), id)? {
         tracer(
             &app,
             f.fk_soc,
@@ -1292,7 +1350,7 @@ async fn factures_valider(State(app): State<App>, Path(id): Path<i64>) -> Res<Re
             &format!("Facture {} validée", f.ref_),
         );
         // Le PDF part dans la GED : un document non archivé n'est pas une pièce.
-        let _ = app::archiver_facture(&app.pool, ENTITY, id);
+        let _ = app::archiver_facture(&app.pool, entite::courante(), id);
     }
     Ok(Redirect::to(&format!("/factures/{id}?ok=validee")))
 }
@@ -1323,7 +1381,7 @@ async fn factures_reglement(
     };
     db::payment::create(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         &db::payment::NewPayment {
             fk_facture: id,
             montant,
@@ -1331,7 +1389,7 @@ async fn factures_reglement(
             ..Default::default()
         },
     )?;
-    if let Some(f) = db::invoice::get(&app.pool, ENTITY, id)? {
+    if let Some(f) = db::invoice::get(&app.pool, entite::courante(), id)? {
         tracer(
             &app,
             f.fk_soc,
@@ -1354,8 +1412,8 @@ async fn chantiers(
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
     let p = &app.pool;
-    let liste = db::projet::list(p, ENTITY, 500, 0)?;
-    let clients = db::party::list(p, ENTITY, 500, 0)?;
+    let liste = db::projet::list(p, entite::courante(), 500, 0)?;
+    let clients = db::party::list(p, entite::courante(), 500, 0)?;
 
     Ok(ui::page(
         "chantiers",
@@ -1443,7 +1501,7 @@ async fn chantier_creer(
         .map(|v| v.replace(',', "."))
         .and_then(|v| v.parse().ok())
         .unwrap_or_default();
-    let id = db::projet::create(&app.pool, ENTITY, &nouveau)?;
+    let id = db::projet::create(&app.pool, entite::courante(), &nouveau)?;
     Ok(Redirect::to(&format!("/chantiers/{id}?ok=cree")))
 }
 
@@ -1453,8 +1511,9 @@ async fn chantier_fiche(
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
     let p = &app.pool;
-    let c = db::projet::get(p, ENTITY, id)?.ok_or(Erreur("Chantier introuvable".into()))?;
-    let taches = db::projet::taches(p, ENTITY, id)?;
+    let c =
+        db::projet::get(p, entite::courante(), id)?.ok_or(Erreur("Chantier introuvable".into()))?;
+    let taches = db::projet::taches(p, entite::courante(), id)?;
 
     Ok(ui::page(
         "chantiers",
@@ -1526,7 +1585,7 @@ async fn chantier_tache_creer(
     let label = champ("label").ok_or_else(|| Erreur("libellé de la tâche obligatoire".into()))?;
     db::projet::creer_tache(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         id,
         &label,
         champ("debut").as_deref(),
@@ -1537,9 +1596,9 @@ async fn chantier_tache_creer(
 
 async fn achats(State(app): State<App>, Query(q): Query<HashMap<String, String>>) -> Res<Markup> {
     let p = &app.pool;
-    let liste = db::achat::fournisseurs(p, ENTITY, 500, 0)?;
-    let factures = db::achat::factures_fournisseur(p, ENTITY, 100, 0)?;
-    let total = db::achat::total_achats(p, ENTITY)?;
+    let liste = db::achat::fournisseurs(p, entite::courante(), 500, 0)?;
+    let factures = db::achat::factures_fournisseur(p, entite::courante(), 100, 0)?;
+    let total = db::achat::total_achats(p, entite::courante())?;
 
     Ok(ui::page(
         "achats",
@@ -1626,8 +1685,8 @@ async fn achat_facture_nouvelle(
     State(app): State<App>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
-    let fournisseurs = db::achat::fournisseurs(&app.pool, ENTITY, 500, 0)?;
-    let tva = db::dict::taux_tva(&app.pool, ENTITY, 1)?;
+    let fournisseurs = db::achat::fournisseurs(&app.pool, entite::courante(), 500, 0)?;
+    let tva = db::dict::taux_tva(&app.pool, entite::courante(), 1)?;
 
     Ok(ui::page(
         "achats",
@@ -1729,12 +1788,12 @@ async fn achat_facture_creer(
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     nouvelle.lines = lignes;
-    db::achat_ecriture::creer(&app.pool, ENTITY, &nouvelle)?;
+    db::achat_ecriture::creer(&app.pool, entite::courante(), &nouvelle)?;
     Ok(Redirect::to("/achats?ok=facture"))
 }
 
 async fn achat_facture_valider(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
-    db::achat_ecriture::valider(&app.pool, ENTITY, id)?;
+    db::achat_ecriture::valider(&app.pool, entite::courante(), id)?;
     Ok(Redirect::to("/achats?ok=facture-validee"))
 }
 
@@ -1751,18 +1810,18 @@ async fn achat_fournisseur_creer(
         .get("code")
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    db::achat::creer_fournisseur(&app.pool, ENTITY, &nom, code.as_deref())?;
+    db::achat::creer_fournisseur(&app.pool, entite::courante(), &nom, code.as_deref())?;
     Ok(Redirect::to("/achats?ok=fournisseur"))
 }
 
 async fn banques(State(app): State<App>, Query(q): Query<HashMap<String, String>>) -> Res<Markup> {
     let p = &app.pool;
-    let liste = db::banque::comptes(p, ENTITY)?;
-    let ecritures = db::banque::ecritures(p, ENTITY, 40)?;
+    let liste = db::banque::comptes(p, entite::courante())?;
+    let ecritures = db::banque::ecritures(p, entite::courante(), 40)?;
 
     let mut soldes = Vec::with_capacity(liste.len());
     for c in &liste {
-        soldes.push(db::banque::solde(p, ENTITY, c.rowid)?);
+        soldes.push(db::banque::solde(p, entite::courante(), c.rowid)?);
     }
     let nom_compte = |id: Option<i64>| -> String {
         id.and_then(|i| liste.iter().find(|c| c.rowid == i))
@@ -1867,7 +1926,7 @@ async fn banque_creer(
     let label = champ("label").ok_or_else(|| Erreur("libellé du compte obligatoire".into()))?;
     db::banque::creer_compte(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         &reference,
         &label,
         champ("banque").as_deref(),
@@ -1886,12 +1945,12 @@ async fn banque_rapprocher(
         .and_then(|v| v.parse::<i64>().ok())
         .ok_or_else(|| Erreur("écriture non précisée".into()))?;
     let fait = f.get("fait").map(|v| v == "1").unwrap_or(true);
-    db::banque::rapprocher(&app.pool, ENTITY, id, fait)?;
+    db::banque::rapprocher(&app.pool, entite::courante(), id, fait)?;
     Ok(Redirect::to("/banques?ok=rapproche"))
 }
 
 async fn documents(State(app): State<App>) -> Res<Markup> {
-    let docs = db::ged::tous(&app.pool, ENTITY, 200)?;
+    let docs = db::ged::tous(&app.pool, entite::courante(), 200)?;
     Ok(ui::page(
         "documents",
         "ged",
@@ -1924,7 +1983,7 @@ async fn documents(State(app): State<App>) -> Res<Markup> {
 }
 
 async fn agenda(State(app): State<App>) -> Res<Markup> {
-    let evenements = db::journal::recents(&app.pool, ENTITY, 200)?;
+    let evenements = db::journal::recents(&app.pool, entite::courante(), 200)?;
     Ok(ui::page(
         "agenda",
         "evenements",
@@ -1969,7 +2028,7 @@ async fn parametres(
     State(app): State<App>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
-    let mut s = db::company::get(&app.pool, ENTITY)?;
+    let mut s = db::company::get(&app.pool, entite::courante())?;
     let mut retour: Option<String> = None;
 
     // Meme recette que pour les tiers : l'annuaire de l'Etat pre-remplit la fiche.
@@ -2099,7 +2158,7 @@ async fn parametres_modules(
     State(app): State<App>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
-    let actifs = db::module::actifs(&app.pool, ENTITY)?;
+    let actifs = db::module::actifs(&app.pool, entite::courante())?;
     let familles: [(&str, &str); 11] = [
         ("base", "Base"),
         ("crm", "Commercial et relation client"),
@@ -2189,14 +2248,15 @@ async fn parametres_module_basculer(
         .filter(|s| !s.is_empty())
         .ok_or_else(|| Erreur("module non précisé".into()))?;
     let actif = f.get("actif").map(|v| v == "1").unwrap_or(false);
-    db::module::definir_actif(&app.pool, ENTITY, &code, actif)?;
+    db::module::definir_actif(&app.pool, entite::courante(), &code, actif)?;
+    menu_actif::charger(&app.pool, entite::courante())?;
     Ok(Redirect::to("/parametres/modules?ok=module"))
 }
 
 /// Insère un modèle de CGV dans les paramètres, pour ne pas partir d'une page
 /// blanche. Le texte reste modifiable ensuite.
 async fn parametres_cgv_modele(State(app): State<App>) -> Res<Redirect> {
-    let mut s = db::company::get(&app.pool, ENTITY)?;
+    let mut s = db::company::get(&app.pool, entite::courante())?;
     s.cgv = Some(
         "Devis valable 30 jours ; la signature vaut acceptation des présentes conditions.\n\
          Paiement par virement sur le compte indiqué ci-dessous.\n\
@@ -2211,9 +2271,9 @@ async fn parametres_cgv_modele(State(app): State<App>) -> Res<Redirect> {
 
 async fn comptabilite(State(app): State<App>) -> Res<Markup> {
     let p = &app.pool;
-    let ventes = db::compta::ventes_par_mois(p, ENTITY, 24)?;
-    let achats = db::compta::achats_par_mois(p, ENTITY, 24)?;
-    let (collectee, deductible, solde) = db::compta::solde_tva(p, ENTITY)?;
+    let ventes = db::compta::ventes_par_mois(p, entite::courante(), 24)?;
+    let achats = db::compta::achats_par_mois(p, entite::courante(), 24)?;
+    let (collectee, deductible, solde) = db::compta::solde_tva(p, entite::courante())?;
     let ca_ht: Decimal = ventes.iter().map(|m| m.total_ht).sum();
     let achats_ht: Decimal = achats.iter().map(|m| m.total_ht).sum();
 
@@ -2323,7 +2383,14 @@ async fn condition_reglement_creer(
         champ("libelle").ok_or_else(|| Erreur("libellé de la condition obligatoire".into()))?;
     let nbjour: i64 = champ("nbjour").and_then(|v| v.parse().ok()).unwrap_or(0);
     let fin_de_mois = f.get("fin_de_mois").map(|v| v == "1").unwrap_or(false);
-    db::reglement::creer_condition(&app.pool, ENTITY, &code, &libelle, nbjour, fin_de_mois)?;
+    db::reglement::creer_condition(
+        &app.pool,
+        entite::courante(),
+        &code,
+        &libelle,
+        nbjour,
+        fin_de_mois,
+    )?;
     Ok(Redirect::to("/parametres/dictionnaires?ok=condition"))
 }
 
@@ -2335,7 +2402,7 @@ async fn condition_reglement_desactiver(
         .get("id")
         .and_then(|v| v.parse::<i64>().ok())
         .ok_or_else(|| Erreur("condition non précisée".into()))?;
-    db::reglement::desactiver_condition(&app.pool, ENTITY, id)?;
+    db::reglement::desactiver_condition(&app.pool, entite::courante(), id)?;
     Ok(Redirect::to("/parametres/dictionnaires?ok=condition"))
 }
 
@@ -2344,7 +2411,7 @@ async fn commandes(
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
     let p = &app.pool;
-    let liste = db::commande::list(p, ENTITY, 200, 0)?;
+    let liste = db::commande::list(p, entite::courante(), 200, 0)?;
 
     Ok(ui::page(
         "commandes",
@@ -2389,8 +2456,9 @@ async fn commande_fiche(
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
     let p = &app.pool;
-    let c = db::commande::get(p, ENTITY, id)?.ok_or(Erreur("Commande introuvable".into()))?;
-    let lignes = db::commande::lines(p, ENTITY, id)?;
+    let c = db::commande::get(p, entite::courante(), id)?
+        .ok_or(Erreur("Commande introuvable".into()))?;
+    let lignes = db::commande::lines(p, entite::courante(), id)?;
 
     Ok(ui::page(
         "commandes",
@@ -2437,31 +2505,31 @@ async fn commande_fiche(
 }
 
 async fn commande_pdf(State(app): State<App>, Path(id): Path<i64>) -> Res<Response> {
-    let rendu = app::commande_pdf(&app.pool, ENTITY, id)?;
+    let rendu = app::commande_pdf(&app.pool, entite::courante(), id)?;
     Ok(pdf_response(&rendu.bytes, &format!("commande-{id}.pdf")))
 }
 
 async fn commande_facturer(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
-    let facture = db::invoice::create_from_commande(&app.pool, ENTITY, id)?;
+    let facture = db::invoice::create_from_commande(&app.pool, entite::courante(), id)?;
     Ok(Redirect::to(&format!("/factures/{facture}?ok=facturee")))
 }
 
 async fn commande_valider(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
-    db::commande::validate(&app.pool, ENTITY, id)?;
+    db::commande::validate(&app.pool, entite::courante(), id)?;
     Ok(Redirect::to(&format!("/commandes/{id}?ok=validee")))
 }
 
 async fn devis_commander(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
-    let commande = db::commande::create_from_proposal(&app.pool, ENTITY, id)?;
+    let commande = db::commande::create_from_proposal(&app.pool, entite::courante(), id)?;
     Ok(Redirect::to(&format!("/commandes/{commande}?ok=cree")))
 }
 
 async fn parametres_dictionnaires(State(app): State<App>) -> Res<Markup> {
     let p = &app.pool;
     let unites = db::dict::unites(p)?;
-    let tva = db::dict::taux_tva(p, ENTITY, 1)?;
+    let tva = db::dict::taux_tva(p, entite::courante(), 1)?;
     let modes = db::dict::modes_paiement(p)?;
-    let conditions = db::reglement::conditions(p, ENTITY)?;
+    let conditions = db::reglement::conditions(p, entite::courante())?;
     let recensement = db::dict::recensement(p)?;
 
     Ok(ui::page(
@@ -2557,7 +2625,7 @@ async fn parametres_base(State(app): State<App>) -> Res<Markup> {
     let p = &app.pool;
     let i = db::infos_base(p)?;
     let modules = db::modules_actifs(p)?;
-    let s = db::company::get(p, ENTITY)?;
+    let s = db::company::get(p, entite::courante())?;
     let manquants = legal::champs_manquants(
         legal::DocType::Facture,
         &app::societe_legale(&s),
@@ -2610,7 +2678,7 @@ async fn parametres_societe(
     State(app): State<App>,
     Form(f): Form<HashMap<String, String>>,
 ) -> Res<Redirect> {
-    let mut s = db::company::get(&app.pool, ENTITY)?;
+    let mut s = db::company::get(&app.pool, entite::courante())?;
     let lire = |cle: &str| f.get(cle).map(|v| v.trim().to_string());
     s.nom = lire("nom").unwrap_or(s.nom);
     s.forme_juridique = lire("forme");
@@ -2748,13 +2816,13 @@ async fn tiers_creer(
     nouveau.phone = champ("tel");
     nouveau.siret = champ("siret");
     nouveau.tva_intra = champ("tva_intra");
-    let id = db::party::create(&app.pool, ENTITY, &nouveau)?;
+    let id = db::party::create(&app.pool, entite::courante(), &nouveau)?;
     Ok(Redirect::to(&format!("/tiers/{id}")))
 }
 
 async fn produits_nouveau(State(app): State<App>) -> Res<Markup> {
     let unites = db::dict::unites(&app.pool)?;
-    let tva = db::dict::taux_tva(&app.pool, ENTITY, 1)?;
+    let tva = db::dict::taux_tva(&app.pool, entite::courante(), 1)?;
     Ok(ui::page(
         "produits",
         "nouveau",
@@ -2824,14 +2892,14 @@ async fn produits_creer(
     if f.get("nature").map(|s| s == "service").unwrap_or(false) {
         nouveau.fk_product_type = db::product::TYPE_SERVICE;
     }
-    db::product::create(&app.pool, ENTITY, &nouveau)?;
+    db::product::create(&app.pool, entite::courante(), &nouveau)?;
     Ok(Redirect::to("/produits"))
 }
 
 async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
-    let clients = db::party::list(&app.pool, ENTITY, 500, 0)?;
-    let tva = db::dict::taux_tva(&app.pool, ENTITY, 1)?;
-    let conditions = db::reglement::conditions(&app.pool, ENTITY)?;
+    let clients = db::party::list(&app.pool, entite::courante(), 500, 0)?;
+    let tva = db::dict::taux_tva(&app.pool, entite::courante(), 1)?;
+    let conditions = db::reglement::conditions(&app.pool, entite::courante())?;
     Ok(ui::page(
         "devis",
         "nouveau",
@@ -2947,7 +3015,7 @@ async fn devis_creer(
         .filter(|s| !s.trim().is_empty())
         .and_then(|v| v.replace(',', ".").parse().ok());
     nouveau.lines = lignes;
-    let id = db::proposal::create(&app.pool, ENTITY, &nouveau)?;
+    let id = db::proposal::create(&app.pool, entite::courante(), &nouveau)?;
     Ok(Redirect::to(&format!("/devis/{id}")))
 }
 // --- edition -----------------------------------------------------------------
@@ -2957,7 +3025,8 @@ async fn tiers_modifier(
     Path(id): Path<i64>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
-    let mut t = db::party::get(&app.pool, ENTITY, id)?.ok_or(Erreur("Tiers introuvable".into()))?;
+    let mut t = db::party::get(&app.pool, entite::courante(), id)?
+        .ok_or(Erreur("Tiers introuvable".into()))?;
     let mut retour: Option<String> = None;
 
     // Même recette que la création : deux GET qui pré-remplissent la fiche.
@@ -3052,7 +3121,7 @@ async fn tiers_enregistrer(
     modif.phone = champ("tel");
     modif.siret = champ("siret");
     modif.tva_intra = champ("tva_intra");
-    db::party::update(&app.pool, ENTITY, id, &modif)?;
+    db::party::update(&app.pool, entite::courante(), id, &modif)?;
     Ok(Redirect::to(&format!("/tiers/{id}")))
 }
 
@@ -3060,16 +3129,17 @@ const NB_LIGNES_DEVIS: usize = 10;
 
 async fn devis_modifier(State(app): State<App>, Path(id): Path<i64>) -> Res<Markup> {
     let p = &app.pool;
-    let d = db::proposal::get(p, ENTITY, id)?.ok_or(Erreur("Devis introuvable".into()))?;
+    let d =
+        db::proposal::get(p, entite::courante(), id)?.ok_or(Erreur("Devis introuvable".into()))?;
     if d.fk_statut != 0 {
         return Err(Erreur(
             "Seul un devis en brouillon peut etre modifie.".into(),
         ));
     }
-    let lignes = db::proposal::lines(p, ENTITY, id)?;
-    let clients = db::party::list(p, ENTITY, 500, 0)?;
-    let tva = db::dict::taux_tva(p, ENTITY, 1)?;
-    let conditions = db::reglement::conditions(p, ENTITY)?;
+    let lignes = db::proposal::lines(p, entite::courante(), id)?;
+    let clients = db::party::list(p, entite::courante(), 500, 0)?;
+    let tva = db::dict::taux_tva(p, entite::courante(), 1)?;
+    let conditions = db::reglement::conditions(p, entite::courante())?;
 
     // Lignes pre-remplies : (section, libelle, qte, pu, tva).
     let mut prefill: Vec<(String, String, String, String, String)> = Vec::new();
@@ -3233,13 +3303,13 @@ async fn devis_enregistrer(
         .filter(|s| !s.trim().is_empty())
         .and_then(|v| v.replace(',', ".").parse().ok());
     modif.lines = lignes;
-    db::proposal::update(&app.pool, ENTITY, id, &modif)?;
+    db::proposal::update(&app.pool, entite::courante(), id, &modif)?;
     Ok(Redirect::to(&format!("/devis/{id}?ok=enregistre")))
 }
 
 async fn devis_valider(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
-    db::proposal::validate(&app.pool, ENTITY, id)?;
-    if let Some(d) = db::proposal::get(&app.pool, ENTITY, id)? {
+    db::proposal::validate(&app.pool, entite::courante(), id)?;
+    if let Some(d) = db::proposal::get(&app.pool, entite::courante(), id)? {
         tracer(
             &app,
             d.fk_soc,
@@ -3247,7 +3317,7 @@ async fn devis_valider(State(app): State<App>, Path(id): Path<i64>) -> Res<Redir
             id,
             &format!("Devis {} validé", d.ref_),
         );
-        let _ = app::archiver_devis(&app.pool, ENTITY, id);
+        let _ = app::archiver_devis(&app.pool, entite::courante(), id);
     }
     Ok(Redirect::to(&format!("/devis/{id}?ok=valide")))
 }
@@ -3259,9 +3329,9 @@ fn elementtype_devis() -> &'static str {
 // --- facture directe et relances --------------------------------------------
 
 async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
-    let clients = db::party::list(&app.pool, ENTITY, 500, 0)?;
-    let tva = db::dict::taux_tva(&app.pool, ENTITY, 1)?;
-    let conditions = db::reglement::conditions(&app.pool, ENTITY)?;
+    let clients = db::party::list(&app.pool, entite::courante(), 500, 0)?;
+    let tva = db::dict::taux_tva(&app.pool, entite::courante(), 1)?;
+    let conditions = db::reglement::conditions(&app.pool, entite::courante())?;
     Ok(ui::page(
         "factures",
         "nouveau",
@@ -3377,13 +3447,13 @@ async fn factures_creer(
         .filter(|s| !s.trim().is_empty())
         .cloned();
     nouvelle.lines = lignes;
-    let id = db::invoice::create(&app.pool, ENTITY, &nouvelle)?;
+    let id = db::invoice::create(&app.pool, entite::courante(), &nouvelle)?;
     Ok(Redirect::to(&format!("/factures/{id}")))
 }
 
 async fn relances(State(app): State<App>) -> Res<Markup> {
     let p = &app.pool;
-    let listes = db::relance::en_retard(p, ENTITY)?;
+    let listes = db::relance::en_retard(p, entite::courante())?;
     let montant = db::relance::total(&listes);
 
     Ok(ui::page(
@@ -3455,7 +3525,7 @@ async fn utilisateurs(
     State(app): State<App>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
-    let listes = db::user::list(&app.pool, ENTITY)?;
+    let listes = db::user::list(&app.pool, entite::courante())?;
     Ok(ui::page(
         "parametres",
         "utilisateurs",
@@ -3547,7 +3617,7 @@ async fn utilisateurs_creer(
         email: f.get("email").filter(|s| !s.trim().is_empty()).cloned(),
         admin: f.get("admin").map(|v| v == "1").unwrap_or(false),
     };
-    db::user::creer(&app.pool, ENTITY, &nouveau)?;
+    db::user::creer(&app.pool, entite::courante(), &nouveau)?;
     Ok(Redirect::to("/parametres/utilisateurs?ok=compte"))
 }
 
@@ -3616,7 +3686,7 @@ async fn import_tiers(
     if csv.trim().is_empty() {
         return Err(Erreur("aucun contenu à importer".into()));
     }
-    let rapport = db::impex::importer_tiers(&app.pool, ENTITY, &csv)?;
+    let rapport = db::impex::importer_tiers(&app.pool, entite::courante(), &csv)?;
     Ok(ui::page(
         "parametres",
         "import",
@@ -3652,7 +3722,7 @@ async fn import_produits(
     if csv.trim().is_empty() {
         return Err(Erreur("aucun contenu à importer".into()));
     }
-    let rapport = db::impex::importer_produits(&app.pool, ENTITY, &csv)?;
+    let rapport = db::impex::importer_produits(&app.pool, entite::courante(), &csv)?;
     Ok(ui::page(
         "parametres",
         "import",
@@ -3684,7 +3754,7 @@ async fn import_factures(
     if csv.trim().is_empty() {
         return Err(Erreur("aucun contenu à importer".into()));
     }
-    let rapport = db::impex::importer_factures(&app.pool, ENTITY, &csv)?;
+    let rapport = db::impex::importer_factures(&app.pool, entite::courante(), &csv)?;
     Ok(ui::page(
         "parametres",
         "import",
@@ -3736,13 +3806,13 @@ async fn grand_livre(
     );
     let ecritures = db::grand_livre::ecritures(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         Some(debut.as_str()).filter(|d| !d.is_empty()),
         Some(fin.as_str()).filter(|d| !d.is_empty()),
     )?;
     let balance = db::grand_livre::balance(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         Some(debut.as_str()).filter(|d| !d.is_empty()),
         Some(fin.as_str()).filter(|f| !f.is_empty()),
     )?;
@@ -3825,7 +3895,7 @@ async fn fec_page(State(app): State<App>, Query(q): Query<HashMap<String, String
     );
     let nombre = db::fec::compter(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         Some(debut.as_str()).filter(|d| !d.is_empty()),
         Some(fin.as_str()).filter(|d| !d.is_empty()),
     )?;
@@ -3880,7 +3950,12 @@ async fn fec_generer(
         .get("fin")
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    db::fec::generer(&app.pool, ENTITY, debut.as_deref(), fin.as_deref())?;
+    db::fec::generer(
+        &app.pool,
+        entite::courante(),
+        debut.as_deref(),
+        fin.as_deref(),
+    )?;
     Ok(Redirect::to(&format!(
         "/comptabilite/fec?ok=genere&debut={}&fin={}",
         debut.unwrap_or_default(),
@@ -3902,7 +3977,7 @@ async fn export_fec(
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "2099-12-31".to_string());
-    let contenu = db::fec::export(&app.pool, ENTITY, &debut, &fin)?;
+    let contenu = db::fec::export(&app.pool, entite::courante(), &debut, &fin)?;
     Ok(csv_response(contenu, "FEC.txt"))
 }
 
@@ -3912,7 +3987,7 @@ async fn export_grand_livre(
 ) -> Res<Response> {
     let ecritures = db::grand_livre::ecritures(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         q.get("debut").map(String::as_str),
         q.get("fin").map(String::as_str),
     )?;
@@ -3940,7 +4015,7 @@ async fn export_ventes(
 ) -> Res<Response> {
     let lignes = db::compta::journal_ventes(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         q.get("debut").map(String::as_str),
         q.get("fin").map(String::as_str),
     )?;
@@ -3966,7 +4041,7 @@ async fn export_achats(
 ) -> Res<Response> {
     let lignes = db::compta::journal_achats(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         q.get("debut").map(String::as_str),
         q.get("fin").map(String::as_str),
     )?;
@@ -3994,7 +4069,7 @@ async fn export_tva(
 ) -> Res<Response> {
     let lignes = db::compta::tva_par_taux(
         &app.pool,
-        ENTITY,
+        entite::courante(),
         q.get("debut").map(String::as_str),
         q.get("fin").map(String::as_str),
     )?;
@@ -4013,12 +4088,12 @@ async fn export_tva(
 }
 
 async fn export_tiers(State(app): State<App>) -> Res<Response> {
-    let csv = db::impex::exporter_tiers(&app.pool, ENTITY)?;
+    let csv = db::impex::exporter_tiers(&app.pool, entite::courante())?;
     Ok(csv_response(csv, "tiers.csv"))
 }
 
 async fn export_produits(State(app): State<App>) -> Res<Response> {
-    let csv = db::impex::exporter_produits(&app.pool, ENTITY)?;
+    let csv = db::impex::exporter_produits(&app.pool, entite::courante())?;
     Ok(csv_response(csv, "produits.csv"))
 }
 
