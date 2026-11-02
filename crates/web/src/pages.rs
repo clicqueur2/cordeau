@@ -796,3 +796,45 @@ pub async fn expeditions(State(app): State<crate::App>) -> Res<Markup> {
         },
     ))
 }
+
+/// Ecran principal d'un module, s'il existe dans le noyau.
+pub fn ecran_module(code: &str) -> Option<&'static str> {
+    Some(match code {
+        "Societe" => "/tiers",
+        "Propale" => "/devis",
+        "Commande" => "/commandes",
+        "Facture" => "/factures",
+        "Product" | "Service" => "/produits",
+        "Stock" => "/stock",
+        "Contrat" => "/contrats",
+        "Expedition" => "/expeditions",
+        "Fournisseur" | "SupplierInvoice" | "SupplierOrder" => "/achats",
+        "Banque" => "/banques",
+        "Projet" => "/chantiers",
+        "Agenda" => "/agenda",
+        "ECM" => "/documents",
+        "Comptabilite" | "Accounting" => "/comptabilite",
+        "User" => "/parametres/utilisateurs",
+        "Import" | "Export" => "/parametres/import",
+        "Cron" => "/parametres/sauvegarde",
+        _ => return None,
+    })
+}
+
+/// Page de configuration d'un module, quand elle existe.
+///
+/// Dolibarr affiche une roue crantee a cote de chaque module actif ; on fait
+/// pareil, mais uniquement quand le reglage existe reellement.
+pub fn configuration_module(code: &str) -> Option<&'static str> {
+    Some(match code {
+        "Facture" | "Propale" => "/parametres/reglage/pdf",
+        "Mailing" | "Notification" => "/parametres/reglage/emails",
+        "Societe" => "/parametres",
+        "User" => "/parametres/utilisateurs",
+        "Comptabilite" | "Accounting" | "Tax" => "/parametres/reglage/limites",
+        "Import" | "Export" => "/parametres/import",
+        "Cron" => "/parametres/sauvegarde",
+        "Api" | "WebServices" => "/parametres/reglage/securite",
+        _ => return None,
+    })
+}

@@ -1,4 +1,10 @@
 //! Groupes et droits herites : le modele de Dolibarr.
+//!
+//! Les tests d'un meme binaire tournent en parallele : chacun travaille donc sur
+//! son propre groupe et son propre compte. Un nom partage les ferait s'effacer
+//! mutuellement (doublon sur uk_usergroup_name, droits supprimes en cours de test).
+//! Meme raison pour le suffixe de PID : deux executions de la suite peuvent se
+//! croiser sur la meme base (hook pre-commit + execution manuelle).
 
 use std::error::Error;
 
@@ -6,18 +12,25 @@ use mysql::prelude::*;
 use mysql::{params, Pool};
 
 const ENTITY: i64 = 1;
-const GROUPE: &str = "ZZ Groupe Test";
+
+fn nom_groupe(base: &str) -> String {
+    format!("{base} {}", std::process::id())
+}
+
+fn login_unique(base: &str) -> String {
+    format!("{base}.{}", std::process::id())
+}
 
 fn pool_or_skip() -> Option<Pool> {
     let dsn = std::env::var("DOLIBARR_DSN").ok()?;
     db::pool(&dsn).ok()
 }
 
-fn nettoyer(pool: &Pool) -> Result<(), Box<dyn Error>> {
+fn nettoyer(pool: &Pool, nom: &str, login: &str) -> Result<(), Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let groupes: Vec<i64> = conn.exec(
         "SELECT rowid FROM llx_usergroup WHERE entity = :entity AND nom = :nom",
-        params! { "entity" => ENTITY, "nom" => GROUPE },
+        params! { "entity" => ENTITY, "nom" => nom },
     )?;
     for g in groupes {
         conn.exec_drop(
@@ -36,23 +49,25 @@ fn nettoyer(pool: &Pool) -> Result<(), Box<dyn Error>> {
     // Retire les droits directs poses par le test sur le compte de service.
     conn.exec_drop(
         "DELETE FROM llx_user_rights WHERE fk_user = :u",
-        params! { "u" => utilisateur_test(pool)? },
+        params! { "u" => utilisateur_test(pool, login)? },
     )?;
     Ok(())
 }
 
 /// Un compte de test, cree au besoin (jamais l'administrateur reel).
-fn utilisateur_test(pool: &Pool) -> Result<i64, Box<dyn Error>> {
+fn utilisateur_test(pool: &Pool, login: &str) -> Result<i64, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
-    let existant: Option<i64> =
-        conn.exec_first("SELECT rowid FROM llx_user WHERE login = 'zz.droits'", ())?;
+    let existant: Option<i64> = conn.exec_first(
+        "SELECT rowid FROM llx_user WHERE login = :login",
+        params! { "login" => login },
+    )?;
     if let Some(id) = existant {
         return Ok(id);
     }
     conn.exec_drop(
         "INSERT INTO llx_user (entity, login, lastname, pass, admin, employee, statut, datec) \
-         VALUES (:entity, 'zz.droits', 'Test Droits', '', 0, 0, 1, NOW())",
-        params! { "entity" => ENTITY },
+         VALUES (:entity, :login, 'Test Droits', '', 0, 0, 1, NOW())",
+        params! { "entity" => ENTITY, "login" => login },
     )?;
     Ok(conn.last_insert_id() as i64)
 }
@@ -63,18 +78,20 @@ fn un_groupe_donne_ses_droits_a_ses_membres() -> Result<(), Box<dyn Error>> {
         return Ok(());
     };
     db::droit::assurer_definitions(&pool, ENTITY)?;
-    nettoyer(&pool)?;
+    let groupe_a = nom_groupe("ZZ Groupe Test A");
+    let login = login_unique("zz.droits");
+    nettoyer(&pool, &groupe_a, &login)?;
 
-    let groupe = db::groupe::creer(&pool, ENTITY, GROUPE, Some("test"))?;
+    let groupe = db::groupe::creer(&pool, ENTITY, &groupe_a, Some("test"))?;
     assert!(groupe > 0);
 
     // Un nom en double est refuse.
     assert!(
-        db::groupe::creer(&pool, ENTITY, GROUPE, None).is_err(),
+        db::groupe::creer(&pool, ENTITY, &groupe_a, None).is_err(),
         "deux groupes de meme nom doivent etre refuses"
     );
 
-    let user = utilisateur_test(&pool)?;
+    let user = utilisateur_test(&pool, &login)?;
     db::groupe::definir_membre(&pool, ENTITY, groupe, user, true)?;
     assert_eq!(db::groupe::membres(&pool, ENTITY, groupe)?.len(), 1);
 
@@ -98,7 +115,7 @@ fn un_groupe_donne_ses_droits_a_ses_membres() -> Result<(), Box<dyn Error>> {
     assert!(apres.contains(&9001), "le droit direct reste");
     assert!(!apres.contains(&9002), "le droit du groupe disparait");
 
-    nettoyer(&pool)?;
+    nettoyer(&pool, &groupe_a, &login)?;
     Ok(())
 }
 
@@ -108,15 +125,17 @@ fn un_droit_peut_etre_retire_du_groupe() -> Result<(), Box<dyn Error>> {
         return Ok(());
     };
     db::droit::assurer_definitions(&pool, ENTITY)?;
-    nettoyer(&pool)?;
+    let groupe_b = nom_groupe("ZZ Groupe Test B");
+    let login = login_unique("zz.droits.b");
+    nettoyer(&pool, &groupe_b, &login)?;
 
-    let groupe = db::groupe::creer(&pool, ENTITY, GROUPE, None)?;
+    let groupe = db::groupe::creer(&pool, ENTITY, &groupe_b, None)?;
     db::groupe::definir_droit(&pool, ENTITY, groupe, 9003, true)?;
     assert!(db::groupe::droits(&pool, groupe)?.contains(&9003));
 
     db::groupe::definir_droit(&pool, ENTITY, groupe, 9003, false)?;
     assert!(!db::groupe::droits(&pool, groupe)?.contains(&9003));
 
-    nettoyer(&pool)?;
+    nettoyer(&pool, &groupe_b, &login)?;
     Ok(())
 }

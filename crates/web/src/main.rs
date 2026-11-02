@@ -2132,32 +2132,36 @@ async fn parametres_modules(
                 @if !liste.is_empty() {
                     h2 { (libelle) }
                     table {
-                        thead { tr { th { "Module" } th { "État" } th { "Écran" } th { "" } } }
+                        thead { tr { th { "Module" } th { "Nom technique" } th { "Statut" } th { "" } } }
                         tbody {
                             @for m in liste {
                                 @let actif = actifs.contains(&m.code.to_uppercase());
                                 tr {
                                     td {
                                         strong { (m.nom) }
-                                        " "
-                                        span style="color:#78736c;font-size:12.5px" { (m.code) }
+                                        @if m.porte {
+                                            " "
+                                            span .pastille.p-payee style="font-size:11px" { "porté" }
+                                        }
                                     }
+                                    td .ref { (m.code) }
                                     td {
                                         @if actif {
-                                            span .pastille.p-payee { "activé" }
+                                            span .pastille.p-validee { "activé" }
                                         } @else {
                                             span .pastille.p-brouillon { "inactif" }
                                         }
                                     }
-                                    td {
-                                        @if m.porte {
-                                            "disponible"
-                                        } @else {
-                                            span style="color:#b6b0a7" { "à porter" }
-                                        }
-                                    }
                                     td .num {
-                                        form method="post" action="/parametres/modules" {
+                                        @if let Some(lien) = pages::ecran_module(m.code) {
+                                            a .bouton.petit.secondaire href=(lien) style="margin-right:6px" { "Ouvrir" }
+                                        }
+                                        @if actif {
+                                            @if let Some(lien) = pages::configuration_module(m.code) {
+                                                a .bouton.petit.secondaire href=(lien) style="margin-right:6px" title="Options du module" { "Options" }
+                                            }
+                                        }
+                                        form method="post" action="/parametres/modules" style="display:inline" {
                                             input type="hidden" name="code" value=(m.code);
                                             input type="hidden" name="actif" value=(if actif { "0" } else { "1" });
                                             button type="submit" class="secondaire petit" {

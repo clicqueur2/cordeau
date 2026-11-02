@@ -8,6 +8,12 @@ use rust_decimal::Decimal;
 
 const ENTITY: i64 = 1;
 
+/// Les tests de projet partagent le meme verrou de numerotation et les memes
+/// tables : les faire tourner en parallele provoque des interblocages InnoDB
+/// (erreur 1213). On les serialise, c'est plus honnete qu'un test qui echoue
+/// une fois sur trois.
+static SERIE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn pool_or_skip() -> Option<Pool> {
     let dsn = std::env::var("DOLIBARR_DSN").ok()?;
     match db::pool(&dsn) {
@@ -73,6 +79,7 @@ fn tiers(pool: &Pool, nom: &str) -> Result<i64, Box<dyn Error>> {
 
 #[test]
 fn cree_un_projet_et_le_relit() -> Result<(), Box<dyn Error>> {
+    let _garde = SERIE.lock().unwrap_or_else(|e| e.into_inner());
     let nom = "Tiers Projet Chantier";
     let Some(pool) = pool_or_skip() else {
         return Ok(());
@@ -134,6 +141,7 @@ fn cree_un_projet_et_le_relit() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn numerote_les_projets_sans_doublon() -> Result<(), Box<dyn Error>> {
+    let _garde = SERIE.lock().unwrap_or_else(|e| e.into_inner());
     let nom = "Tiers Projet Numero";
     let Some(pool) = pool_or_skip() else {
         return Ok(());
@@ -167,6 +175,7 @@ fn numerote_les_projets_sans_doublon() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn update_change_le_titre_sans_toucher_a_la_reference() -> Result<(), Box<dyn Error>> {
+    let _garde = SERIE.lock().unwrap_or_else(|e| e.into_inner());
     let nom = "Tiers Projet Update";
     let Some(pool) = pool_or_skip() else {
         return Ok(());
@@ -209,6 +218,7 @@ fn update_change_le_titre_sans_toucher_a_la_reference() -> Result<(), Box<dyn Er
 
 #[test]
 fn cree_une_tache_et_la_relit() -> Result<(), Box<dyn Error>> {
+    let _garde = SERIE.lock().unwrap_or_else(|e| e.into_inner());
     let nom = "Tiers Projet Tache";
     let Some(pool) = pool_or_skip() else {
         return Ok(());
@@ -271,6 +281,7 @@ fn cree_une_tache_et_la_relit() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn refuse_les_projets_invalides() -> Result<(), Box<dyn Error>> {
+    let _garde = SERIE.lock().unwrap_or_else(|e| e.into_inner());
     let nom = "Tiers Projet Refus";
     let Some(pool) = pool_or_skip() else {
         return Ok(());

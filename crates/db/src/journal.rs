@@ -187,19 +187,22 @@ mod tests {
     #[test]
     fn note_et_relit_un_evenement() {
         let Some(p) = pool() else { return };
+        // Element fictif propre a ce processus : deux executions de la suite
+        // peuvent se croiser sur la meme base (hook + main).
+        let element = 999_000_000 + std::process::id() as i64;
         // Restes d'une execution precedente interrompue.
-        supprimer_pour_element(&p, 1, "facture", 999_999).expect("nettoyage");
+        supprimer_pour_element(&p, 1, "facture", element).expect("nettoyage");
         let mut conn = p.get_conn().expect("connexion");
-        let id = noter(&mut conn, 1, None, "facture", 999_999, "Test evenement").expect("ecriture");
+        let id = noter(&mut conn, 1, None, "facture", element, "Test evenement").expect("ecriture");
         assert!(id > 0);
 
-        let evts = pour_element(&p, 1, "facture", 999_999).expect("lecture");
+        let evts = pour_element(&p, 1, "facture", element).expect("lecture");
         assert_eq!(evts.len(), 1);
         assert_eq!(evts[0].label, "Test evenement");
         assert_eq!(evts[0].elementtype.as_deref(), Some("facture"));
 
-        supprimer_pour_element(&p, 1, "facture", 999_999).expect("nettoyage");
-        assert!(pour_element(&p, 1, "facture", 999_999)
+        supprimer_pour_element(&p, 1, "facture", element).expect("nettoyage");
+        assert!(pour_element(&p, 1, "facture", element)
             .expect("relecture")
             .is_empty());
     }
