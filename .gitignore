@@ -1,0 +1,21 @@
+# Sorties de compilation
+target/
+**/*.rs.bk
+
+# Données locales, jamais versionnées
+documents/
+logs/
+*.log
+*.pdf
+
+# Configuration locale
+.env
+.env.*
+.cargo/config.toml
+
+# Sources Dolibarr récupérées pour la référence du schéma
+_vendor/
+
+# Divers système
+Thumbs.db
+desktop.ini

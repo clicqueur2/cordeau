@@ -1,0 +1,3217 @@
+{
+    "oracle": {
+        "source": "Dolibarr 24.0.1 (_vendor/dolibarr-src), core/lib/price.lib.php",
+        "fonction": "calcul_price_total($qty, $pu, $remise, $txtva, 0, 0, 0, $base, $info_bits, 0)",
+        "normalisation": "core/lib/functions.lib.php::price2num",
+        "php": "8.3.33",
+        "MAIN_MAX_DECIMALS_UNIT": "6",
+        "MAIN_MAX_DECIMALS_TOT": "2",
+        "MAIN_ROUNDING_RULE_TOT": "non defini",
+        "localtax": "aucune (uselocaltax1_rate = uselocaltax2_rate = 0)",
+        "nb_cas": 200,
+        "genere_le": "2026-11-02",
+        "regenerer": "php tools/oracle/generate.php"
+    },
+    "cas": [
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "1.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "1.000000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "18.000000",
+                "total_tva": "3.600000",
+                "total_ttc": "21.600000",
+                "pu_ht": "10.287500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "5",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "3159.720000",
+                "total_tva": "173.780000",
+                "total_ttc": "3333.500000",
+                "pu_ht": "947.868246"
+            }
+        },
+        {
+            "entree": {
+                "qty": "7",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "7777.780000",
+                "total_tva": "0.000000",
+                "total_ttc": "7777.780000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "10",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "79.170000",
+                "total_tva": "15.830000",
+                "total_ttc": "95.000000",
+                "pu_ht": "8.333333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1199.940000",
+                "total_tva": "119.990000",
+                "total_ttc": "1319.930000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "25",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "109.160000",
+                "total_tva": "5.690000",
+                "total_ttc": "109.160000",
+                "pu_ht": "4.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "50",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "6.940000",
+                "total_tva": "1.390000",
+                "total_ttc": "8.330000",
+                "pu_ht": "0.104167"
+            }
+        },
+        {
+            "entree": {
+                "qty": "250",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "22500.000000",
+                "total_tva": "2250.000000",
+                "total_ttc": "24750.000000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1000",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "6753.550000",
+                "total_tva": "371.450000",
+                "total_ttc": "7125.000000",
+                "pu_ht": "7.109005"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.5",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "10.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "10.000000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1.5",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.360000",
+                "total_tva": "0.080000",
+                "total_ttc": "0.440000",
+                "pu_ht": "0.277500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2.25",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.001",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.009479"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.01",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3.75",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "98.950000",
+                "total_tva": "19.790000",
+                "total_ttc": "118.740000",
+                "pu_ht": "27.775000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12.5",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "12.500000",
+                "total_tva": "1.250000",
+                "total_ttc": "13.750000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100000",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1023874.410000",
+                "total_tva": "56313.090000",
+                "total_ttc": "1080187.500000",
+                "pu_ht": "11.701422"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-2",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-0.5",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "-333.350000",
+                "total_tva": "-55.560000",
+                "total_ttc": "-333.350000",
+                "pu_ht": "1000.001000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1111.110000",
+                "total_tva": "111.110000",
+                "total_ttc": "1222.220000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "18.010000",
+                "total_tva": "0.990000",
+                "total_ttc": "19.000000",
+                "pu_ht": "9.478673"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "299.990000",
+                "total_tva": "0.000000",
+                "total_ttc": "299.990000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "5",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "18.190000",
+                "total_tva": "3.640000",
+                "total_ttc": "21.830000",
+                "pu_ht": "4.158333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "7",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "10",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.790000",
+                "total_tva": "0.040000",
+                "total_ttc": "0.830000",
+                "pu_ht": "0.118483"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "1080.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "1080.000000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "25",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "148.440000",
+                "total_tva": "29.690000",
+                "total_ttc": "178.130000",
+                "pu_ht": "6.250000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "50",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "999.500000",
+                "total_tva": "99.950000",
+                "total_ttc": "1099.450000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "27.620000",
+                "total_tva": "1.520000",
+                "total_ttc": "29.140000",
+                "pu_ht": "0.315640"
+            }
+        },
+        {
+            "entree": {
+                "qty": "250",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1000",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "5.560000",
+                "total_tva": "1.110000",
+                "total_ttc": "6.670000",
+                "pu_ht": "0.008333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.5",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.050000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.050000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1.5",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "47.500000",
+                "total_tva": "2.480000",
+                "total_ttc": "47.500000",
+                "pu_ht": "33.330000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2.25",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "2.250000",
+                "total_tva": "0.000000",
+                "total_ttc": "2.250000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.001",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.010000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.010000",
+                "pu_ht": "10.287500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.01",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3.75",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "2369.790000",
+                "total_tva": "130.340000",
+                "total_ttc": "2500.130000",
+                "pu_ht": "947.868246"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12.5",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "13888.890000",
+                "total_tva": "0.000000",
+                "total_ttc": "13888.890000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100000",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "791666.670000",
+                "total_tva": "158333.330000",
+                "total_ttc": "950000.000000",
+                "pu_ht": "8.333333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-2",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "-199.990000",
+                "total_tva": "-20.000000",
+                "total_ttc": "-199.990000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-0.5",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-2.070000",
+                "total_tva": "-0.110000",
+                "total_ttc": "-2.180000",
+                "pu_ht": "4.729858"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.140000",
+                "total_tva": "0.030000",
+                "total_ttc": "0.170000",
+                "pu_ht": "0.104167"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "270.000000",
+                "total_tva": "27.000000",
+                "total_ttc": "297.000000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "5",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "33.770000",
+                "total_tva": "1.860000",
+                "total_ttc": "35.630000",
+                "pu_ht": "7.109005"
+            }
+        },
+        {
+            "entree": {
+                "qty": "7",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "139.930000",
+                "total_tva": "0.000000",
+                "total_ttc": "139.930000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "10",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "2.910000",
+                "total_tva": "0.480000",
+                "total_ttc": "2.910000",
+                "pu_ht": "0.333000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "25",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.160000",
+                "total_tva": "0.010000",
+                "total_ttc": "0.170000",
+                "pu_ht": "0.009479"
+            }
+        },
+        {
+            "entree": {
+                "qty": "50",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "4.500000",
+                "total_tva": "0.000000",
+                "total_ttc": "4.500000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "2638.630000",
+                "total_tva": "527.720000",
+                "total_ttc": "3166.350000",
+                "pu_ht": "27.775000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "250",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "250.000000",
+                "total_tva": "25.000000",
+                "total_ttc": "275.000000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1000",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "10238.740000",
+                "total_tva": "563.140000",
+                "total_ttc": "10801.880000",
+                "pu_ht": "11.701422"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.5",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1.5",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "833.380000",
+                "total_tva": "166.670000",
+                "total_ttc": "1000.050000",
+                "pu_ht": "833.334167"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2.25",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "2500.000000",
+                "total_tva": "250.000000",
+                "total_ttc": "2750.000000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.001",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.010000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.010000",
+                "pu_ht": "9.478673"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.01",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "1.000000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3.75",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "13.640000",
+                "total_tva": "2.730000",
+                "total_ttc": "16.370000",
+                "pu_ht": "4.158333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12.5",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100000",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "8333.750000",
+                "total_tva": "434.460000",
+                "total_ttc": "8333.750000",
+                "pu_ht": "0.125000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-2",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-180.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "-180.000000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-0.5",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-2.970000",
+                "total_tva": "-0.590000",
+                "total_ttc": "-3.560000",
+                "pu_ht": "6.250000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "19.990000",
+                "total_tva": "2.000000",
+                "total_ttc": "21.990000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.550000",
+                "total_tva": "0.030000",
+                "total_ttc": "0.580000",
+                "pu_ht": "0.315640"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "5",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.030000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.030000",
+                "pu_ht": "0.008333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "7",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.630000",
+                "total_tva": "0.060000",
+                "total_ttc": "0.630000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "10",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "300.130000",
+                "total_tva": "16.510000",
+                "total_ttc": "316.640000",
+                "pu_ht": "31.592417"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "12.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "12.000000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "25",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "225.040000",
+                "total_tva": "45.010000",
+                "total_ttc": "270.050000",
+                "pu_ht": "10.287500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "50",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "63194.380000",
+                "total_tva": "3475.690000",
+                "total_ttc": "66670.070000",
+                "pu_ht": "947.868246"
+            }
+        },
+        {
+            "entree": {
+                "qty": "250",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "277777.760000",
+                "total_tva": "0.000000",
+                "total_ttc": "277777.760000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1000",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "9500.000000",
+                "total_tva": "1583.330000",
+                "total_ttc": "9500.000000",
+                "pu_ht": "10.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.5",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "50.000000",
+                "total_tva": "5.000000",
+                "total_ttc": "55.000000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1.5",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "6.210000",
+                "total_tva": "0.340000",
+                "total_ttc": "6.550000",
+                "pu_ht": "4.729858"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2.25",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.001",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.104167"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.01",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.900000",
+                "total_tva": "0.090000",
+                "total_ttc": "0.990000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3.75",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "25.330000",
+                "total_tva": "1.390000",
+                "total_ttc": "26.720000",
+                "pu_ht": "7.109005"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12.5",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "249.880000",
+                "total_tva": "0.000000",
+                "total_ttc": "249.880000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100000",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "24281.250000",
+                "total_tva": "4856.250000",
+                "total_ttc": "29137.500000",
+                "pu_ht": "0.277500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-2",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-0.5",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.009479"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.090000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.090000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "52.770000",
+                "total_tva": "10.560000",
+                "total_ttc": "63.330000",
+                "pu_ht": "27.775000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "3.000000",
+                "total_tva": "0.300000",
+                "total_ttc": "3.300000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "5",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "54.010000",
+                "total_tva": "2.820000",
+                "total_ttc": "54.010000",
+                "pu_ht": "12.345000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "7",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "10",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "5555.840000",
+                "total_tva": "1111.170000",
+                "total_ttc": "6667.010000",
+                "pu_ht": "833.334167"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "13333.330000",
+                "total_tva": "1333.340000",
+                "total_ttc": "14666.670000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "25",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "225.120000",
+                "total_tva": "12.380000",
+                "total_ttc": "237.500000",
+                "pu_ht": "9.478673"
+            }
+        },
+        {
+            "entree": {
+                "qty": "50",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "4999.750000",
+                "total_tva": "0.000000",
+                "total_ttc": "4999.750000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "363.850000",
+                "total_tva": "72.780000",
+                "total_ttc": "436.630000",
+                "pu_ht": "4.158333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "250",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1000",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "78.990000",
+                "total_tva": "4.350000",
+                "total_ttc": "83.340000",
+                "pu_ht": "0.118483"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.5",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "45.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "45.000000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1.5",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "8.910000",
+                "total_tva": "1.780000",
+                "total_ttc": "10.690000",
+                "pu_ht": "6.250000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2.25",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "44.980000",
+                "total_tva": "4.500000",
+                "total_ttc": "49.480000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.001",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.315640"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.01",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3.75",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.030000",
+                "total_tva": "0.010000",
+                "total_ttc": "0.030000",
+                "pu_ht": "0.010000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12.5",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1.130000",
+                "total_tva": "0.110000",
+                "total_ttc": "1.240000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100000",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "3001279.620000",
+                "total_tva": "165070.380000",
+                "total_ttc": "3166350.000000",
+                "pu_ht": "31.592417"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-2",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-2.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "-2.000000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-0.5",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-4.500000",
+                "total_tva": "-0.900000",
+                "total_ttc": "-5.400000",
+                "pu_ht": "10.287500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1263.890000",
+                "total_tva": "69.510000",
+                "total_ttc": "1333.400000",
+                "pu_ht": "947.868246"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "3333.330000",
+                "total_tva": "0.000000",
+                "total_ttc": "3333.330000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "5",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "39.580000",
+                "total_tva": "7.920000",
+                "total_ttc": "47.500000",
+                "pu_ht": "8.333333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "7",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "699.970000",
+                "total_tva": "69.990000",
+                "total_ttc": "769.960000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "10",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "41.390000",
+                "total_tva": "2.270000",
+                "total_ttc": "43.660000",
+                "pu_ht": "4.729858"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "25",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1.740000",
+                "total_tva": "0.340000",
+                "total_ttc": "2.080000",
+                "pu_ht": "0.104167"
+            }
+        },
+        {
+            "entree": {
+                "qty": "50",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "4500.000000",
+                "total_tva": "450.000000",
+                "total_ttc": "4950.000000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "712.500000",
+                "total_tva": "37.140000",
+                "total_ttc": "712.500000",
+                "pu_ht": "7.500000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "250",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "4997.500000",
+                "total_tva": "0.000000",
+                "total_ttc": "4997.500000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1000",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "242.810000",
+                "total_tva": "48.570000",
+                "total_ttc": "291.380000",
+                "pu_ht": "0.277500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.5",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1.5",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.010000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.010000",
+                "pu_ht": "0.009479"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2.25",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.200000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.200000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.001",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.030000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.030000",
+                "pu_ht": "27.775000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.01",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.010000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.010000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3.75",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "38.400000",
+                "total_tva": "2.110000",
+                "total_ttc": "40.510000",
+                "pu_ht": "11.701422"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12.5",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100000",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "55558388.890000",
+                "total_tva": "11111677.780000",
+                "total_ttc": "66670066.670000",
+                "pu_ht": "833.334167"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-2",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-2222.220000",
+                "total_tva": "-222.220000",
+                "total_ttc": "-2444.440000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-0.5",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-4.500000",
+                "total_tva": "-0.250000",
+                "total_ttc": "-4.750000",
+                "pu_ht": "9.478673"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "100.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "100.000000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "8.730000",
+                "total_tva": "1.450000",
+                "total_ttc": "8.730000",
+                "pu_ht": "4.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "5",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.390000",
+                "total_tva": "0.030000",
+                "total_ttc": "0.420000",
+                "pu_ht": "0.118483"
+            }
+        },
+        {
+            "entree": {
+                "qty": "7",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "630.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "630.000000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "10",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "59.380000",
+                "total_tva": "11.870000",
+                "total_ttc": "71.250000",
+                "pu_ht": "6.250000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "239.880000",
+                "total_tva": "23.990000",
+                "total_ttc": "263.870000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "25",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "6.900000",
+                "total_tva": "0.380000",
+                "total_ttc": "7.280000",
+                "pu_ht": "0.315640"
+            }
+        },
+        {
+            "entree": {
+                "qty": "50",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.560000",
+                "total_tva": "0.110000",
+                "total_ttc": "0.670000",
+                "pu_ht": "0.008333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "250",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "22.500000",
+                "total_tva": "2.250000",
+                "total_ttc": "24.750000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1000",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "30012.800000",
+                "total_tva": "1650.700000",
+                "total_ttc": "31663.500000",
+                "pu_ht": "31.592417"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.5",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.500000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.500000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1.5",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "13.500000",
+                "total_tva": "2.700000",
+                "total_ttc": "16.200000",
+                "pu_ht": "10.287500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2.25",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.001",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.670000",
+                "total_tva": "0.040000",
+                "total_ttc": "0.670000",
+                "pu_ht": "1000.001000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.01",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "11.110000",
+                "total_tva": "0.000000",
+                "total_ttc": "11.110000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3.75",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "29.690000",
+                "total_tva": "5.940000",
+                "total_ttc": "35.630000",
+                "pu_ht": "8.333333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12.5",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1249.940000",
+                "total_tva": "124.990000",
+                "total_ttc": "1374.930000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100000",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "413862.560000",
+                "total_tva": "22762.440000",
+                "total_ttc": "436625.000000",
+                "pu_ht": "4.729858"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-2",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-0.5",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-0.030000",
+                "total_tva": "-0.010000",
+                "total_ttc": "-0.040000",
+                "pu_ht": "0.104167"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "90.000000",
+                "total_tva": "9.000000",
+                "total_ttc": "90.000000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "13.510000",
+                "total_tva": "0.740000",
+                "total_ttc": "14.250000",
+                "pu_ht": "7.109005"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "59.970000",
+                "total_tva": "0.000000",
+                "total_ttc": "59.970000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "5",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1.210000",
+                "total_tva": "0.250000",
+                "total_ttc": "1.460000",
+                "pu_ht": "0.277500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "7",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "10",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.060000",
+                "total_tva": "0.010000",
+                "total_ttc": "0.070000",
+                "pu_ht": "0.009479"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1.080000",
+                "total_tva": "0.000000",
+                "total_ttc": "1.080000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "25",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "791.590000",
+                "total_tva": "131.930000",
+                "total_ttc": "791.590000",
+                "pu_ht": "33.330000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "50",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "50.000000",
+                "total_tva": "5.000000",
+                "total_ttc": "55.000000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1023.870000",
+                "total_tva": "56.320000",
+                "total_ttc": "1080.190000",
+                "pu_ht": "11.701422"
+            }
+        },
+        {
+            "entree": {
+                "qty": "250",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1000",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "555583.890000",
+                "total_tva": "111116.780000",
+                "total_ttc": "666700.670000",
+                "pu_ht": "833.334167"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.5",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "555.560000",
+                "total_tva": "55.550000",
+                "total_ttc": "611.110000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1.5",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "13.510000",
+                "total_tva": "0.740000",
+                "total_ttc": "14.250000",
+                "pu_ht": "9.478673"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2.25",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "224.990000",
+                "total_tva": "0.000000",
+                "total_ttc": "224.990000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.001",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "4.158333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.01",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3.75",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.300000",
+                "total_tva": "0.010000",
+                "total_ttc": "0.310000",
+                "pu_ht": "0.118483"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12.5",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1125.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "1125.000000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100000",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "593750.000000",
+                "total_tva": "118750.000000",
+                "total_ttc": "712500.000000",
+                "pu_ht": "6.250000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-2",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-39.980000",
+                "total_tva": "-4.000000",
+                "total_ttc": "-43.980000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-0.5",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "-0.150000",
+                "total_tva": "-0.010000",
+                "total_ttc": "-0.150000",
+                "pu_ht": "0.333000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.010000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.010000",
+                "pu_ht": "0.008333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.270000",
+                "total_tva": "0.030000",
+                "total_ttc": "0.300000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "5",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "150.060000",
+                "total_tva": "8.260000",
+                "total_ttc": "158.320000",
+                "pu_ht": "31.592417"
+            }
+        },
+        {
+            "entree": {
+                "qty": "7",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "7.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "7.000000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "10",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "90.020000",
+                "total_tva": "18.000000",
+                "total_ttc": "108.020000",
+                "pu_ht": "10.287500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12",
+                "pu": "0.005",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "0.005000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "25",
+                "pu": "1000.001",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "15798.590000",
+                "total_tva": "868.930000",
+                "total_ttc": "16667.520000",
+                "pu_ht": "947.868246"
+            }
+        },
+        {
+            "entree": {
+                "qty": "50",
+                "pu": "1234.5678",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "55555.550000",
+                "total_tva": "0.000000",
+                "total_ttc": "55555.550000",
+                "pu_ht": "1234.567800"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100",
+                "pu": "10",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "791.670000",
+                "total_tva": "158.330000",
+                "total_ttc": "950.000000",
+                "pu_ht": "8.333333"
+            }
+        },
+        {
+            "entree": {
+                "qty": "250",
+                "pu": "99.995",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "24998.750000",
+                "total_tva": "2499.880000",
+                "total_ttc": "27498.630000",
+                "pu_ht": "99.995000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1000",
+                "pu": "4.99",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "4138.630000",
+                "total_tva": "227.620000",
+                "total_ttc": "4366.250000",
+                "pu_ht": "4.729858"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.5",
+                "pu": "45678.91",
+                "remise_percent": "100",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "45678.910000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1.5",
+                "pu": "0.125",
+                "remise_percent": "33.33",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "0.130000",
+                "total_tva": "0.030000",
+                "total_ttc": "0.130000",
+                "pu_ht": "0.125000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2.25",
+                "pu": "100",
+                "remise_percent": "10",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "202.500000",
+                "total_tva": "20.250000",
+                "total_ttc": "222.750000",
+                "pu_ht": "100.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.001",
+                "pu": "7.5",
+                "remise_percent": "5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.010000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.010000",
+                "pu_ht": "7.109005"
+            }
+        },
+        {
+            "entree": {
+                "qty": "0.01",
+                "pu": "19.99",
+                "remise_percent": "0",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.200000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.200000",
+                "pu_ht": "19.990000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "3.75",
+                "pu": "0.333",
+                "remise_percent": "12.5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.910000",
+                "total_tva": "0.180000",
+                "total_ttc": "1.090000",
+                "pu_ht": "0.277500"
+            }
+        },
+        {
+            "entree": {
+                "qty": "12.5",
+                "pu": "2.675",
+                "remise_percent": "100",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "0.000000",
+                "total_tva": "0.000000",
+                "total_ttc": "0.000000",
+                "pu_ht": "2.675000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "100000",
+                "pu": "0.01",
+                "remise_percent": "33.33",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "631.940000",
+                "total_tva": "34.760000",
+                "total_ttc": "666.700000",
+                "pu_ht": "0.009479"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-2",
+                "pu": "0.1",
+                "remise_percent": "10",
+                "tva_tx": "0",
+                "price_base_type": "HT",
+                "info_bits": 1
+            },
+            "attendu": {
+                "total_ht": "-0.180000",
+                "total_tva": "0.000000",
+                "total_ttc": "-0.180000",
+                "pu_ht": "0.100000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "-0.5",
+                "pu": "33.33",
+                "remise_percent": "5",
+                "tva_tx": "20",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "-13.190000",
+                "total_tva": "-2.640000",
+                "total_ttc": "-15.830000",
+                "pu_ht": "27.775000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "1",
+                "pu": "1",
+                "remise_percent": "0",
+                "tva_tx": "10",
+                "price_base_type": "HT",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "1.000000",
+                "total_tva": "0.100000",
+                "total_ttc": "1.100000",
+                "pu_ht": "1.000000"
+            }
+        },
+        {
+            "entree": {
+                "qty": "2",
+                "pu": "12.345",
+                "remise_percent": "12.5",
+                "tva_tx": "5.5",
+                "price_base_type": "TTC",
+                "info_bits": 0
+            },
+            "attendu": {
+                "total_ht": "20.480000",
+                "total_tva": "1.120000",
+                "total_ttc": "21.600000",
+                "pu_ht": "11.701422"
+            }
+        }
+    ]
+}

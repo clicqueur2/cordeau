@@ -1,0 +1,16 @@
+[package]
+name = "mcp"
+description = "Serveur MCP (Model Context Protocol) du noyau Dolibarr en Rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "dolibarr-mcp"
+path = "src/main.rs"
+
+[dependencies]
+db = { path = "../db" }
+money = { path = "../money" }
+rust_decimal = { workspace = true }
+serde_json = { workspace = true }
