@@ -9,6 +9,7 @@ pub(crate) mod journal_erreurs;
 mod menu;
 mod menu_actif;
 mod pages;
+mod plugin;
 pub(crate) mod ui;
 
 use std::collections::HashMap;
@@ -195,6 +196,10 @@ async fn main() {
         .route("/avoirs", get(pages::avoirs))
         .route("/contrats", get(pages::contrats))
         .route("/parametres/journal", get(pages::journal))
+        .route(
+            "/parametres/module/:code",
+            get(pages::options_module).post(pages::options_module_enregistrer),
+        )
         .route(
             "/parametres/groupes",
             get(pages::groupes).post(pages::groupe_creer),
@@ -2212,12 +2217,12 @@ async fn parametres_modules(
                                         }
                                     }
                                     td .num {
-                                        @if let Some(lien) = pages::ecran_module(m.code) {
-                                            a .bouton.petit.secondaire href=(lien) style="margin-right:6px" { "Ouvrir" }
+                                        @if let Some(ecran) = plugin::par_code(m.code).and_then(|x| x.ecran) {
+                                            a .bouton.petit.secondaire href=(ecran) style="margin-right:6px" { "Ouvrir" }
                                         }
                                         @if actif {
-                                            @if let Some(lien) = pages::configuration_module(m.code) {
-                                                a .bouton.petit.secondaire href=(lien) style="margin-right:6px" title="Options du module" { "Options" }
+                                            @if plugin::par_code(m.code).is_some() {
+                                                a .bouton.petit.secondaire href={ "/parametres/module/" (m.code) } style="margin-right:6px" title="Options du module" { "Options" }
                                             }
                                         }
                                         form method="post" action="/parametres/modules" style="display:inline" {

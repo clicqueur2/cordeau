@@ -43,7 +43,8 @@ pub const MODULES: &[Module] = &[
         libelle: "Tiers",
         entrees: &[
             e("nouveau", "Nouveau tiers", "/tiers/nouveau"),
-            e("liste", "Liste des tiers", "/tiers"),
+            e("liste", "Liste", "/tiers"),
+            e("clients", "Clients", "/tiers?type=client"),
             e("prospects", "Prospects", "/tiers?type=prospect"),
             e("fournisseurs", "Fournisseurs", "/tiers?type=fournisseur"),
         ],
@@ -71,9 +72,9 @@ pub const MODULES: &[Module] = &[
         entrees: &[
             e("nouveau", "Nouvelle proposition", "/devis/nouveau"),
             e("liste", "Liste des propositions", "/devis"),
-            e("commandes", "Commandes clients", "/commandes"),
+            e("commandes", "Commandes", "/commandes"),
             e("contrats", "Contrats", "/contrats"),
-            e("expeditions", "Expeditions", "/expeditions"),
+            e("expeditions", "Expéditions", "/expeditions"),
         ],
     },
     Module {
