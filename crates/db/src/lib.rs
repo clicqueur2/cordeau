@@ -14,6 +14,7 @@ pub mod banque;
 pub mod commande;
 pub mod company;
 pub mod compta;
+pub mod contact;
 pub mod dict;
 pub mod divers;
 pub mod droit;

@@ -47,6 +47,7 @@ pub const MODULES: &[Module] = &[
             e("clients", "Clients", "/tiers?type=client"),
             e("prospects", "Prospects", "/tiers?type=prospect"),
             e("fournisseurs", "Fournisseurs", "/tiers?type=fournisseur"),
+            e("contacts", "Contacts/Adresses", "/contacts"),
         ],
     },
     Module {
@@ -73,6 +74,11 @@ pub const MODULES: &[Module] = &[
             e("nouveau", "Nouvelle proposition", "/devis/nouveau"),
             e("liste", "Liste des propositions", "/devis"),
             e("commandes", "Commandes", "/commandes"),
+            e(
+                "commandes-fournisseurs",
+                "Commandes fournisseurs",
+                "/commandes-fournisseurs",
+            ),
             e("contrats", "Contrats", "/contrats"),
             e("expeditions", "Expéditions", "/expeditions"),
         ],
@@ -100,15 +106,33 @@ pub const MODULES: &[Module] = &[
         code: "Banque",
         libelle: "Banques",
         entrees: &[
-            e("comptes", "Comptes et écritures", "/banques"),
-            e("rapprochement", "Rapprochement bancaire", "/banques"),
+            e("comptes", "Liste des comptes", "/banques"),
+            e(
+                "rapprochement",
+                "Rapprochement bancaire",
+                "/banques#rapprochement",
+            ),
         ],
     },
     Module {
         cle: "comptabilite",
         code: "Comptabilite",
         libelle: "Comptabilité",
-        entrees: &[e("journaux", "Journaux et TVA", "/comptabilite")],
+        entrees: &[
+            e("journaux", "Synthèse et TVA", "/comptabilite"),
+            e(
+                "journal-ventes",
+                "Journal des ventes",
+                "/comptabilite/journal?sens=ventes",
+            ),
+            e(
+                "journal-achats",
+                "Journal des achats",
+                "/comptabilite/journal?sens=achats",
+            ),
+            e("grand-livre", "Grand livre", "/comptabilite/grand-livre"),
+            e("fec", "Comptabilisation et FEC", "/comptabilite/fec"),
+        ],
     },
     Module {
         cle: "documents",
@@ -120,7 +144,10 @@ pub const MODULES: &[Module] = &[
         cle: "agenda",
         code: "Agenda",
         libelle: "Agenda",
-        entrees: &[e("evenements", "Événements", "/agenda")],
+        entrees: &[
+            e("evenements", "Événements", "/agenda"),
+            e("nouvel-evenement", "Nouvel événement", "/agenda?form=1"),
+        ],
     },
     Module {
         cle: "outils",

@@ -169,6 +169,37 @@ pub fn supprimer_pour_element(
     Ok(())
 }
 
+/// Cree un evenement d'agenda saisi a la main (type Rendez-vous).
+pub fn creer_evenement(
+    pool: &Pool,
+    entity: i64,
+    label: &str,
+    date: Option<&str>,
+    fk_soc: Option<i64>,
+) -> Result<i64, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let type_action: Option<i64> = conn.exec_first(
+        "SELECT id FROM llx_c_actioncomm WHERE code = 'AC_RDV' LIMIT 1",
+        (),
+    )?;
+    let reference: Option<String> =
+        conn.query_first("SELECT CONCAT('EVT', DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'))")?;
+    conn.exec_drop(
+        "INSERT INTO llx_actioncomm \
+         (ref, datep, datec, label, fk_action, fk_soc, entity) \
+         VALUES (:ref, COALESCE(:datep, NOW()), NOW(), :label, :action, :soc, :entity)",
+        params! {
+            "ref" => reference.unwrap_or_else(|| "EVT".to_string()),
+            "datep" => date,
+            "label" => label,
+            "action" => type_action,
+            "soc" => fk_soc,
+            "entity" => entity,
+        },
+    )?;
+    Ok(conn.last_insert_id() as i64)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

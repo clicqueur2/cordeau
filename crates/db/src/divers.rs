@@ -156,3 +156,44 @@ pub fn expeditions(
         })
         .collect())
 }
+/// Une commande fournisseur, en lecture.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CommandeFourn {
+    pub rowid: i64,
+    pub ref_: String,
+    pub ref_supplier: Option<String>,
+    pub tiers: Option<String>,
+    pub date: Option<String>,
+    pub statut: i16,
+    pub total_ttc: Option<Decimal>,
+}
+
+/// Commandes fournisseurs (llx_commande_fournisseur).
+pub fn commandes_fournisseurs(
+    pool: &Pool,
+    entity: i64,
+    limit: u32,
+) -> Result<Vec<CommandeFourn>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let rows: Vec<Row> = conn.exec(
+        "SELECT c.rowid, c.ref, c.ref_supplier, s.nom, \
+                DATE_FORMAT(c.date_commande, '%Y-%m-%d'), c.fk_statut, \
+                CAST(c.total_ttc AS CHAR) \
+         FROM llx_commande_fournisseur c LEFT JOIN llx_societe s ON s.rowid = c.fk_soc \
+         WHERE c.entity = :entity \
+         ORDER BY c.date_commande DESC, c.rowid DESC LIMIT :limit",
+        params! { "entity" => entity, "limit" => limit },
+    )?;
+    Ok(rows
+        .into_iter()
+        .map(|r| CommandeFourn {
+            rowid: opt_i(&r, 0).unwrap_or(0),
+            ref_: opt_s(&r, 1).unwrap_or_default(),
+            ref_supplier: opt_s(&r, 2),
+            tiers: opt_s(&r, 3),
+            date: opt_s(&r, 4),
+            statut: opt_i(&r, 5).unwrap_or(0) as i16,
+            total_ttc: opt_dec(&r, 6),
+        })
+        .collect())
+}
