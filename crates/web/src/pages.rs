@@ -898,3 +898,246 @@ pub async fn options_module_enregistrer(
         "/parametres/module/{code}?ok=options"
     )))
 }
+
+/// Contacts et adresses, comme Dolibarr : la personne distincte de la societe.
+pub async fn contacts(
+    State(app): State<crate::App>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let liste = db::contact::list(&app.pool, crate::entite::courante(), 300)?;
+    let clients = db::party::list(&app.pool, crate::entite::courante(), 500, 0)?;
+
+    Ok(crate::ui::page(
+        "tiers",
+        "contacts",
+        "Contacts et adresses",
+        html! {
+            (message(q.get("ok")))
+            h1 { "Contacts et adresses" }
+            p .sous-titre {
+                "Un contact est une personne ; le tiers est la société. Les deux sont séparés, comme dans Dolibarr."
+            }
+
+            h2 { "Contacts" }
+            @if liste.is_empty() {
+                (crate::ui::vide("Aucun contact.", None))
+            } @else {
+                table {
+                    thead { tr { th { "Nom" } th { "Société" } th { "Fonction" } th { "E-mail" } th { "Téléphone" } th { "Ville" } } }
+                    tbody {
+                        @for c in &liste {
+                            tr {
+                                td { strong { (c.nom_complet()) } }
+                                td { (c.tiers.clone().unwrap_or_default()) }
+                                td { (c.poste.clone().unwrap_or_default()) }
+                                td .ref { (c.email.clone().unwrap_or_default()) }
+                                td .ref { (c.telephone.clone().unwrap_or_default()) }
+                                td { (c.ville.clone().unwrap_or_default()) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            h2 { "Nouveau contact" }
+            form method="post" action="/contacts" {
+                table {
+                    tbody {
+                        tr {
+                            th { "Société" }
+                            td {
+                                select name="soc" style="width:100%" {
+                                    option value="" { "— aucun (particulier) —" }
+                                    @for s in &clients {
+                                        option value=(s.rowid) { (s.nom) }
+                                    }
+                                }
+                            }
+                        }
+                        tr {
+                            th { "Civilité" }
+                            td {
+                                select name="civilite" {
+                                    option value="" { "—" }
+                                    option value="M." { "M." }
+                                    option value="Mme" { "Mme" }
+                                    option value="Mlle" { "Mlle" }
+                                }
+                            }
+                        }
+                        tr { th { "Nom" } td { input type="text" name="nom" required style="width:100%"; } }
+                        tr { th { "Prénom" } td { input type="text" name="prenom" style="width:100%"; } }
+                        tr { th { "Fonction" } td { input type="text" name="poste" style="width:100%"; } }
+                        tr { th { "E-mail" } td { input type="email" name="email" style="width:100%"; } }
+                        tr { th { "Téléphone" } td { input type="text" name="telephone" style="width:100%"; } }
+                    }
+                }
+                div .actions { button type="submit" { "Créer le contact" } }
+            }
+        },
+    ))
+}
+
+pub async fn contact_creer(
+    State(app): State<crate::App>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let champ = |c: &str| {
+        f.get(c)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let nom = champ("nom").ok_or_else(|| Erreur("nom du contact obligatoire".into()))?;
+    let fk_soc = champ("soc").and_then(|v| v.parse::<i64>().ok());
+    db::contact::creer(
+        &app.pool,
+        crate::entite::courante(),
+        fk_soc,
+        champ("civilite").as_deref(),
+        &nom,
+        champ("prenom").as_deref(),
+        champ("email").as_deref(),
+        champ("telephone").as_deref(),
+        champ("poste").as_deref(),
+    )?;
+    Ok(Redirect::to("/contacts?ok=cree"))
+}
+
+/// Nouvel evenement d'agenda (`llx_actioncomm`, type Rendez-vous).
+pub async fn agenda_creer(
+    State(app): State<crate::App>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let champ = |c: &str| {
+        f.get(c)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let label = champ("label").ok_or_else(|| Erreur("libelle obligatoire".into()))?;
+    let date = champ("date");
+    let tiers = champ("soc").and_then(|v| v.parse::<i64>().ok());
+    db::journal::creer_evenement(
+        &app.pool,
+        crate::entite::courante(),
+        &label,
+        date.as_deref(),
+        tiers,
+    )?;
+    Ok(Redirect::to("/agenda?ok=evenement"))
+}
+
+/// Commandes fournisseurs (lecture) : `llx_commande_fournisseur`.
+pub async fn commandes_fournisseurs(State(app): State<crate::App>) -> Res<Markup> {
+    let liste = db::divers::commandes_fournisseurs(&app.pool, crate::entite::courante(), 200)?;
+    Ok(crate::ui::page(
+        "devis",
+        "commandes-fournisseurs",
+        "Commandes fournisseurs",
+        html! {
+            h1 { "Commandes fournisseurs" }
+            p .sous-titre { "Lues dans llx_commande_fournisseur : le noyau les affiche, l'écriture viendra." }
+            @if liste.is_empty() {
+                (crate::ui::vide("Aucune commande fournisseur.", None))
+            } @else {
+                table {
+                    thead { tr { th { "Ref." } th { "Fournisseur" } th { "Chez le fournisseur" } th { "Date" } th { "Statut" } th .num { "TTC" } } }
+                    tbody {
+                        @for c in &liste {
+                            tr {
+                                td .ref { (c.ref_) }
+                                td { (c.tiers.clone().unwrap_or_default()) }
+                                td .ref { (c.ref_supplier.clone().unwrap_or_default()) }
+                                td .ref { (app::fmt_date_fr(c.date.as_deref())) }
+                                td { (c.statut) }
+                                td .num { (crate::ui::euros(c.total_ttc.unwrap_or_default())) }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    ))
+}
+
+/// Journal comptable d'un type : ventes ou achats.
+pub async fn journal_comptable(
+    State(app): State<crate::App>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let sens = q
+        .get("sens")
+        .cloned()
+        .unwrap_or_else(|| "ventes".to_string());
+    let debut = q.get("debut").cloned().filter(|s| !s.is_empty());
+    let fin = q.get("fin").cloned().filter(|s| !s.is_empty());
+
+    let lignes = if sens == "achats" {
+        db::compta::journal_achats(
+            &app.pool,
+            crate::entite::courante(),
+            debut.as_deref(),
+            fin.as_deref(),
+        )?
+    } else {
+        db::compta::journal_ventes(
+            &app.pool,
+            crate::entite::courante(),
+            debut.as_deref(),
+            fin.as_deref(),
+        )?
+    };
+    let total_ht: rust_decimal::Decimal = lignes.iter().map(|l| l.total_ht).sum();
+    let total_tva: rust_decimal::Decimal = lignes.iter().map(|l| l.total_tva).sum();
+    let total_ttc: rust_decimal::Decimal = lignes.iter().map(|l| l.total_ttc).sum();
+    let titre = if sens == "achats" {
+        "Journal des achats"
+    } else {
+        "Journal des ventes"
+    };
+
+    Ok(crate::ui::page(
+        "comptabilite",
+        "journaux",
+        titre,
+        html! {
+            h1 { (titre) }
+            p .sous-titre { "Écritures dérivées des documents, triées par date." }
+            form method="get" action="/comptabilite/journal" .actions {
+                input type="hidden" name="sens" value=(sens);
+                input type="date" name="debut" value=(debut.clone().unwrap_or_default()) aria-label="Début";
+                input type="date" name="fin" value=(fin.clone().unwrap_or_default()) aria-label="Fin";
+                button type="submit" { "Filtrer" }
+                a .bouton.secondaire href={ "/export/ventes.csv?debut=" (debut.clone().unwrap_or_default()) "&fin=" (fin.clone().unwrap_or_default()) } { "CSV ventes" }
+                a .bouton.secondaire href={ "/export/achats.csv?debut=" (debut.clone().unwrap_or_default()) "&fin=" (fin.clone().unwrap_or_default()) } { "CSV achats" }
+            }
+            @if lignes.is_empty() {
+                (crate::ui::vide("Aucune écriture sur la période.", None))
+            } @else {
+                table {
+                    thead { tr { th { "Date" } th { "Référence" } th { "Type" } th { "Tiers" } th .num { "HT" } th .num { "TVA" } th .num { "TTC" } } }
+                    tbody {
+                        @for l in &lignes {
+                            tr {
+                                td .ref { (app::fmt_date_fr(Some(&l.date))) }
+                                td .ref { (l.reference) }
+                                td { (l.type_document) }
+                                td { (l.tiers) }
+                                td .num { (crate::ui::euros(l.total_ht)) }
+                                td .num { (crate::ui::euros(l.total_tva)) }
+                                td .num { (crate::ui::euros(l.total_ttc)) }
+                            }
+                        }
+                    }
+                    tfoot {
+                        tr {
+                            td colspan="4" .num { "Totaux" }
+                            td .num { (crate::ui::euros(total_ht)) }
+                            td .num { (crate::ui::euros(total_tva)) }
+                            td .num { (crate::ui::euros(total_ttc)) }
+                        }
+                    }
+                }
+            }
+        },
+    ))
+}

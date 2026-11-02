@@ -178,6 +178,7 @@ async fn main() {
         )
         .route("/achats/facture/:id/valider", post(achat_facture_valider))
         .route("/achats/fournisseur", post(achat_fournisseur_creer))
+        .route("/contacts", get(pages::contacts).post(pages::contact_creer))
         .route("/stock", get(pages::stock))
         .route("/expeditions", get(pages::expeditions))
         .route(
@@ -224,6 +225,12 @@ async fn main() {
         .route("/comptabilite", get(comptabilite))
         .route("/comptabilite/grand-livre", get(grand_livre))
         .route("/comptabilite/fec", get(fec_page).post(fec_generer))
+        .route("/comptabilite/journal", get(pages::journal_comptable))
+        .route(
+            "/commandes-fournisseurs",
+            get(pages::commandes_fournisseurs),
+        )
+        .route("/agenda/nouveau", axum::routing::post(pages::agenda_creer))
         .route("/export/fec.txt", get(export_fec))
         .route("/parametres", get(parametres))
         .route("/parametres/societe", post(parametres_societe))
@@ -1999,6 +2006,13 @@ async fn agenda(State(app): State<App>) -> Res<Markup> {
                 "Les événements sont écrits dans le journal Dolibarr (llx_actioncomm) : "
                 "validation de devis, relances, règlements."
             }
+            h2 { "Nouvel événement" }
+            form method="post" action="/agenda/nouveau" .actions {
+                input type="text" name="label" placeholder="Objet du rendez-vous" required style="width:320px";
+                input type="date" name="date" aria-label="Date";
+                button type="submit" { "Ajouter" }
+            }
+
             @if evenements.is_empty() {
                 (ui::vide("Aucun événement.", None))
             } @else {
