@@ -151,6 +151,28 @@ fait à un seul endroit.
 Elle sort en code 1 au premier échec — utilisable en pré-commit ou en CI.
 Chaque étage est indépendant et dit lequel a cassé.
 
+**Git refuse un commit sale.** Les hooks sont installés (à relancer après un
+clone, `.git/hooks` n'est pas versionné) :
+
+```powershell
+.\tools\installer-hooks.ps1       # installe pre-commit et pre-push
+```
+
+| Moment | Ce qui tourne | Durée (~à chaud) |
+|---|---|---|
+| `git commit` | `cargo fmt --check` + `clippy -D warnings` + `cargo test --workspace` | 20 s |
+| `git push` | `verifier.ps1` complet : les trois ci-dessus + schéma + chaîne métier + écrans | 1 min 30 |
+| à la main | `.\tools\pre-commit.ps1 -Rapide` (fmt + clippy seuls) | 5 s |
+
+Si la base locale ne répond pas, les tests sont **signalés comme sautés** en
+jaune — le commit passe, mais le hook dit clairement qu'il n'a pas vérifié.
+Contournement assumé et tracé : `git commit --no-verify`.
+
+**Une seule suite de tests à la fois.** Les tests écrivent dans la vraie base :
+deux exécutions simultanées se marchent dessus (références de facture, tiers,
+identifiants). Le hook prend un verrou (`%TEMP%\dolibarr-rs-tests.lock`) et
+attend son tour ; ne pas lancer `cargo test` à la main pendant qu'un hook tourne.
+
 À la main :
 
 ```powershell
