@@ -1,0 +1,23 @@
+[package]
+name = "web"
+description = "Interface web du noyau Dolibarr en Rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "dolibarr-web"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.7", features = ["macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+maud = { version = "0.26", features = ["axum"] }
+app = { path = "../app" }
+db = { path = "../db" }
+money = { path = "../money" }
+legal = { path = "../legal" }
+annuaire = { path = "../annuaire" }
+rust_decimal = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

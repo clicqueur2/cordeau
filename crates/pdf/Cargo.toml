@@ -1,0 +1,19 @@
+[package]
+name = "pdf"
+description = "Rendu des documents commerciaux (devis, factures) en PDF"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+qrcode = "0.14"
+# Moteur de composition Typst, en memoire (pas de binaire externe).
+# Gabarits `.typ` versionnes dans `templates/`, injectes dans le binaire par
+# `include_str!`.
+typst = "0.15"
+typst-layout = "0.15"
+typst-pdf = "0.15"
+
+[dev-dependencies]
+# Uniquement pour l'apercu PNG du gabarit (`examples/apercu.rs`).
+typst-render = "0.15"

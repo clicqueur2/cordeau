@@ -1,0 +1,13 @@
+[package]
+name = "app"
+description = "Cas d'usage partages : composition des documents et rendu PDF"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+db = { path = "../db" }
+money = { path = "../money" }
+pdf = { path = "../pdf" }
+legal = { path = "../legal" }
+rust_decimal = { workspace = true }

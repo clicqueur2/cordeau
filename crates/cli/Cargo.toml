@@ -1,0 +1,21 @@
+[package]
+name = "dolibarr-rs"
+description = "Noyau Dolibarr en Rust, compatible schema et modules"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "dolibarr-rs"
+path = "src/main.rs"
+
+[dependencies]
+money = { path = "../money" }
+schema = { path = "../schema" }
+serde_json = { workspace = true }
+db = { path = "../db" }
+pdf = { path = "../pdf" }
+app = { path = "../app" }
+legal = { path = "../legal" }
+annuaire = { path = "../annuaire" }
+rust_decimal = { workspace = true }
