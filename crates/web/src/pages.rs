@@ -9,7 +9,7 @@ use axum::extract::{Path, Query, State};
 use axum::response::Redirect;
 use maud::{html, Markup};
 
-use crate::{message, Erreur, Res, ENTITY};
+use crate::{message, Erreur, Res};
 
 /// Un champ de reglage : constante Dolibarr, libelle, type, valeur par defaut.
 pub struct Champ {
@@ -225,7 +225,7 @@ pub async fn reglages_enregistrer(
 
 /// Reglements : liste des encaissements, toutes factures confondues.
 pub async fn reglements(State(app): State<crate::App>) -> Res<Markup> {
-    let liste = db::divers::reglements(&app.pool, ENTITY, 200)?;
+    let liste = db::divers::reglements(&app.pool, crate::entite::courante(), 200)?;
     Ok(crate::ui::page(
         "factures",
         "paiements",
@@ -260,7 +260,7 @@ pub async fn reglements(State(app): State<crate::App>) -> Res<Markup> {
 
 /// Avoirs : factures de type 2.
 pub async fn avoirs(State(app): State<crate::App>) -> Res<Markup> {
-    let liste: Vec<_> = db::invoice::list(&app.pool, ENTITY, 500, 0)?
+    let liste: Vec<_> = db::invoice::list(&app.pool, crate::entite::courante(), 500, 0)?
         .into_iter()
         .filter(|f| f.type_ == db::invoice::TYPE_AVOIR)
         .collect();
@@ -295,7 +295,7 @@ pub async fn avoirs(State(app): State<crate::App>) -> Res<Markup> {
 
 /// Contrats clients.
 pub async fn contrats(State(app): State<crate::App>) -> Res<Markup> {
-    let liste = db::divers::contrats(&app.pool, ENTITY, 200)?;
+    let liste = db::divers::contrats(&app.pool, crate::entite::courante(), 200)?;
     Ok(crate::ui::page(
         "devis",
         "contrats",
@@ -401,7 +401,7 @@ pub async fn utilisateur_droits(
             }
 
             h2 { "Droits hérités des groupes" }
-            @let mes_groupes = db::groupe::groupes_de(&app.pool, ENTITY, id)?;
+            @let mes_groupes = db::groupe::groupes_de(&app.pool, crate::entite::courante(), id)?;
             @if mes_groupes.is_empty() {
                 p { "Ce compte n'appartient à aucun groupe." }
             } @else {
@@ -436,7 +436,7 @@ pub async fn utilisateur_droits_enregistrer(
 ) -> Res<Redirect> {
     for d in db::droit::DEFINITIONS {
         let actif = f.contains_key(&format!("d{}", d.id));
-        db::droit::definir(&app.pool, ENTITY, id, d.id, actif)?;
+        db::droit::definir(&app.pool, crate::entite::courante(), id, d.id, actif)?;
     }
     Ok(Redirect::to(&format!(
         "/parametres/utilisateurs/{id}/droits?ok=droits"
@@ -448,7 +448,7 @@ pub async fn groupes(
     State(app): State<crate::App>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
-    let liste = db::groupe::list(&app.pool, ENTITY)?;
+    let liste = db::groupe::list(&app.pool, crate::entite::courante())?;
     Ok(crate::ui::page(
         "parametres",
         "groupes",
@@ -502,7 +502,7 @@ pub async fn groupe_creer(
         .get("note")
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    db::groupe::creer(&app.pool, ENTITY, &nom, note.as_deref())?;
+    db::groupe::creer(&app.pool, crate::entite::courante(), &nom, note.as_deref())?;
     Ok(Redirect::to("/parametres/groupes?ok=cree"))
 }
 
@@ -512,11 +512,11 @@ pub async fn groupe_fiche(
     axum::extract::Path(id): axum::extract::Path<i64>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
-    let g = db::groupe::get(&app.pool, ENTITY, id)?
+    let g = db::groupe::get(&app.pool, crate::entite::courante(), id)?
         .ok_or_else(|| Erreur("groupe introuvable".into()))?;
-    let membres = db::groupe::membres(&app.pool, ENTITY, id)?;
+    let membres = db::groupe::membres(&app.pool, crate::entite::courante(), id)?;
     let droits = db::groupe::droits(&app.pool, id)?;
-    let utilisateurs = db::user::list(&app.pool, ENTITY)?;
+    let utilisateurs = db::user::list(&app.pool, crate::entite::courante())?;
 
     Ok(crate::ui::page(
         "parametres",
@@ -576,9 +576,9 @@ pub async fn groupe_membres_enregistrer(
     axum::extract::Path(id): axum::extract::Path<i64>,
     axum::Form(f): axum::Form<HashMap<String, String>>,
 ) -> Res<Redirect> {
-    for u in db::user::list(&app.pool, ENTITY)? {
+    for u in db::user::list(&app.pool, crate::entite::courante())? {
         let membre = f.contains_key(&format!("u{}", u.rowid));
-        db::groupe::definir_membre(&app.pool, ENTITY, id, u.rowid, membre)?;
+        db::groupe::definir_membre(&app.pool, crate::entite::courante(), id, u.rowid, membre)?;
     }
     Ok(Redirect::to(&format!(
         "/parametres/groupes/{id}?ok=membres"
@@ -592,7 +592,7 @@ pub async fn groupe_droits_enregistrer(
 ) -> Res<Redirect> {
     for d in db::droit::DEFINITIONS {
         let actif = f.contains_key(&format!("d{}", d.id));
-        db::groupe::definir_droit(&app.pool, ENTITY, id, d.id, actif)?;
+        db::groupe::definir_droit(&app.pool, crate::entite::courante(), id, d.id, actif)?;
     }
     Ok(Redirect::to(&format!("/parametres/groupes/{id}?ok=droits")))
 }
@@ -602,10 +602,10 @@ pub async fn stock(
     State(app): State<crate::App>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
-    let niveaux = db::stock::niveaux(&app.pool, ENTITY)?;
-    let mouvements = db::stock::mouvements(&app.pool, ENTITY, 50)?;
-    let entrepots = db::stock::entrepots(&app.pool, ENTITY)?;
-    let produits = db::product::list(&app.pool, ENTITY, 200, 0)?;
+    let niveaux = db::stock::niveaux(&app.pool, crate::entite::courante())?;
+    let mouvements = db::stock::mouvements(&app.pool, crate::entite::courante(), 50)?;
+    let entrepots = db::stock::entrepots(&app.pool, crate::entite::courante())?;
+    let produits = db::product::list(&app.pool, crate::entite::courante(), 200, 0)?;
 
     Ok(crate::ui::page(
         "produits",
@@ -736,7 +736,7 @@ pub async fn stock_mouvement(
     let label = champ("label").filter(|s| !s.is_empty());
     db::stock::mouvement(
         &app.pool,
-        ENTITY,
+        crate::entite::courante(),
         produit,
         entrepot,
         quantite,
@@ -757,13 +757,18 @@ pub async fn stock_entrepot(
     };
     let reference = champ("ref").ok_or_else(|| Erreur("reference obligatoire".into()))?;
     let lieu = champ("lieu");
-    db::stock::creer_entrepot(&app.pool, ENTITY, &reference, lieu.as_deref())?;
+    db::stock::creer_entrepot(
+        &app.pool,
+        crate::entite::courante(),
+        &reference,
+        lieu.as_deref(),
+    )?;
     Ok(Redirect::to("/stock?ok=entrepot"))
 }
 
 /// Expeditions clients.
 pub async fn expeditions(State(app): State<crate::App>) -> Res<Markup> {
-    let liste = db::divers::expeditions(&app.pool, ENTITY, 200)?;
+    let liste = db::divers::expeditions(&app.pool, crate::entite::courante(), 200)?;
     Ok(crate::ui::page(
         "devis",
         "expeditions",

@@ -19,7 +19,13 @@ use serde_json::{json, Value};
 
 use crate::App;
 
-pub const ENTITY: i64 = 1;
+/// Entite servie par l'API (une cle, une entite).
+pub fn entity() -> i64 {
+    std::env::var("DOLIBARR_API_ENTITY")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1)
+}
 
 /// Cle d'API configuree (environnement d'abord).
 pub fn cle_attendue() -> String {
@@ -109,7 +115,7 @@ async fn tiers(
         return Err(refus());
     }
     let limite: u32 = q.get("limit").and_then(|v| v.parse().ok()).unwrap_or(50);
-    let liste = db::party::list(&app.pool, ENTITY, limite, 0)?;
+    let liste = db::party::list(&app.pool, entity(), limite, 0)?;
     Ok(Json(json!(liste
         .iter()
         .map(|t| json!({
@@ -156,7 +162,7 @@ async fn tiers_creer(
         .get("siret")
         .and_then(|v| v.as_str())
         .map(str::to_string);
-    let id = db::party::create(&app.pool, ENTITY, &nouveau)?;
+    let id = db::party::create(&app.pool, entity(), &nouveau)?;
     Ok(Json(json!({ "id": id })))
 }
 
@@ -164,7 +170,7 @@ async fn produits(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
-    let liste = db::product::list(&app.pool, ENTITY, 100, 0)?;
+    let liste = db::product::list(&app.pool, entity(), 100, 0)?;
     Ok(Json(json!(liste
         .iter()
         .map(|p| json!({
@@ -181,7 +187,7 @@ async fn devis(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
-    let liste = db::proposal::list(&app.pool, ENTITY, 100, 0)?;
+    let liste = db::proposal::list(&app.pool, entity(), 100, 0)?;
     Ok(Json(json!(liste
         .iter()
         .map(|d| json!({
@@ -200,13 +206,13 @@ async fn devis_fiche(State(app): State<App>, headers: HeaderMap, Path(id): Path<
     if !autorise(&headers) {
         return Err(refus());
     }
-    let d = db::proposal::get(&app.pool, ENTITY, id)?.ok_or_else(|| {
+    let d = db::proposal::get(&app.pool, entity(), id)?.ok_or_else(|| {
         ApiErreur(
             axum::http::StatusCode::NOT_FOUND,
             "devis introuvable".into(),
         )
     })?;
-    let lignes = db::proposal::lines(&app.pool, ENTITY, id)?;
+    let lignes = db::proposal::lines(&app.pool, entity(), id)?;
     Ok(Json(json!({
         "id": d.rowid,
         "ref": d.ref_,
@@ -221,7 +227,7 @@ async fn devis_fiche(State(app): State<App>, headers: HeaderMap, Path(id): Path<
             "tva": dec_str(l.tva_tx),
             "total_ht": dec_str(l.total_ht),
         })).collect::<Vec<_>>(),
-        "situations": db::situation::situations(&app.pool, ENTITY, id)?.iter().map(|s| json!({
+        "situations": db::situation::situations(&app.pool, entity(), id)?.iter().map(|s| json!({
             "id": s.rowid,
             "ref": s.ref_,
             "numero": s.counter,
@@ -275,7 +281,7 @@ async fn devis_creer(
         ));
     }
     nouveau.lines = pretes;
-    let id = db::proposal::create(&app.pool, ENTITY, &nouveau)?;
+    let id = db::proposal::create(&app.pool, entity(), &nouveau)?;
     Ok(Json(json!({ "id": id })))
 }
 
@@ -287,7 +293,7 @@ async fn devis_valider(
     if !autorise(&headers) {
         return Err(refus());
     }
-    db::proposal::validate(&app.pool, ENTITY, id)?;
+    db::proposal::validate(&app.pool, entity(), id)?;
     Ok(Json(json!({ "id": id, "statut": 1 })))
 }
 
@@ -311,7 +317,7 @@ async fn devis_situation(
             )
         })?;
     let date = corps.get("date").and_then(|v| v.as_str());
-    let facture = db::situation::creer(&app.pool, ENTITY, id, pct, date)?;
+    let facture = db::situation::creer(&app.pool, entity(), id, pct, date)?;
     Ok(Json(json!({ "facture": facture })))
 }
 
@@ -323,7 +329,7 @@ async fn devis_commande(
     if !autorise(&headers) {
         return Err(refus());
     }
-    let commande = db::commande::create_from_proposal(&app.pool, ENTITY, id)?;
+    let commande = db::commande::create_from_proposal(&app.pool, entity(), id)?;
     Ok(Json(json!({ "commande": commande })))
 }
 
@@ -331,11 +337,11 @@ async fn factures(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
-    let liste = db::invoice::list(&app.pool, ENTITY, 100, 0)?;
+    let liste = db::invoice::list(&app.pool, entity(), 100, 0)?;
     Ok(Json(json!(liste
         .iter()
         .map(|f| {
-            let solde = db::payment::balance(&app.pool, ENTITY, f.rowid).ok();
+            let solde = db::payment::balance(&app.pool, entity(), f.rowid).ok();
             json!({
                 "id": f.rowid,
                 "ref": f.ref_,
@@ -359,14 +365,14 @@ async fn facture_fiche(
     if !autorise(&headers) {
         return Err(refus());
     }
-    let f = db::invoice::get(&app.pool, ENTITY, id)?.ok_or_else(|| {
+    let f = db::invoice::get(&app.pool, entity(), id)?.ok_or_else(|| {
         ApiErreur(
             axum::http::StatusCode::NOT_FOUND,
             "facture introuvable".into(),
         )
     })?;
-    let lignes = db::invoice::lines(&app.pool, ENTITY, id)?;
-    let solde = db::payment::balance(&app.pool, ENTITY, id)?;
+    let lignes = db::invoice::lines(&app.pool, entity(), id)?;
+    let solde = db::payment::balance(&app.pool, entity(), id)?;
     Ok(Json(json!({
         "id": f.rowid,
         "ref": f.ref_,
@@ -426,7 +432,7 @@ async fn facture_reglement(
             .map(str::to_string),
         ..Default::default()
     };
-    let paiement = db::payment::create(&app.pool, ENTITY, &nouveau)?;
+    let paiement = db::payment::create(&app.pool, entity(), &nouveau)?;
     Ok(Json(json!({ "paiement": paiement })))
 }
 
@@ -434,7 +440,7 @@ async fn commandes(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
-    let liste = db::commande::list(&app.pool, ENTITY, 100, 0)?;
+    let liste = db::commande::list(&app.pool, entity(), 100, 0)?;
     Ok(Json(json!(liste
         .iter()
         .map(|c| json!({
@@ -455,7 +461,7 @@ async fn commande_valider(
     if !autorise(&headers) {
         return Err(refus());
     }
-    db::commande::validate(&app.pool, ENTITY, id)?;
+    db::commande::validate(&app.pool, entity(), id)?;
     Ok(Json(json!({ "id": id, "statut": 1 })))
 }
 
@@ -467,7 +473,7 @@ async fn commande_facturer(
     if !autorise(&headers) {
         return Err(refus());
     }
-    let facture = db::invoice::create_from_commande(&app.pool, ENTITY, id)?;
+    let facture = db::invoice::create_from_commande(&app.pool, entity(), id)?;
     Ok(Json(json!({ "facture": facture })))
 }
 
@@ -475,10 +481,10 @@ async fn banques(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
-    let comptes = db::banque::comptes(&app.pool, ENTITY)?;
+    let comptes = db::banque::comptes(&app.pool, entity())?;
     let mut sortie = Vec::new();
     for c in &comptes {
-        let solde = db::banque::solde(&app.pool, ENTITY, c.rowid)?;
+        let solde = db::banque::solde(&app.pool, entity(), c.rowid)?;
         sortie.push(json!({
             "id": c.rowid,
             "ref": c.ref_,

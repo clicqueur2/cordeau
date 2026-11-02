@@ -165,7 +165,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                 header {
                     span .marque { "Pierre " span { "Angulaire" } }
                     nav {
-                        @for m in crate::menu::MODULES {
+                        @for m in crate::menu::MODULES.iter().filter(|m| crate::menu_actif::est_actif(m.code)) {
                             a class=(if m.cle == module.cle { "actif" } else { "" })
                               href=(lien_module(m)) { (m.libelle) }
                         }
@@ -173,6 +173,20 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                     form method="get" action="/recherche" {
                         input type="search" name="q" placeholder="Rechercher…" aria-label="Recherche";
                         button type="submit" { "Chercher" }
+                    }
+                    @let entites = crate::entite::liste();
+                    @if entites.len() > 1 {
+                        form method="post" action="/entite" style="margin-left:8px" {
+                            select name="entity" onchange="this.form.submit()" aria-label="Societe" {
+                                @for (id, nom) in &entites {
+                                    option value=(id) selected[*id == crate::entite::courante()] { (nom) }
+                                }
+                            }
+                        }
+                    } @else {
+                        span style="margin-left:10px;color:#78736c;font-size:13.5px" {
+                            (entites.first().map(|(_, n)| n.clone()).unwrap_or_default())
+                        }
                     }
                     a .bouton.secondaire href="/compte" style="margin-left:10px;padding:7px 12px" { "Mon compte" }
                     form method="post" action="/deconnexion" style="margin-left:6px" {
@@ -188,7 +202,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                         }
                         hr;
                         div .module-titre { "Tous les modules" }
-                        @for m in crate::menu::MODULES {
+                        @for m in crate::menu::MODULES.iter().filter(|m| crate::menu_actif::est_actif(m.code)) {
                             a href=(lien_module(m)) { (m.libelle) }
                         }
                     }
