@@ -1980,6 +1980,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mrp"
+version = "0.1.0"
+dependencies = [
+ "rust_decimal",
+]
+
+[[package]]
 name = "mutate_once"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
