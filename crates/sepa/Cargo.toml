@@ -1,0 +1,8 @@
+﻿[package]
+name = "sepa"
+description = "Virements et prelevements SEPA (pain.001, pain.008)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
