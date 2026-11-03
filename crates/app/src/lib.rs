@@ -364,7 +364,12 @@ pub fn devis_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dyn 
         notes: p.note_public.clone().filter(|n| !n.trim().is_empty()),
     };
 
-    let r = pdf::render_document(&doc)?;
+    let modele = db::company::get_const(pool, "DOLIBARR_RS_PDF_MODELE")
+        .ok()
+        .flatten()
+        .and_then(|c| pdf::Modele::depuis_code(&c))
+        .unwrap_or(pdf::Modele::Standard);
+    let r = pdf::render_avec_modele(&doc, modele)?;
     Ok(RenduPdf {
         bytes: r.bytes,
         pages: r.pages,
@@ -482,7 +487,12 @@ pub fn commande_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<d
         notes: c.note_public.clone().filter(|n| !n.trim().is_empty()),
     };
 
-    let r = pdf::render_document(&doc)?;
+    let modele = db::company::get_const(pool, "DOLIBARR_RS_PDF_MODELE")
+        .ok()
+        .flatten()
+        .and_then(|c| pdf::Modele::depuis_code(&c))
+        .unwrap_or(pdf::Modele::Standard);
+    let r = pdf::render_avec_modele(&doc, modele)?;
     Ok(RenduPdf {
         bytes: r.bytes,
         pages: r.pages,
@@ -578,7 +588,12 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
         notes: f.note_public.clone().filter(|n| !n.trim().is_empty()),
     };
 
-    let r = pdf::render_document(&doc)?;
+    let modele = db::company::get_const(pool, "DOLIBARR_RS_PDF_MODELE")
+        .ok()
+        .flatten()
+        .and_then(|c| pdf::Modele::depuis_code(&c))
+        .unwrap_or(pdf::Modele::Standard);
+    let r = pdf::render_avec_modele(&doc, modele)?;
     Ok(RenduPdf {
         bytes: r.bytes,
         pages: r.pages,
