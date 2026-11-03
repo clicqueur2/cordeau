@@ -197,6 +197,14 @@ async fn main() {
             "/liste/:code/nouveau",
             get(pages::liste_saisie_form).post(pages::liste_saisie_creer),
         )
+        .route(
+            "/liste/:code/fiche/:id",
+            get(pages::fiche_saisie).post(pages::fiche_saisie_enregistrer),
+        )
+        .route(
+            "/liste/:code/fiche/:id/supprimer",
+            post(pages::fiche_saisie_supprimer),
+        )
         .route("/contacts", get(pages::contacts).post(pages::contact_creer))
         .route(
             "/contacts/:id/modifier",
