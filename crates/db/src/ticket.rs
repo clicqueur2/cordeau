@@ -140,3 +140,33 @@ pub fn fermer(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>
     )?;
     Ok(())
 }
+
+/// Un ticket precis.
+pub fn get(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Ticket>, Box<dyn Error>> {
+    Ok(list(pool, entity, 10_000)?
+        .into_iter()
+        .find(|t| t.rowid == rowid))
+}
+
+/// Change le statut d'un ticket (0 nouveau, 1 en cours, 8 ferme).
+pub fn changer_statut(
+    pool: &Pool,
+    entity: i64,
+    rowid: i64,
+    statut: i16,
+) -> Result<(), Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    if statut == STATUT_FERME {
+        conn.exec_drop(
+            "UPDATE llx_ticket SET fk_statut = :statut, date_close = NOW() \
+             WHERE entity = :entity AND rowid = :rowid",
+            params! { "statut" => statut, "entity" => entity, "rowid" => rowid },
+        )?;
+    } else {
+        conn.exec_drop(
+            "UPDATE llx_ticket SET fk_statut = :statut WHERE entity = :entity AND rowid = :rowid",
+            params! { "statut" => statut, "entity" => entity, "rowid" => rowid },
+        )?;
+    }
+    Ok(())
+}

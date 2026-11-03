@@ -138,6 +138,11 @@ async fn main() {
         .route("/tiers", get(tiers))
         .route("/tiers/:id", get(tiers_fiche))
         .route("/produits", get(produits))
+        .route("/produits/:id", get(produit_fiche))
+        .route(
+            "/produits/:id/modifier",
+            axum::routing::post(produit_enregistrer),
+        )
         .route("/devis", get(devis))
         .route("/devis/:id", get(devis_fiche))
         .route("/devis/:id/pdf", get(devis_pdf))
@@ -176,6 +181,15 @@ async fn main() {
             axum::routing::post(pages::ticket_fermer),
         )
         .route("/contacts", get(pages::contacts).post(pages::contact_creer))
+        .route(
+            "/contacts/:id/modifier",
+            get(pages::contact_fiche).post(pages::contact_enregistrer),
+        )
+        .route("/tickets/:id", get(pages::ticket_fiche))
+        .route(
+            "/tickets/:id/statut",
+            axum::routing::post(pages::ticket_statut),
+        )
         .route("/stock", get(pages::stock))
         .route("/expeditions", get(pages::expeditions))
         .route(
@@ -2852,6 +2866,93 @@ async fn tiers_creer(
     nouveau.tva_intra = champ("tva_intra");
     let id = db::party::create(&app.pool, entite::courante(), &nouveau)?;
     Ok(Redirect::to(&format!("/tiers/{id}")))
+}
+
+/// Fiche d'un produit : consultation et edition des champs courants.
+async fn produit_fiche(
+    State(app): State<App>,
+    Path(id): Path<i64>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let p = db::product::get(&app.pool, entite::courante(), id)?
+        .ok_or_else(|| Erreur("produit introuvable".into()))?;
+    let tva = db::dict::taux_tva(&app.pool, entite::courante(), 1)?;
+
+    Ok(ui::page(
+        "produits",
+        "liste",
+        &p.ref_,
+        html! {
+            (message(q.get("ok")))
+            h1 { (p.label) " " }
+            p .sous-titre { "Référence " code { (p.ref_) } " — la référence ne change jamais : elle sert de clé dans les documents déjà émis." }
+            form method="post" action={ "/produits/" (id) "/modifier" } {
+                table {
+                    tbody {
+                        tr { th { "Désignation" } td { input type="text" name="label" value=(p.label) required style="width:100%"; } }
+                        tr { th { "Prix HT" } td { input type="number" name="prix" step="0.01" min="0" value=(app::fmt_dec(p.price)) style="width:140px"; } }
+                        tr {
+                            th { "TVA" }
+                            td {
+                                select name="tva" {
+                                    @for t in &tva {
+                                        option value=(t.taux) selected[p.tva_tx == Some(t.taux)] { (app::fmt_qte(Some(t.taux))) " %" }
+                                    }
+                                }
+                            }
+                        }
+                        tr { th { "Description" } td { input type="text" name="description" value=(p.description.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr {
+                            th { "En vente" }
+                            td {
+                                select name="vente" {
+                                    option value="1" selected[p.on_sell()] { "Oui" }
+                                    option value="0" selected[!p.on_sell()] { "Non (masqué)" }
+                                }
+                            }
+                        }
+                    }
+                }
+                div .actions {
+                    button type="submit" { "Enregistrer" }
+                    a .bouton.secondaire href="/produits" { "Retour" }
+                }
+            }
+            p .sous-titre { "Prix TTC calculé : " strong { (app::fmt_eur(p.price_ttc)) } }
+        },
+    ))
+}
+
+async fn produit_enregistrer(
+    State(app): State<App>,
+    Path(id): Path<i64>,
+    Form(f): Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let champ = |c: &str| {
+        f.get(c)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let label = champ("label").ok_or_else(|| Erreur("désignation obligatoire".into()))?;
+    let prix: Decimal = champ("prix")
+        .and_then(|v| v.replace(',', ".").parse().ok())
+        .unwrap_or_default();
+    let tva: Decimal = champ("tva")
+        .and_then(|v| v.replace(',', ".").parse().ok())
+        .unwrap_or_default();
+    let description = champ("description");
+    let vente = f.get("vente").map(|v| v == "1").unwrap_or(true);
+    db::product::update(
+        &app.pool,
+        entite::courante(),
+        id,
+        &label,
+        prix,
+        tva,
+        description.as_deref(),
+        vente,
+    )?;
+    Ok(Redirect::to(&format!("/produits/{id}?ok=enregistre")))
 }
 
 async fn produits_nouveau(State(app): State<App>) -> Res<Markup> {

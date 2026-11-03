@@ -1257,3 +1257,123 @@ pub async fn ticket_fermer(
     db::ticket::fermer(&app.pool, crate::entite::courante(), id)?;
     Ok(Redirect::to("/tickets?ok=ferme"))
 }
+
+/// Edition d'un contact.
+pub async fn contact_fiche(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let c = db::contact::get(&app.pool, crate::entite::courante(), id)?
+        .ok_or_else(|| Erreur("contact introuvable".into()))?;
+
+    Ok(crate::ui::page(
+        "tiers",
+        "contacts",
+        &c.nom_complet(),
+        html! {
+            (message(q.get("ok")))
+            h1 { (c.nom_complet()) }
+            p .sous-titre {
+                @if let Some(t) = &c.tiers { "Société : " strong { (t) } }
+                @else { "Sans société (particulier)" }
+            }
+            form method="post" action={ "/contacts/" (id) "/modifier" } {
+                table {
+                    tbody {
+                        tr { th { "Nom" } td { input type="text" name="nom" value=(c.nom) required style="width:100%"; } }
+                        tr { th { "Prénom" } td { input type="text" name="prenom" value=(c.prenom.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th { "Fonction" } td { input type="text" name="poste" value=(c.poste.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th { "E-mail" } td { input type="email" name="email" value=(c.email.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th { "Téléphone" } td { input type="text" name="telephone" value=(c.telephone.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th { "Ville" } td { input type="text" name="ville" value=(c.ville.clone().unwrap_or_default()) style="width:100%"; } }
+                    }
+                }
+                div .actions {
+                    button type="submit" { "Enregistrer" }
+                    a .bouton.secondaire href="/contacts" { "Retour" }
+                }
+            }
+        },
+    ))
+}
+
+pub async fn contact_enregistrer(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let champ = |c: &str| {
+        f.get(c)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let nom = champ("nom").ok_or_else(|| Erreur("nom obligatoire".into()))?;
+    db::contact::modifier(
+        &app.pool,
+        crate::entite::courante(),
+        id,
+        &nom,
+        champ("prenom").as_deref(),
+        champ("email").as_deref(),
+        champ("telephone").as_deref(),
+        champ("poste").as_deref(),
+        champ("ville").as_deref(),
+    )?;
+    Ok(Redirect::to(&format!(
+        "/contacts/{id}/modifier?ok=enregistre"
+    )))
+}
+
+/// Fiche d'un ticket : message complet et changement de statut.
+pub async fn ticket_fiche(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let t = db::ticket::get(&app.pool, crate::entite::courante(), id)?
+        .ok_or_else(|| Erreur("ticket introuvable".into()))?;
+
+    Ok(crate::ui::page(
+        "tickets",
+        "liste",
+        &t.ref_,
+        html! {
+            (message(q.get("ok")))
+            h1 { (t.sujet) " " }
+            p .sous-titre {
+                (t.ref_) " — " (t.tiers.clone().unwrap_or_else(|| "sans société".into()))
+                @if let Some(d) = &t.date { " — ouvert le " (app::fmt_date_fr(Some(d))) }
+                @if let Some(g) = &t.gravite { " — gravité " (g) }
+            }
+            @if let Some(m) = &t.message {
+                div .carte style="margin-bottom:22px" {
+                    div .libelle { "Message" }
+                    p style="white-space:pre-wrap" { (m) }
+                }
+            }
+            form method="post" action={ "/tickets/" (id) "/statut" } .actions {
+                select name="statut" {
+                    option value="0" selected[t.statut == 0] { "Nouveau" }
+                    option value="1" selected[t.statut == 1] { "En cours" }
+                    option value="8" selected[t.statut == 8] { "Fermé" }
+                }
+                button type="submit" { "Changer l'état" }
+                a .bouton.secondaire href="/tickets" { "Retour" }
+            }
+        },
+    ))
+}
+
+pub async fn ticket_statut(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let statut: i16 = f
+        .get("statut")
+        .and_then(|v| v.parse().ok())
+        .ok_or_else(|| Erreur("statut invalide".into()))?;
+    db::ticket::changer_statut(&app.pool, crate::entite::courante(), id, statut)?;
+    Ok(Redirect::to(&format!("/tickets/{id}?ok=statut")))
+}
