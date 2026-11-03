@@ -26,6 +26,7 @@ pub mod impex;
 pub mod installation;
 pub mod invoice;
 pub mod journal;
+pub mod menu;
 pub mod module;
 pub mod party;
 pub mod payment;
