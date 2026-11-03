@@ -29,11 +29,18 @@ pub struct Product {
     pub hidden: i16,
     pub barcode: Option<String>,
     pub datec: Option<String>,
+    /// Description commerciale (`description`).
+    pub description: Option<String>,
 }
 
 impl Product {
     pub fn est_service(&self) -> bool {
         self.fk_product_type == TYPE_SERVICE
+    }
+
+    /// Le produit est-il propose a la vente (`tosell`) ?
+    pub fn on_sell(&self) -> bool {
+        self.tosell != 0
     }
 }
 
@@ -71,7 +78,7 @@ impl NewProduct {
 const SELECT_COLS: &str = "rowid, entity, ref, label, \
      CAST(price AS CHAR), CAST(price_ttc AS CHAR), price_base_type, \
      CAST(tva_tx AS CHAR), fk_unit, fk_product_type, tosell, tobuy, hidden, barcode, \
-     DATE_FORMAT(datec, '%Y-%m-%d %H:%i:%s')";
+     DATE_FORMAT(datec, '%Y-%m-%d %H:%i:%s'), description";
 
 fn opt_s(row: &Row, i: usize) -> Option<String> {
     row.get_opt::<String, _>(i).and_then(|r| r.ok())
@@ -101,6 +108,7 @@ fn map_row(row: Row) -> Product {
         tobuy: opt_i(&row, 11).unwrap_or(1) as i16,
         hidden: opt_i(&row, 12).unwrap_or(0) as i16,
         barcode: opt_s(&row, 13),
+        description: opt_s(&row, 15),
         datec: opt_s(&row, 14),
     }
 }
@@ -212,6 +220,38 @@ pub fn delete(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>
     conn.exec_drop(
         "DELETE FROM llx_product WHERE entity = ? AND rowid = ?",
         (entity, rowid),
+    )?;
+    Ok(())
+}
+
+/// Met a jour les champs editables d'un produit. La reference ne bouge pas :
+/// elle sert de cle dans les documents deja emis.
+#[allow(clippy::too_many_arguments)]
+pub fn update(
+    pool: &Pool,
+    entity: i64,
+    rowid: i64,
+    label: &str,
+    price: Decimal,
+    tva_tx: Decimal,
+    description: Option<&str>,
+    on_sell: bool,
+) -> Result<(), Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(
+        "UPDATE llx_product SET label = :label, price = :prix, price_ttc = :prix_ttc, \
+          tva_tx = :tva, description = :description, tosell = :vente, tms = NOW() \
+         WHERE entity = :entity AND rowid = :rowid",
+        params! {
+            "label" => label,
+            "prix" => price.to_string(),
+            "prix_ttc" => money::round_unit_price(price * (Decimal::ONE + tva_tx / Decimal::from(100))).to_string(),
+            "tva" => tva_tx.to_string(),
+            "description" => description,
+            "vente" => if on_sell { 1 } else { 0 },
+            "entity" => entity,
+            "rowid" => rowid,
+        },
     )?;
     Ok(())
 }

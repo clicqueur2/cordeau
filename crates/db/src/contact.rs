@@ -144,3 +144,46 @@ pub fn desactiver(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Er
     )?;
     Ok(())
 }
+
+/// Un contact precis.
+pub fn get(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Contact>, Box<dyn Error>> {
+    Ok(list(pool, entity, 10_000)?
+        .into_iter()
+        .find(|c| c.rowid == rowid))
+}
+
+/// Met a jour un contact. Le nom reste obligatoire.
+#[allow(clippy::too_many_arguments)]
+pub fn modifier(
+    pool: &Pool,
+    entity: i64,
+    rowid: i64,
+    nom: &str,
+    prenom: Option<&str>,
+    email: Option<&str>,
+    telephone: Option<&str>,
+    poste: Option<&str>,
+    ville: Option<&str>,
+) -> Result<(), Box<dyn Error>> {
+    let nom = nom.trim();
+    if nom.is_empty() {
+        return Err("le nom du contact est obligatoire".into());
+    }
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(
+        "UPDATE llx_socpeople SET lastname = :nom, firstname = :prenom, email = :email, \
+          phone = :tel, poste = :poste, town = :ville, tms = NOW() \
+         WHERE entity = :entity AND rowid = :rowid",
+        params! {
+            "nom" => nom,
+            "prenom" => prenom,
+            "email" => email,
+            "tel" => telephone,
+            "poste" => poste,
+            "ville" => ville,
+            "entity" => entity,
+            "rowid" => rowid,
+        },
+    )?;
+    Ok(())
+}
