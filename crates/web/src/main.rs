@@ -168,6 +168,18 @@ async fn main() {
         .route("/chantiers", get(chantiers).post(chantier_creer))
         .route("/chantiers/:id", get(chantier_fiche))
         .route("/chantiers/:id/tache", post(chantier_tache_creer))
+        .route(
+            "/chantiers/:id/modifier",
+            get(pages::chantier_modifier).post(pages::chantier_enregistrer),
+        )
+        .route(
+            "/achats/fournisseur/:id/modifier",
+            get(pages::fournisseur_fiche).post(pages::fournisseur_enregistrer),
+        )
+        .route(
+            "/banques/:id/modifier",
+            get(pages::compte_fiche).post(pages::compte_enregistrer),
+        )
         .route("/achats", get(achats))
         .route(
             "/achats/facture",

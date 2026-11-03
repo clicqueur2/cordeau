@@ -277,3 +277,40 @@ pub fn creer_fournisseur(
     }
     Err("impossible d'attribuer un code fournisseur unique".into())
 }
+
+/// Met a jour la fiche d'un fournisseur. Le code fournisseur ne bouge pas :
+/// il sert de reference dans les achats deja saisis.
+#[allow(clippy::too_many_arguments)]
+pub fn modifier_fournisseur(
+    pool: &Pool,
+    entity: i64,
+    rowid: i64,
+    nom: &str,
+    email: Option<&str>,
+    telephone: Option<&str>,
+    adresse: Option<&str>,
+    ville: Option<&str>,
+    siret: Option<&str>,
+) -> Result<(), Box<dyn Error>> {
+    let nom = nom.trim();
+    if nom.is_empty() {
+        return Err("le nom du fournisseur est obligatoire".into());
+    }
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(
+        "UPDATE llx_societe SET nom = :nom, email = :email, phone = :tel, \
+          address = :adresse, town = :ville, siret = :siret, tms = NOW() \
+         WHERE entity = :entity AND rowid = :rowid",
+        params! {
+            "nom" => nom,
+            "email" => email,
+            "tel" => telephone,
+            "adresse" => adresse,
+            "ville" => ville,
+            "siret" => siret,
+            "entity" => entity,
+            "rowid" => rowid,
+        },
+    )?;
+    Ok(())
+}
