@@ -172,6 +172,9 @@ pub enum Erreur {
     NetNegatif,
     /// L'assiette demandee n'existe pas (voir [`Assiette::depuis_code`]).
     AssietteInconnue(String),
+    /// Un fichier de bareme est illisible : JSON casse, champ manquant,
+    /// date qui n'en est pas une. Le fichier est refuse au chargement.
+    Format(String),
 }
 
 impl fmt::Display for Erreur {
@@ -188,6 +191,7 @@ impl fmt::Display for Erreur {
                 f,
                 "assiette inconnue : « {code} » (attendu : brut, brut_plafonne, net)"
             ),
+            Erreur::Format(message) => write!(f, "bareme illisible : {message}"),
         }
     }
 }
@@ -705,3 +709,5 @@ mod tests {
         }
     }
 }
+
+pub mod bareme;
