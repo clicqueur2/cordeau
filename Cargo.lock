@@ -728,6 +728,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "devises"
+version = "0.1.0"
+dependencies = [
+ "rust_decimal",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2178,6 +2185,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "paie"
+version = "0.1.0"
+dependencies = [
+ "rust_decimal",
+]
+
+[[package]]
 name = "palette"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2411,6 +2425,13 @@ name = "portable-atomic"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05c8b63e8d9609db387f0324918f81d68fe27748f084ef092fb35954d0539a85"
+
+[[package]]
+name = "pos"
+version = "0.1.0"
+dependencies = [
+ "rust_decimal",
+]
 
 [[package]]
 name = "postcard"
