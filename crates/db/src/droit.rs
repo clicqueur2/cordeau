@@ -177,6 +177,27 @@ pub fn droits_du_chemin(chemin: &str) -> &'static [i64] {
         ("/documents", &[9009, 2501]),
         ("/agenda", &[9009, 2401, 2411]),
         ("/parametres", &[9009]),
+        // Listes en lecture seule : chacune reprend le droit de son module
+        // Dolibarr, pour qu'une autorisation donnee chez Dolibarr ouvre l'ecran.
+        ("/liste/Adherent", &[9001, 241]),
+        ("/liste/Categorie", &[9001, 31]),
+        ("/liste/Tax", &[9009]),
+        ("/liste/Bookmark", &[9009, 331]),
+        ("/liste/Mailing", &[9009, 221]),
+        ("/liste/SupplierOrder", &[9006, 1152, 1182]),
+        ("/liste/PaymentByBankTransfer", &[9007, 561]),
+        ("/liste/Prelevement", &[9007, 151]),
+        ("/liste/Ficheinter", &[9003, 61]),
+        ("/liste/Salaries", &[9009, 511, 512]),
+        ("/liste/Loan", &[9008, 521]),
+        ("/liste/Asset", &[9008, 51001]),
+        ("/liste/Resource", &[9009, 63001]),
+        ("/liste/Accounting", &[9008, 50411]),
+        ("/liste/ExpenseReport", &[9009, 4001]),
+        ("/liste/Holiday", &[9009]),
+        ("/liste/Don", &[9001, 241]),
+        ("/liste/Reception", &[9006, 1181]),
+        ("/liste/ProductBatch", &[9001, 31]),
     ];
     carte
         .iter()
