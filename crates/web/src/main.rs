@@ -4,6 +4,7 @@
 //! suivis d'une redirection ; le message de confirmation passe par `?ok=`.
 
 mod api;
+mod campagnes;
 mod entite;
 pub(crate) mod journal_erreurs;
 mod manifeste;
@@ -273,6 +274,8 @@ async fn main() {
         )
         .route("/achats/sepa", get(sepa_ecran::page))
         .route("/achats/sepa/fichier", get(sepa_ecran::fichier))
+        .route("/campagnes", get(campagnes::page))
+        .route("/campagnes/envoyer", post(campagnes::envoyer))
         .route("/parametres/tables", get(pages::tables_page))
         .route("/parametres/tables/:nom", get(pages::table_page))
         .route("/parametres/emails/essai", post(pages::email_essai))
