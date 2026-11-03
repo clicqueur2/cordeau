@@ -589,3 +589,5 @@ mod tests {
         let _: &dyn std::error::Error = &Erreur::LangueVide;
     }
 }
+
+pub mod dolibarr;
