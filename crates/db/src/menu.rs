@@ -50,7 +50,7 @@ type LigneMenu = (
 pub fn lire(pool: &Pool, entity: i64) -> Result<Vec<Entree>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let rows: Vec<LigneMenu> = conn.exec(
-        "SELECT rowid, fk_menu, position, titre, url, mainmenu, niveau, type, enabled \
+        "SELECT rowid, fk_menu, position, titre, url, mainmenu, level, type, enabled \
              FROM llx_menu WHERE entity = :entity \
              ORDER BY fk_menu ASC, position ASC, rowid ASC",
         params! { "entity" => entity },
@@ -59,14 +59,14 @@ pub fn lire(pool: &Pool, entity: i64) -> Result<Vec<Entree>, Box<dyn Error>> {
     Ok(rows
         .into_iter()
         .map(
-            |(rowid, pere, position, titre, url, mainmenu, niveau, type_menu, enabled)| Entree {
+            |(rowid, pere, position, titre, url, mainmenu, level, type_menu, enabled)| Entree {
                 rowid,
                 pere: pere.unwrap_or(0),
                 position: position.unwrap_or(0),
                 titre: titre.unwrap_or_default(),
                 url: url.unwrap_or_default(),
                 mainmenu: mainmenu.unwrap_or_default(),
-                niveau: niveau.unwrap_or(0) as i32,
+                niveau: level.unwrap_or(0) as i32,
                 type_menu: type_menu.unwrap_or_default(),
                 actif: enabled.map(|e| e > 0).unwrap_or(true),
             },

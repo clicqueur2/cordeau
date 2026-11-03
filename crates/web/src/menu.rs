@@ -268,6 +268,24 @@ pub fn enregistrer(module: Module) {
     }
 }
 
+/// Vrai quand la barre vient de `llx_menu` et non de nos constantes.
+///
+/// Dolibarr ne code pas sa barre dans le PHP : il la lit dans `llx_menu`. Quand
+/// cette table est peuplee, c'est **elle** qui fait foi — sinon on afficherait
+/// notre disposition a cote de la sienne, et plus rien ne serait « au meme
+/// endroit ». Tant qu'elle est vide, nos menus restent en repli.
+static DEPUIS_BASE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Remplace la barre du noyau par celle lue en base.
+pub fn basculer_sur_base() {
+    DEPUIS_BASE.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// La barre vient-elle de la base ?
+pub fn depuis_base() -> bool {
+    DEPUIS_BASE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// Tous les modules : ceux du noyau, puis ceux des fichiers.
 pub fn modules() -> Vec<&'static Module> {
     let declares = DECLARES.read().unwrap_or_else(|e| e.into_inner());
