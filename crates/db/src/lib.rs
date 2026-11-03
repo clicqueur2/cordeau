@@ -23,6 +23,7 @@ pub mod ged;
 pub mod grand_livre;
 pub mod groupe;
 pub mod impex;
+pub mod installation;
 pub mod invoice;
 pub mod journal;
 pub mod module;

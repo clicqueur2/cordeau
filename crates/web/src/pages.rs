@@ -2832,3 +2832,86 @@ pub async fn greffons_page() -> Res<Markup> {
         },
     ))
 }
+
+/// Etat de l'installation : ce qui est pret, ce qui manque, et quoi faire.
+///
+/// La page ne montre que des compteurs — aucun nom, aucun identifiant — et
+/// n'ecrit rien : elle peut donc etre consultee sans etre connecte, ce qui est
+/// exactement le cas au premier demarrage.
+pub async fn installation_page(State(app): State<crate::App>) -> Res<Markup> {
+    let attendues = db::installation::TABLES_ATTENDUES;
+    let etat = db::installation::etat(&app.pool, crate::entite::courante(), attendues)?;
+
+    Ok(crate::ui::page(
+        "accueil",
+        "installation",
+        "Installation",
+        html! {
+            h1 { "Installation" }
+            p .sous-titre {
+                "État du noyau sur cette base. Rien n'est modifié par cette page : "
+                "elle constate, elle ne répare pas."
+            }
+            @if etat.pret() {
+                (crate::ui::flash("Installation complète : le noyau peut servir."))
+            } @else {
+                p .erreur { "Installation incomplète : voir les points ci-dessous." }
+            }
+            table {
+                thead { tr { th { "Point" } th { "État" } th .num { "Valeur" } } }
+                tbody {
+                    tr {
+                        td { "Schéma Dolibarr" }
+                        td {
+                            @if etat.tables >= etat.tables_attendues { "complet" } @else { "incomplet" }
+                        }
+                        td .num {
+                            (etat.tables.to_string()) " / " (etat.tables_attendues.to_string())
+                        }
+                    }
+                    tr {
+                        td { "Administrateurs" }
+                        td { @if etat.admins > 0 { "présent" } @else { "aucun" } }
+                        td .num { (etat.admins.to_string()) }
+                    }
+                    tr {
+                        td { "Utilisateurs" }
+                        td { "" }
+                        td .num { (etat.utilisateurs.to_string()) }
+                    }
+                    tr {
+                        td { "Modules semés" }
+                        td { @if etat.modules_semes > 0 { "présents" } @else { "aucun" } }
+                        td .num { (etat.modules_semes.to_string()) }
+                    }
+                    tr {
+                        td { "Société" }
+                        td {
+                            @match &etat.societe {
+                                Some(n) => (n.clone()),
+                                None => span style="color:#a33" { "sans nom" },
+                            }
+                        }
+                        td { "" }
+                    }
+                    tr {
+                        td { "SMTP" }
+                        td {
+                            @match &etat.smtp {
+                                Some(h) => (h.clone()),
+                                None => span style="color:#a33" { "non configuré" },
+                            }
+                        }
+                        td { "" }
+                    }
+                }
+            }
+            @if !etat.manques().is_empty() {
+                h2 { "Ce qui manque" }
+                ul {
+                    @for m in etat.manques() { li { (m) } }
+                }
+            }
+        },
+    ))
+}
