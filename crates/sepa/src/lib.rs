@@ -165,7 +165,9 @@ fn date_iso(date: &str) -> Result<String, Erreur> {
     if ok {
         Ok(d.to_string())
     } else {
-        Err(Erreur::Montant(format!("date attendue AAAA-MM-JJ : {date}")))
+        Err(Erreur::Montant(format!(
+            "date attendue AAAA-MM-JJ : {date}"
+        )))
     }
 }
 
@@ -420,7 +422,10 @@ mod tests {
 
     #[test]
     fn un_lot_vide_ou_un_montant_nul_sont_refuses() {
-        assert_eq!(virement_xml(&emetteur(), "2026-11-10", &[]), Err(Erreur::LotVide));
+        assert_eq!(
+            virement_xml(&emetteur(), "2026-11-10", &[]),
+            Err(Erreur::LotVide)
+        );
         let lot = vec![Virement {
             nom: "X".into(),
             iban: "FR1420041010050500013M02606".into(),

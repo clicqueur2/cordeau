@@ -8,10 +8,11 @@
 //!
 //! La composition est faite par [Typst](https://typst.app) en memoire
 //! (`typst::compile` + `typst_pdf::pdf`) : aucun binaire externe n'est appele,
-//! aucun PDF n'est ecrit a la main. La mise en page vit dans un gabarit
-//! versionne, `templates/document.typ`, embarque dans le binaire par
-//! `include_str!` et parametre par un dictionnaire Typst `data` genere depuis
-//! [`DocumentView`].
+//! aucun PDF n'est ecrit a la main. La mise en page vit dans des gabarits
+//! versionnes de `templates/`, embarques dans le binaire par `include_str!` et
+//! parametres par un dictionnaire Typst `data` genere depuis [`DocumentView`].
+//! Chaque [`Modele`] designe son gabarit : `document.typ` pour le standard et
+//! l'epure, `document_compact.typ` pour le compact.
 //!
 //! La police (DejaVu Sans, regular + gras) est embarquee dans le binaire et
 //! donc **incluse dans le PDF** : le fichier produit est autosuffisant.
@@ -88,8 +89,13 @@ use typst::utils::LazyHash;
 use typst::{Library, LibraryExt, World};
 use typst_layout::PagedDocument;
 
-/// Gabarit Typst versionne, embarque dans le binaire.
-const TEMPLATE: &str = include_str!("../templates/document.typ");
+/// Gabarit Typst complet, embarque dans le binaire. Sert au standard et a
+/// l'epure : ces deux modeles ne different que par les annexes, pas par la
+/// mise en page.
+const TEMPLATE_STANDARD: &str = include_str!("../templates/document.typ");
+
+/// Gabarit Typst condense, embarque dans le binaire.
+const TEMPLATE_COMPACT: &str = include_str!("../templates/document_compact.typ");
 
 /// Police du texte courant (regular). Licence DejaVu (redistribution libre).
 const FONT_REGULAR: &[u8] = include_bytes!("../assets/fonts/DejaVuSans.ttf");
@@ -261,20 +267,23 @@ pub struct RenderedPdf {
 
 /// Modele de mise en page d'un document.
 ///
-/// Dolibarr en propose plusieurs par objet (`doctemplate`). Deux sont portes :
-/// le standard, complet, et l'epure, qui retire les annexes longues pour un
-/// envoi rapide. Les **mentions legales restent dans les deux** : ce n'est pas
-/// une option commerciale, c'est le droit francais.
+/// Dolibarr en propose plusieurs par objet (`doctemplate`). Trois sont portes :
+/// le standard, complet ; l'epure, qui retire les annexes longues en gardant la
+/// mise en page du standard ; le compact, qui change de gabarit pour tenir sur
+/// une page. Les **mentions legales restent dans les trois** : ce n'est pas une
+/// option commerciale, c'est le droit francais.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Modele {
     /// Document complet : conditions generales de vente et note libre.
     Standard,
-    /// Document court : ni CGV ni note libre, mentions legales conservees.
+    /// Document court : ni CGV ni note libre, mise en page du standard.
     Epure,
+    /// Document dense : ni CGV ni note libre, gabarit condense (`document_compact.typ`).
+    Compact,
 }
 
 /// Les modeles disponibles, dans l'ordre de presentation.
-pub const MODELES: &[Modele] = &[Modele::Standard, Modele::Epure];
+pub const MODELES: &[Modele] = &[Modele::Standard, Modele::Epure, Modele::Compact];
 
 impl Modele {
     /// Identifiant stable, celui qu'on ecrit dans une constante.
@@ -282,6 +291,7 @@ impl Modele {
         match self {
             Modele::Standard => "standard",
             Modele::Epure => "epure",
+            Modele::Compact => "compact",
         }
     }
 
@@ -290,6 +300,7 @@ impl Modele {
         match self {
             Modele::Standard => "Standard (avec CGV)",
             Modele::Epure => "Epure (sans CGV)",
+            Modele::Compact => "Compact (une page, sans CGV)",
         }
     }
 
@@ -302,12 +313,31 @@ impl Modele {
             .find(|m| m.code().eq_ignore_ascii_case(code.trim()))
     }
 
+    /// Comme [`Modele::depuis_code`], mais retombe sur le standard au lieu de
+    /// `None`. C'est le comportement attendu d'une constante de configuration :
+    /// une valeur inconnue ne doit jamais empecher d'editer un document.
+    pub fn depuis_code_ou_standard(code: &str) -> Self {
+        Self::depuis_code(code).unwrap_or(Modele::Standard)
+    }
+
+    /// Gabarit Typst associe au modele.
+    ///
+    /// L'epure partage le gabarit du standard : il n'en retire que les annexes,
+    /// le texte et la pagination restent identiques.
+    pub(crate) fn template(self) -> &'static str {
+        match self {
+            Modele::Standard | Modele::Epure => TEMPLATE_STANDARD,
+            Modele::Compact => TEMPLATE_COMPACT,
+        }
+    }
+
     /// Ce que le modele change dans le document avant composition.
     ///
     /// On ne touche ni aux lignes, ni aux totaux, ni aux mentions legales :
-    /// seule l'annexe commerciale disparait.
+    /// seule l'annexe commerciale disparait. La mise en page, elle, est choisie
+    /// par [`Modele::template`].
     pub fn preparer(self, doc: &mut DocumentView) {
-        if self == Modele::Epure {
+        if matches!(self, Modele::Epure | Modele::Compact) {
             doc.cgv = None;
             doc.notes = None;
         }
@@ -329,13 +359,20 @@ pub fn render(doc: &DocumentView) -> Result<Vec<u8>, PdfError> {
 pub fn render_avec_modele(doc: &DocumentView, modele: Modele) -> Result<RenderedPdf, PdfError> {
     let mut copie = doc.clone();
     modele.preparer(&mut copie);
-    render_document(&copie)
+    let document = compose_avec_modele(&copie, modele)?;
+    exporter(&document)
 }
 
 /// Comme [`render`], mais renvoie aussi le nombre de pages composees.
+///
+/// Rendu avec le modele [`Modele::Standard`] : pour un autre modele, passer par
+/// [`render_avec_modele`].
 pub fn render_document(doc: &DocumentView) -> Result<RenderedPdf, PdfError> {
-    let document = compose(doc)?;
-    let bytes = typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default())
+    exporter(&compose(doc)?)
+}
+
+fn exporter(document: &PagedDocument) -> Result<RenderedPdf, PdfError> {
+    let bytes = typst_pdf::pdf(document, &typst_pdf::PdfOptions::default())
         .map_err(|errors| PdfError::Export(messages(&errors)))?;
     Ok(RenderedPdf {
         bytes,
@@ -349,7 +386,13 @@ pub fn render_document(doc: &DocumentView) -> Result<RenderedPdf, PdfError> {
 /// d'entree expose volontairement un type Typst, il n'est pas documente.
 #[doc(hidden)]
 pub fn compose(doc: &DocumentView) -> Result<PagedDocument, PdfError> {
-    let world = DocWorld::new(build_source(doc));
+    compose_avec_modele(doc, Modele::Standard)
+}
+
+/// Comme [`compose`], avec un modele : c'est le gabarit du modele qui sert.
+#[doc(hidden)]
+pub fn compose_avec_modele(doc: &DocumentView, modele: Modele) -> Result<PagedDocument, PdfError> {
+    let world = DocWorld::new(build_source(doc, modele));
     let warned = typst::compile::<PagedDocument>(&world);
     warned
         .output
@@ -455,13 +498,14 @@ impl World for DocWorld {
 // Generation de la source Typst
 // ---------------------------------------------------------------------------
 
-/// Concatene le dictionnaire `data` (syntaxe Typst) et le gabarit.
-pub(crate) fn build_source(doc: &DocumentView) -> String {
-    let mut source = String::with_capacity(TEMPLATE.len() + 8192);
+/// Concatene le dictionnaire `data` (syntaxe Typst) et le gabarit du modele.
+pub(crate) fn build_source(doc: &DocumentView, modele: Modele) -> String {
+    let template = modele.template();
+    let mut source = String::with_capacity(template.len() + 8192);
     source.push_str("#let data = ");
     source.push_str(&document_dict(doc));
     source.push('\n');
-    source.push_str(TEMPLATE);
+    source.push_str(template);
     source
 }
 
@@ -624,17 +668,19 @@ fn dict(fields: &[(&str, String)]) -> String {
 
 #[cfg(test)]
 mod tests_modeles {
-    use super::Modele;
+    use super::{Modele, MODELES};
 
     #[test]
     fn les_codes_de_modele_font_l_aller_retour() {
-        for m in super::MODELES {
+        assert_eq!(MODELES.len(), 3);
+        for m in MODELES {
             assert_eq!(Modele::depuis_code(m.code()), Some(*m));
         }
         // Casse et espaces tolerés : la valeur vient d'une constante saisie
         // a la main.
         assert_eq!(Modele::depuis_code(" EPURE "), Some(Modele::Epure));
         assert_eq!(Modele::depuis_code("standard"), Some(Modele::Standard));
+        assert_eq!(Modele::depuis_code("COMPACT"), Some(Modele::Compact));
         // Inconnu : l'appelant retombe sur le standard.
         assert_eq!(Modele::depuis_code("modele_qui_n_existe_pas"), None);
         assert_eq!(Modele::depuis_code(""), None);
@@ -642,6 +688,249 @@ mod tests_modeles {
 
     #[test]
     fn les_libelles_sont_distincts() {
-        assert_ne!(Modele::Standard.label(), Modele::Epure.label());
+        for (i, a) in MODELES.iter().enumerate() {
+            for b in &MODELES[i + 1..] {
+                assert_ne!(a.label(), b.label(), "libelles identiques : {}", a.code());
+            }
+        }
+    }
+
+    /// Une constante de configuration inconnue ne doit jamais empecher
+    /// d'editer un document : on retombe sur le standard.
+    #[test]
+    fn une_constante_inconnue_retombe_sur_le_standard() {
+        assert_eq!(
+            Modele::depuis_code_ou_standard("modele_qui_n_existe_pas"),
+            Modele::Standard
+        );
+        assert_eq!(Modele::depuis_code_ou_standard(""), Modele::Standard);
+        assert_eq!(Modele::depuis_code_ou_standard("  "), Modele::Standard);
+        // Les codes connus restent respectes.
+        assert_eq!(Modele::depuis_code_ou_standard("compact"), Modele::Compact);
+        assert_eq!(Modele::depuis_code_ou_standard("epure"), Modele::Epure);
+    }
+
+    /// Le compact et l'epure retirent les annexes ; le standard les garde.
+    #[test]
+    fn preparer_retire_les_annexes_sauf_en_standard() {
+        for modele in MODELES {
+            let mut doc = super::tests_gabarits::document_de_test();
+            modele.preparer(&mut doc);
+            let annexes_attendues = *modele == Modele::Standard;
+            assert_eq!(
+                doc.cgv.is_some(),
+                annexes_attendues,
+                "CGV inattendues pour {}",
+                modele.code()
+            );
+            assert_eq!(
+                doc.notes.is_some(),
+                annexes_attendues,
+                "note libre inattendue pour {}",
+                modele.code()
+            );
+            // Les mentions legales, elles, ne bougent jamais.
+            assert!(!doc.mentions.is_empty());
+            assert!(!doc.lines.is_empty());
+        }
+    }
+
+    /// Les gabarits sont bien distincts : le compact ne rejoue pas le standard.
+    #[test]
+    fn le_compact_a_son_propre_gabarit() {
+        assert_ne!(
+            Modele::Compact.template(),
+            Modele::Standard.template(),
+            "le compact doit avoir son propre gabarit"
+        );
+        assert_eq!(Modele::Epure.template(), Modele::Standard.template());
+        assert!(Modele::Compact.template().contains("margin: (x: 8mm"));
+    }
+}
+
+#[cfg(test)]
+mod tests_gabarits {
+    use super::{
+        compose_avec_modele, render_avec_modele, DocKind, DocumentView, LineKind, LineView, Modele,
+        PartyView,
+    };
+
+    /// Document de reference pour les tests de gabarit : deux lignes, une
+    /// section, un sous-total, une TVA a deux taux, des mentions, des CGV et
+    /// une note libre.
+    pub(super) fn document_de_test() -> DocumentView {
+        DocumentView {
+            kind: DocKind::Quote,
+            title_override: None,
+            reference: "PROV612".into(),
+            date: "16/10/2026".into(),
+            due_date: Some("16/11/2026".into()),
+            valid_until: Some("16/11/2026".into()),
+            customer_ref: Some("BC-2026-114".into()),
+            service_date: Some("12/10/2026".into()),
+            bank: Some("IBAN FR76 1680 7003 4838 4868 9521 643".into()),
+            payment_terms: Some("30 jours fin de mois".into()),
+            deposit: Some("30 % — 1 526,14 €".into()),
+            seller: PartyView {
+                legal_line: Some("SAS au capital de 10 000 € — RCS Lyon".into()),
+                name: "Pierre Angulaire".into(),
+                address: Some("17 chemin du Grimpillon".into()),
+                zip: Some("69450".into()),
+                town: Some("Saint-Cyr-au-Mont-d'Or".into()),
+                siret: Some("123 456 789 00016".into()),
+                tva_intra: Some("FR12345678900".into()),
+            },
+            customer: PartyView {
+                legal_line: None,
+                name: "M. et Mme Roure".into(),
+                address: Some("12 rue des Lilas".into()),
+                zip: Some("69370".into()),
+                town: Some("Saint-Didier-au-Mont-d'Or".into()),
+                siret: None,
+                tva_intra: None,
+            },
+            lines: vec![
+                LineView {
+                    kind: LineKind::Section,
+                    label: "Lot 1 — Gros oeuvre".into(),
+                    ..LineView::default()
+                },
+                LineView {
+                    kind: LineKind::Normal,
+                    label: "Reprise de contour de piscine".into(),
+                    description: Some("Y compris évacuation des gravois.".into()),
+                    qty: "1".into(),
+                    unit: "forfait".into(),
+                    unit_price_ht: "4 624,65 €".into(),
+                    discount_percent: "0,00 %".into(),
+                    vat_rate: "10,00 %".into(),
+                    total_ht: "4 624,65 €".into(),
+                },
+                LineView {
+                    kind: LineKind::Subtotal,
+                    label: "Sous-total Lot 1".into(),
+                    total_ht: "4 624,65 €".into(),
+                    ..LineView::default()
+                },
+            ],
+            total_ht: "4 624,65 €".into(),
+            total_vat: "462,47 €".into(),
+            total_ttc: "5 087,12 €".into(),
+            vat_breakdown: vec![
+                ("10,00 %".into(), "462,47 €".into()),
+                ("20,00 %".into(), "0,00 €".into()),
+            ],
+            mentions: vec![
+                "Devis valable un mois à compter de sa date d'émission.".into(),
+                "TVA acquittée sur les encaissements.".into(),
+            ],
+            cgv: Some(
+                "Les marchandises voyagent aux risques et périls du destinataire.\n\
+                 Paiement par virement à réception de facture."
+                    .into(),
+            ),
+            notes: Some("Acompte de 30 % à la commande.\nSolde à la réception.".into()),
+        }
+    }
+
+    fn assert_valid_pdf(bytes: &[u8]) {
+        assert!(
+            bytes.starts_with(b"%PDF-"),
+            "le fichier ne commence pas par %PDF-"
+        );
+        let tail = String::from_utf8_lossy(&bytes[bytes.len().saturating_sub(32)..]);
+        assert!(
+            tail.contains("%%EOF"),
+            "le fichier ne se termine pas par %%EOF"
+        );
+    }
+
+    #[test]
+    fn standard_et_compact_produisent_un_pdf_valide() {
+        let doc = document_de_test();
+        for modele in [Modele::Standard, Modele::Compact] {
+            let rendu = render_avec_modele(&doc, modele)
+                .unwrap_or_else(|e| panic!("rendu impossible pour {} : {e}", modele.code()));
+            assert_valid_pdf(&rendu.bytes);
+            assert!(
+                rendu.bytes.len() > 2048,
+                "PDF trop petit pour {} : {} octets",
+                modele.code(),
+                rendu.bytes.len()
+            );
+            assert!(rendu.pages >= 1);
+        }
+    }
+
+    /// Le compact doit tenir dans au plus autant de pages que le standard.
+    #[test]
+    fn le_compact_ne_depasse_pas_le_standard_en_pages() {
+        let mut doc = document_de_test();
+        // Document long : les deux modeles paginent, et l'ecart se mesure.
+        let modele_ligne = doc.lines[1].clone();
+        for i in 0..45 {
+            let mut ligne = modele_ligne.clone();
+            ligne.kind = LineKind::Normal;
+            ligne.label = format!("Poste {} — reprise de maçonnerie", i + 2);
+            doc.lines.push(ligne);
+        }
+
+        let standard = render_avec_modele(&doc, Modele::Standard).expect("rendu standard");
+        let compact = render_avec_modele(&doc, Modele::Compact).expect("rendu compact");
+
+        assert_valid_pdf(&standard.bytes);
+        assert_valid_pdf(&compact.bytes);
+        assert!(
+            standard.pages >= 2,
+            "le document de test doit paginer en standard : {} page(s)",
+            standard.pages
+        );
+        assert!(
+            compact.pages <= standard.pages,
+            "le compact pagine plus que le standard ({} > {})",
+            compact.pages,
+            standard.pages
+        );
+    }
+
+    /// Le compact ne doit pas perdre les mentions legales ni le RIB.
+    #[test]
+    fn le_compact_conserve_les_mentions_legales() {
+        let gabarit = Modele::Compact.template();
+        assert_eq!(
+            gabarit.matches("data.mentions").count(),
+            1,
+            "les mentions legales doivent etre imprimees une fois"
+        );
+        assert_eq!(
+            gabarit.matches("data.bank").count(),
+            2,
+            "le RIB : un test de presence et une impression, rien de plus"
+        );
+    }
+
+    /// Les deux gabarits sont reellement differents : ce n'est pas un filtre.
+    #[test]
+    fn les_deux_gabarits_different_par_la_mise_en_page() {
+        let doc = document_de_test();
+        let standard = compose_avec_modele(&doc, Modele::Standard).expect("source standard");
+        let compact = compose_avec_modele(&doc, Modele::Compact).expect("source compact");
+        assert_eq!(standard.pages().len(), 1);
+        assert_eq!(compact.pages().len(), 1);
+
+        let source_standard = super::build_source(&doc, Modele::Standard);
+        let source_compact = super::build_source(&doc, Modele::Compact);
+        assert_ne!(source_standard, source_compact);
+        // Le meme dictionnaire `data` alimente les deux gabarits.
+        let prefixe = "#let data = ";
+        let fin_standard = source_standard
+            .find('\n')
+            .map(|i| &source_standard[prefixe.len()..i])
+            .unwrap_or_default();
+        let fin_compact = source_compact
+            .find('\n')
+            .map(|i| &source_compact[prefixe.len()..i])
+            .unwrap_or_default();
+        assert_eq!(fin_standard, fin_compact);
     }
 }

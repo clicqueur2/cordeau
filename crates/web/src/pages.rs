@@ -110,7 +110,7 @@ pub const SECTIONS: &[Section] = &[
         titre: "Modeles de PDF",
         intro: "Marges du gabarit, en millimetres. Le gabarit les lit a chaque rendu.",
         champs: &[
-            Champ { cle: "DOLIBARR_RS_PDF_MODELE", libelle: "Modele de PDF (standard, epure)", genre: "text", defaut: "standard" },
+            Champ { cle: "DOLIBARR_RS_PDF_MODELE", libelle: "Modele de PDF (standard, epure, compact)", genre: "text", defaut: "standard" },
             Champ { cle: "DOLIBARR_RS_PDF_MARGE_HAUT", libelle: "Marge haute", genre: "nombre", defaut: "14" },
             Champ { cle: "DOLIBARR_RS_PDF_MARGE_BAS", libelle: "Marge basse", genre: "nombre", defaut: "34" },
             Champ { cle: "DOLIBARR_RS_PDF_MARGE_COTE", libelle: "Marge laterale", genre: "nombre", defaut: "10" },
