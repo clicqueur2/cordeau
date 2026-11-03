@@ -435,6 +435,20 @@ async fn garde(
         return Redirect::to("/connexion").into_response();
     };
 
+    // Mode lecture seule : quelqu'un qui pointe ce noyau sur sa vraie base ne
+    // doit pas pouvoir la modifier par accident. Une seule porte a fermer :
+    // toutes les ecritures passent par une requete non-GET.
+    if std::env::var("DOLIBARR_LECTURE_SEULE").is_ok() {
+        let methode = req.method();
+        if methode != axum::http::Method::GET && methode != axum::http::Method::HEAD {
+            return (
+                StatusCode::FORBIDDEN,
+                "Mode lecture seule : aucune ecriture n'est acceptee sur cette installation.",
+            )
+                .into_response();
+        }
+    }
+
     // La configuration est reservee aux administrateurs.
     if chemin.starts_with("/parametres") && !courant.admin {
         return Redirect::to("/compte?refus=1").into_response();
