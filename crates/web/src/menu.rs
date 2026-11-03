@@ -48,6 +48,7 @@ pub const MODULES: &[Module] = &[
             e("prospects", "Prospects", "/tiers?type=prospect"),
             e("fournisseurs", "Fournisseurs", "/tiers?type=fournisseur"),
             e("contacts", "Contacts/Adresses", "/contacts"),
+            e("adherents", "Adhérents", "/liste/Adherent"),
         ],
     },
     Module {
@@ -58,6 +59,7 @@ pub const MODULES: &[Module] = &[
             e("nouveau", "Nouveau produit", "/produits/nouveau"),
             e("liste", "Catalogue", "/produits"),
             e("stock", "Stock", "/stock"),
+            e("categories", "Catégories", "/liste/Categorie"),
         ],
     },
     Module {
@@ -80,6 +82,7 @@ pub const MODULES: &[Module] = &[
                 "/commandes-fournisseurs",
             ),
             e("contrats", "Contrats", "/contrats"),
+            e("receptions", "Réceptions", "/liste/Reception"),
             e("expeditions", "Expéditions", "/expeditions"),
         ],
     },
@@ -153,6 +156,15 @@ pub const MODULES: &[Module] = &[
         entrees: &[
             e("evenements", "Événements", "/agenda"),
             e("nouvel-evenement", "Nouvel événement", "/agenda?form=1"),
+        ],
+    },
+    Module {
+        cle: "rh",
+        code: "HRM",
+        libelle: "RH",
+        entrees: &[
+            e("frais", "Notes de frais", "/liste/ExpenseReport"),
+            e("conges", "Congés", "/liste/Holiday"),
         ],
     },
     Module {

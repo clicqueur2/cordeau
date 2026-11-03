@@ -1616,3 +1616,130 @@ pub async fn compte_enregistrer(
         "/banques/{id}/modifier?ok=enregistre"
     )))
 }
+
+/// Une liste en lecture seule : un module, une requete, des colonnes.
+///
+/// Ces modules existent dans Dolibarr et ont un ecran ; le noyau les affiche
+/// sans les ecrire. C'est moins que Dolibarr, mais ce n'est pas rien : on voit
+/// ce que la base contient, et l'ecriture se fait dans Dolibarr si besoin.
+pub struct ListeSimple {
+    pub code: &'static str,
+    pub titre: &'static str,
+    pub intro: &'static str,
+    pub sql: &'static str,
+    pub colonnes: &'static [&'static str],
+}
+
+pub const LISTES: &[ListeSimple] = &[
+    ListeSimple {
+        code: "Adherent",
+        titre: "Adhérents",
+        intro: "Adhérents enregistrés dans Dolibarr (llx_adherent).",
+        sql: "SELECT ref, CONCAT(lastname, ' ', COALESCE(firstname, '')) AS nom, \
+                     COALESCE(town, ''), COALESCE(email, ''), COALESCE(datefin, '') \
+              FROM llx_adherent WHERE entity = :entity \
+              ORDER BY rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Nom", "Ville", "E-mail", "Adhésion jusqu'au"],
+    },
+    ListeSimple {
+        code: "Don",
+        titre: "Dons",
+        intro: "Dons reçus (llx_don), lecture seule.",
+        sql: "SELECT ref, DATE_FORMAT(datedon, '%Y-%m-%d'), \
+                     CAST(amount AS CHAR), CAST(fk_statut AS CHAR) \
+              FROM llx_don WHERE entity = :entity \
+              ORDER BY datedon DESC, rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Date", "Montant", "État"],
+    },
+    ListeSimple {
+        code: "Reception",
+        titre: "Réceptions",
+        intro: "Réceptions de marchandises (llx_reception), lecture seule.",
+        sql: "SELECT r.ref, DATE_FORMAT(r.date_creation, '%Y-%m-%d'), \
+                     COALESCE(s.nom, ''), CAST(r.fk_statut AS CHAR) \
+              FROM llx_reception r LEFT JOIN llx_societe s ON s.rowid = r.fk_soc \
+              WHERE r.entity = :entity \
+              ORDER BY r.date_creation DESC, r.rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Date", "Fournisseur", "Statut"],
+    },
+    ListeSimple {
+        code: "Categorie",
+        titre: "Catégories",
+        intro: "Catégories de produits, de tiers et de contacts (llx_categorie).",
+        sql: "SELECT label, CAST(type AS CHAR), COALESCE(description, '') \
+              FROM llx_categorie WHERE entity = :entity OR entity = 0 \
+              ORDER BY label ASC LIMIT 200",
+        colonnes: &["Libellé", "Type", "Description"],
+    },
+    ListeSimple {
+        code: "ExpenseReport",
+        titre: "Notes de frais",
+        intro: "Notes de frais (llx_expensereport), lecture seule.",
+        sql: "SELECT ref, DATE_FORMAT(date_debut, '%Y-%m-%d'), \
+                     DATE_FORMAT(date_fin, '%Y-%m-%d'), \
+                     CAST(total_ttc AS CHAR), CAST(fk_statut AS CHAR) \
+              FROM llx_expensereport WHERE entity = :entity \
+              ORDER BY date_debut DESC, rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Du", "Au", "Total TTC", "Statut"],
+    },
+    ListeSimple {
+        code: "Holiday",
+        titre: "Congés",
+        intro: "Demandes de congés (llx_holiday), lecture seule.",
+        sql: "SELECT ref, DATE_FORMAT(date_debut, '%Y-%m-%d'), \
+                     DATE_FORMAT(date_fin, '%Y-%m-%d'), CAST(statut AS CHAR) \
+              FROM llx_holiday WHERE entity = :entity \
+              ORDER BY date_debut DESC, rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Du", "Au", "Statut"],
+    },
+];
+
+pub fn liste_simple(code: &str) -> Option<&'static ListeSimple> {
+    LISTES.iter().find(|l| l.code.eq_ignore_ascii_case(code))
+}
+
+/// Affiche une liste en lecture seule.
+pub async fn liste_simple_page(
+    State(app): State<crate::App>,
+    axum::extract::Path(code): axum::extract::Path<String>,
+) -> Res<Markup> {
+    let liste = liste_simple(&code).ok_or_else(|| Erreur(format!("liste inconnue : {code}")))?;
+    let lignes = db::divers::lignes_brutes(&app.pool, crate::entite::courante(), liste.sql)?;
+
+    let valeur = |r: &Vec<Option<String>>, i: usize| -> String {
+        r.get(i).cloned().flatten().unwrap_or_default()
+    };
+
+    Ok(crate::ui::page(
+        "listes",
+        "liste",
+        liste.titre,
+        html! {
+            h1 { (liste.titre) }
+            p .sous-titre { (liste.intro) }
+            @if lignes.is_empty() {
+                (crate::ui::vide("Aucune ligne.", None))
+            } @else {
+                table {
+                    thead {
+                        tr {
+                            @for c in liste.colonnes { th { (c) } }
+                        }
+                    }
+                    tbody {
+                        @for r in &lignes {
+                            tr {
+                                @for (i, _) in liste.colonnes.iter().enumerate() {
+                                    td { (valeur(r, i)) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            p style="color:#78736c;font-size:13px" {
+                "Lecture seule : les écritures se font dans Dolibarr (ou seront ajoutées ici)."
+            }
+        },
+    ))
+}
