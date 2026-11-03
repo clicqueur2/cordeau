@@ -1875,13 +1875,15 @@ pub fn liste_simple(code: &str) -> Option<&'static ListeSimple> {
     LISTES.iter().find(|l| l.code.eq_ignore_ascii_case(code))
 }
 
-/// Affiche une liste en lecture seule.
+/// Affiche une liste en lecture seule, avec un lien de creation quand le
+/// module en a un.
 pub async fn liste_simple_page(
     State(app): State<crate::App>,
     axum::extract::Path(code): axum::extract::Path<String>,
 ) -> Res<Markup> {
     let liste = liste_simple(&code).ok_or_else(|| Erreur(format!("liste inconnue : {code}")))?;
     let lignes = db::divers::lignes_brutes(&app.pool, crate::entite::courante(), liste.sql)?;
+    let creation = saisie(&code).is_some();
 
     let valeur = |r: &Vec<Option<String>>, i: usize| -> String {
         r.get(i).cloned().flatten().unwrap_or_default()
@@ -1894,6 +1896,11 @@ pub async fn liste_simple_page(
         html! {
             h1 { (liste.titre) }
             p .sous-titre { (liste.intro) }
+            @if creation {
+                div .actions {
+                    a .bouton href={ "/liste/" (code) "/nouveau" } { "Nouveau" }
+                }
+            }
             @if lignes.is_empty() {
                 (crate::ui::vide("Aucune ligne.", None))
             } @else {
@@ -1915,8 +1922,289 @@ pub async fn liste_simple_page(
                 }
             }
             p style="color:#78736c;font-size:13px" {
-                "Lecture seule : les écritures se font dans Dolibarr (ou seront ajoutées ici)."
+                @if creation {
+                    "Écran de création et de lecture. Le reste des champs se saisit dans Dolibarr."
+                } @else {
+                    "Lecture seule : les écritures se font dans Dolibarr."
+                }
             }
         },
     ))
+}
+
+// ---------------------------------------------------------------------------
+// Saisie simple : un formulaire de creation pour les modules que le noyau ne
+// couvre pas encore en ecriture. Meme code que la liste : un module n'a qu'un
+// identifiant.
+// ---------------------------------------------------------------------------
+
+/// Genre de champ, qui commande le controle de saisie du navigateur.
+#[derive(Clone, Copy, PartialEq)]
+pub enum Sorte {
+    Texte,
+    Nombre,
+    Date,
+    Entier,
+}
+
+impl Sorte {
+    fn type_html(self) -> &'static str {
+        match self {
+            Sorte::Texte => "text",
+            Sorte::Nombre => "text",
+            Sorte::Date => "date",
+            Sorte::Entier => "number",
+        }
+    }
+
+    /// Normalise une valeur saisie : les nombres se tapent en francais
+    /// (espace insecable et virgule), MySQL attend un point.
+    pub fn normaliser(self, v: &str) -> Option<String> {
+        let v = v.trim();
+        if v.is_empty() {
+            return None;
+        }
+        match self {
+            Sorte::Nombre | Sorte::Entier => Some(
+                v.chars()
+                    .filter(|c| !c.is_whitespace() && *c != '\u{a0}')
+                    .collect::<String>()
+                    .replace(',', "."),
+            ),
+            _ => Some(v.to_string()),
+        }
+    }
+}
+
+/// Un champ du formulaire de creation.
+pub struct ChampSaisie {
+    /// Nom de la colonne. Il vient d'une table fermee, jamais de la requete.
+    pub nom: &'static str,
+    pub libelle: &'static str,
+    pub sorte: Sorte,
+    pub obligatoire: bool,
+}
+
+/// Un formulaire de creation.
+pub struct Saisie {
+    pub code: &'static str,
+    pub table: &'static str,
+    pub champs: &'static [ChampSaisie],
+    /// Colonnes posees d'office : (`colonne`, expression SQL). `{user}` est
+    /// remplace par l'identifiant de l'utilisateur connecte.
+    pub fixes: &'static [(&'static str, &'static str)],
+}
+
+const fn c(
+    nom: &'static str,
+    libelle: &'static str,
+    sorte: Sorte,
+    obligatoire: bool,
+) -> ChampSaisie {
+    ChampSaisie {
+        nom,
+        libelle,
+        sorte,
+        obligatoire,
+    }
+}
+
+pub const SAISIES: &[Saisie] = &[
+    Saisie {
+        code: "Loan",
+        table: "llx_loan",
+        champs: &[
+            c("label", "Libellé", Sorte::Texte, true),
+            c("capital", "Capital emprunté", Sorte::Nombre, true),
+            c("rate", "Taux (%)", Sorte::Nombre, true),
+            c("datestart", "Première échéance", Sorte::Date, false),
+            c("dateend", "Dernière échéance", Sorte::Date, false),
+            c("nbterm", "Nombre d'échéances", Sorte::Entier, false),
+        ],
+        fixes: &[("datec", "NOW()"), ("paid", "0"), ("active", "1")],
+    },
+    Saisie {
+        code: "Asset",
+        table: "llx_asset",
+        champs: &[
+            c("ref", "Référence", Sorte::Texte, true),
+            c("label", "Libellé", Sorte::Texte, true),
+            c("date_acquisition", "Date d'acquisition", Sorte::Date, true),
+            c("date_start", "Début d'amortissement", Sorte::Date, true),
+            c("acquisition_value_ht", "Valeur HT", Sorte::Nombre, false),
+            c("qty", "Quantité", Sorte::Nombre, false),
+        ],
+        fixes: &[
+            ("date_creation", "NOW()"),
+            ("fk_user_creat", "{user}"),
+            ("status", "0"),
+        ],
+    },
+    Saisie {
+        code: "ProductBatch",
+        table: "llx_product_lot",
+        champs: &[
+            c("fk_product", "Identifiant du produit", Sorte::Entier, true),
+            c("batch", "Numéro de lot", Sorte::Texte, true),
+            c("manufacturing_date", "Fabrication", Sorte::Date, false),
+            c("eatby", "À consommer avant", Sorte::Date, false),
+            c("sellby", "À vendre avant", Sorte::Date, false),
+        ],
+        fixes: &[],
+    },
+    Saisie {
+        code: "Resource",
+        table: "llx_resource",
+        champs: &[
+            c("ref", "Référence", Sorte::Texte, true),
+            c("description", "Description", Sorte::Texte, false),
+            c("town", "Ville", Sorte::Texte, false),
+            c("phone", "Téléphone", Sorte::Texte, false),
+            c("email", "E-mail", Sorte::Texte, false),
+        ],
+        fixes: &[("datec", "NOW()"), ("fk_statut", "1")],
+    },
+    Saisie {
+        code: "Tax",
+        table: "llx_c_tva",
+        champs: &[
+            c("code", "Code (ex. TVA20)", Sorte::Texte, true),
+            c("taux", "Taux (%)", Sorte::Nombre, true),
+            c("note", "Note", Sorte::Texte, false),
+        ],
+        // France : c'est le pays de la base. Un taux etranger se saisit dans
+        // Dolibarr, avec son pays.
+        fixes: &[("fk_pays", "1"), ("active", "1")],
+    },
+];
+
+pub fn saisie(code: &str) -> Option<&'static Saisie> {
+    SAISIES.iter().find(|s| s.code.eq_ignore_ascii_case(code))
+}
+
+/// Formulaire de creation.
+pub async fn liste_saisie_form(
+    State(app): State<crate::App>,
+    axum::extract::Path(code): axum::extract::Path<String>,
+    axum::extract::Query(q): axum::extract::Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let s = saisie(&code)
+        .ok_or_else(|| Erreur(format!("aucun formulaire de création pour : {code}")))?;
+    let liste = liste_simple(&code).ok_or_else(|| Erreur(format!("liste inconnue : {code}")))?;
+    // Le refus d'une saisie incomplete revient ici, indexe sur le champ, pour
+    // que le message soit lisible au lieu d'une page d'erreur.
+    // Un lot se rattache a un produit : on propose la liste plutot que de
+    // demander un identifiant que personne ne connait.
+    let produits: Vec<(String, String)> = if s.champs.iter().any(|c| c.nom == "fk_product") {
+        db::divers::produits_pour_liste(&app.pool, crate::entite::courante())?
+    } else {
+        Vec::new()
+    };
+
+    let manquant = q
+        .get("erreur")
+        .and_then(|i| i.parse::<usize>().ok())
+        .and_then(|i| s.champs.get(i))
+        .map(|ch| format!("« {} » est obligatoire.", ch.libelle));
+
+    Ok(crate::ui::page(
+        "listes",
+        "liste",
+        liste.titre,
+        html! {
+            h1 { "Nouveau — " (liste.titre) }
+            @if let Some(m) = &manquant {
+                p style="background:#fdf1ef;border-left:3px solid #a33;padding:10px 12px;margin:0 0 16px" {
+                    (m)
+                }
+            }
+            p .sous-titre {
+                "Création dans "
+                code { (s.table) }
+                " : les valeurs sont contrôlées par la base, une contrainte manquante remonte ici au lieu d'être inventée."
+            }
+            form method="post" action={ "/liste/" (code) "/nouveau" } {
+                table {
+                    tbody {
+                        @for ch in s.champs {
+                            tr {
+                                th {
+                                    (ch.libelle)
+                                    @if ch.obligatoire { span style="color:#a33" { " *" } }
+                                }
+                                td {
+                                    @if ch.nom == "fk_product" {
+                                        select name=(ch.nom) {
+                                            @for (id, libelle) in &produits {
+                                                option value=(id) { (libelle) }
+                                            }
+                                        }
+                                    } @else {
+                                    input
+                                        type=(ch.sorte.type_html())
+                                        name=(ch.nom)
+                                        required[ch.obligatoire];
+                                    @if ch.sorte == Sorte::Nombre {
+                                        p style="color:#78736c;font-size:12px;margin:6px 0 0" {
+                                            "Montant en euros, virgule ou point."
+                                        }
+                                    }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                div .actions {
+                    button type="submit" { "Créer" }
+                    a .bouton href={ "/liste/" (code) } style="margin-left:8px" { "Annuler" }
+                }
+            }
+        },
+    ))
+}
+
+/// Enregistre la creation.
+pub async fn liste_saisie_creer(
+    State(app): State<crate::App>,
+    axum::extract::Path(code): axum::extract::Path<String>,
+    axum::Extension(courant): axum::Extension<crate::Courant>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let s = saisie(&code)
+        .ok_or_else(|| Erreur(format!("aucun formulaire de création pour : {code}")))?;
+
+    let mut valeurs: Vec<(String, Option<String>)> = Vec::new();
+    for (i, ch) in s.champs.iter().enumerate() {
+        let brut = f.get(ch.nom).map(String::as_str).unwrap_or("");
+        let v = ch.sorte.normaliser(brut);
+        if ch.obligatoire && v.is_none() {
+            return Ok(Redirect::to(&format!("/liste/{code}/nouveau?erreur={i}")));
+        }
+        valeurs.push((ch.nom.to_string(), v));
+    }
+
+    // Les colonnes posees d'office : soit un utilisateur, soit une expression
+    // SQL fermee (constante du registre, jamais une saisie).
+    let mut exprs: Vec<(&'static str, &'static str)> = Vec::new();
+    let mut user: Option<i64> = None;
+    for (col, expr) in s.fixes {
+        if *expr == "{user}" {
+            if user.is_none() {
+                user = db::user::par_login(&app.pool, &courant.login)?.map(|u| u.rowid);
+            }
+            valeurs.push((col.to_string(), user.map(|u| u.to_string())));
+        } else {
+            exprs.push((col, expr));
+        }
+    }
+
+    db::divers::inserer(
+        &app.pool,
+        s.table,
+        crate::entite::courante(),
+        &valeurs,
+        &exprs,
+    )?;
+    Ok(Redirect::to(&format!("/liste/{code}?ok=cree")))
 }

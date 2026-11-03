@@ -7,7 +7,7 @@ use std::error::Error;
 use std::str::FromStr;
 
 use mysql::prelude::*;
-use mysql::{params, Pool, Row};
+use mysql::{params, Pool, Row, Value};
 use rust_decimal::Decimal;
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -250,6 +250,90 @@ pub fn lignes_brutes(
                     })
                 })
                 .collect()
+        })
+        .collect())
+}
+/// Insertion generique, pour les modules sans ecran d'ecriture dedie.
+///
+/// Le nom de table et les colonnes viennent du registre cote web (constantes),
+/// mais on les valide quand meme : aucune chaine venue d'une requete HTTP ne
+/// doit pouvoir atterrir dans le SQL. Les valeurs, elles, sont toutes liees.
+pub fn inserer(
+    pool: &Pool,
+    table: &str,
+    entity: i64,
+    valeurs: &[(String, Option<String>)],
+    exprs: &[(&'static str, &'static str)],
+) -> Result<u64, Box<dyn Error>> {
+    /// Un identifiant SQL acceptable : lettres, chiffres, souligne.
+    fn identifiant(s: &str) -> bool {
+        !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    }
+
+    if !identifiant(table) {
+        return Err(format!("nom de table refuse : {table}").into());
+    }
+
+    let mut colonnes: Vec<&str> = vec!["entity"];
+    let mut marques: Vec<&str> = vec!["?"];
+    let mut params: Vec<Value> = vec![Value::Int(entity)];
+
+    for (colonne, v) in valeurs {
+        if !identifiant(colonne) {
+            return Err(format!("nom de colonne refuse : {colonne}").into());
+        }
+        colonnes.push(colonne);
+        marques.push("?");
+        params.push(match v {
+            Some(s) => Value::from(s.clone()),
+            None => Value::NULL,
+        });
+    }
+
+    // Expressions posees d'office : uniquement des formes fermees, jamais du
+    // texte libre.
+    const EXPRESSIONS: &[&str] = &["NOW()", "CURDATE()", "0", "1"];
+    for (colonne, expr) in exprs {
+        if !identifiant(colonne) {
+            return Err(format!("nom de colonne refuse : {colonne}").into());
+        }
+        if !EXPRESSIONS.contains(expr) {
+            return Err(format!("expression SQL refusee : {expr}").into());
+        }
+        colonnes.push(colonne);
+        marques.push(expr);
+    }
+
+    let sql = format!(
+        "INSERT INTO {table} ({}) VALUES ({})",
+        colonnes.join(", "),
+        marques.join(", ")
+    );
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(sql, params)?;
+    Ok(conn.last_insert_id())
+}
+
+/// Produits d'une entite, sous la forme (identifiant, « ref - libelle »).
+/// Sert aux listes deroulantes des formulaires de saisie.
+pub fn produits_pour_liste(
+    pool: &Pool,
+    entity: i64,
+) -> Result<Vec<(String, String)>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let rows: Vec<(i64, String, Option<String>)> = conn.exec(
+        "SELECT rowid, ref, label FROM llx_product WHERE entity = :entity \
+         ORDER BY ref ASC LIMIT 500",
+        params! { "entity" => entity },
+    )?;
+    Ok(rows
+        .into_iter()
+        .map(|(id, r, l)| {
+            let libelle = match l {
+                Some(l) if !l.trim().is_empty() => format!("{r} - {l}"),
+                _ => r,
+            };
+            (id.to_string(), libelle)
         })
         .collect())
 }
