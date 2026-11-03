@@ -1,0 +1,9 @@
+﻿[package]
+name = "i18n"
+description = "Moteur i18n du noyau Dolibarr en Rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rust_decimal = { workspace = true }
