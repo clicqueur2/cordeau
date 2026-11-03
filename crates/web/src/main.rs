@@ -403,13 +403,14 @@ async fn garde(
     // Droits par ecran : un utilisateur non administrateur doit avoir le droit
     // du module. Le droit est cherche une fois par requete, pas par lien.
     if !courant.admin {
-        if let Some(id_droit) = db::droit::droit_du_chemin(&chemin) {
+        let exiges = db::droit::droits_du_chemin(&chemin);
+        if !exiges.is_empty() {
             let autorise = db::user::par_login(&app.pool, &courant.login)
                 .ok()
                 .flatten()
                 .map(|u| {
                     db::groupe::droits_effectifs(&app.pool, entite::courante(), u.rowid)
-                        .map(|d| d.contains(&id_droit))
+                        .map(|d| exiges.iter().any(|id| d.contains(id)))
                         .unwrap_or(true)
                 })
                 .unwrap_or(true);
