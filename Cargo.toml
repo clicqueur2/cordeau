@@ -16,3 +16,7 @@ sha2 = "0.10"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+[workspace.metadata]
+licence = "GPL-3.0-or-later"
+oeuvre-derivee = "Dolibarr ERP & CRM 24.0.1 (GPL-3.0-or-later)"
+attribution = "Voir MENTIONS-LEGALES.md"
