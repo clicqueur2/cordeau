@@ -259,7 +259,9 @@ fn identifiant_sql(s: &str) -> bool {
 }
 
 /// Les seules expressions SQL autorisees a etre posees d'office.
-const EXPRESSIONS_SQL: &[&str] = &["NOW()", "CURDATE()", "0", "1"];
+// `'phy'` : la personne morale ou physique d'un adherent, en dur comme dans
+// Dolibarr pour une adhesion de particulier.
+const EXPRESSIONS_SQL: &[&str] = &["NOW()", "CURDATE()", "0", "1", "'phy'"];
 
 /// Une valeur de colonne, en texte, pour l'affichage et la reprise en
 /// formulaire.
@@ -453,4 +455,70 @@ pub fn supprimer_ligne(
     let mut conn = pool.get_conn()?;
     conn.exec_drop(sql, (id, entity))?;
     Ok(conn.affected_rows())
+}
+
+/// Options d'une liste deroulante, par source nommee.
+///
+/// Les sources sont fermees : une source inconnue rend une liste vide plutot
+/// que d'aller chercher une table au hasard.
+pub fn options_liste(
+    pool: &Pool,
+    entity: i64,
+    source: &str,
+) -> Result<Vec<(String, String)>, Box<dyn Error>> {
+    match source {
+        "produits" => produits_pour_liste(pool, entity),
+        "types_adherent" => {
+            let mut conn = pool.get_conn()?;
+            let rows: Vec<(i64, String)> = conn.exec(
+                "SELECT rowid, libelle FROM llx_adherent_type WHERE entity = :entity \
+                 ORDER BY rowid ASC",
+                params! { "entity" => entity },
+            )?;
+            Ok(rows.into_iter().map(|(i, l)| (i.to_string(), l)).collect())
+        }
+        "tiers" => {
+            let mut conn = pool.get_conn()?;
+            let rows: Vec<(i64, String)> = conn.exec(
+                "SELECT rowid, nom FROM llx_societe WHERE entity = :entity \
+                 ORDER BY nom ASC LIMIT 500",
+                params! { "entity" => entity },
+            )?;
+            Ok(rows.into_iter().map(|(i, l)| (i.to_string(), l)).collect())
+        }
+        // Types de categorie, tels que Dolibarr les numerote.
+        "types_categorie" => Ok(vec![
+            ("0".to_string(), "Produit ou service".to_string()),
+            ("1".to_string(), "Tiers".to_string()),
+            ("2".to_string(), "Contact".to_string()),
+            ("3".to_string(), "Adherent".to_string()),
+            ("4".to_string(), "Projet".to_string()),
+        ]),
+        _ => Ok(Vec::new()),
+    }
+}
+
+/// Numero suivant d'une reference : `prefixe` + compteur sur 4 chiffres.
+///
+/// Sert aux tables dont Dolibarr impose une reference non nulle et dont le
+/// module de numerotation n'est pas encore porte.
+pub fn suivant_ref(
+    pool: &Pool,
+    table: &str,
+    colonne: &str,
+    prefixe: &str,
+    entity: i64,
+) -> Result<String, Box<dyn Error>> {
+    if !identifiant_sql(table) || !identifiant_sql(colonne) {
+        return Err("nom de table ou de colonne refuse".into());
+    }
+    let debut = prefixe.chars().count() + 1;
+    let sql = format!(
+        "SELECT MAX(CAST(SUBSTRING({colonne}, {debut}) AS UNSIGNED)) FROM {table} \
+         WHERE entity = ? AND {colonne} LIKE ?"
+    );
+    let mut conn = pool.get_conn()?;
+    let max: Option<Option<u64>> = conn.exec_first(sql, (entity, format!("{prefixe}%")))?;
+    let suivant = max.flatten().unwrap_or(0) + 1;
+    Ok(format!("{prefixe}{suivant:04}"))
 }
