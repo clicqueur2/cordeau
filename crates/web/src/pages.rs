@@ -2690,3 +2690,105 @@ pub async fn fiche_saisie_supprimer(
     db::divers::supprimer_ligne_par(&app.pool, cible(s), crate::entite::courante(), id)?;
     Ok(Redirect::to(&format!("/liste/{code}?ok=supprime")))
 }
+
+/// Toutes les tables de la base, avec leur nombre de lignes.
+///
+/// C'est le filet de securite du portage : aucune donnee de Dolibarr n'est
+/// invisible, meme quand son ecran metier n'est pas encore ecrit.
+pub async fn tables_page(State(app): State<crate::App>) -> Res<Markup> {
+    let tables = db::tables::tables(&app.pool)?;
+    let total: u64 = tables.iter().map(|t| t.lignes).sum();
+
+    Ok(crate::ui::page(
+        "parametres",
+        "tables",
+        "Tables de la base",
+        html! {
+            h1 { "Tables de la base" }
+            p .sous-titre {
+                (tables.len().to_string()) " tables, " (total.to_string())
+                " lignes (comptage approximatif de MariaDB). Lecture seule : "
+                "les ecritures passent par les ecrans metier."
+            }
+            table {
+                thead {
+                    tr { th { "Table" } th .num { "Lignes" } th { "Commentaire" } }
+                }
+                tbody {
+                    @for t in &tables {
+                        tr {
+                            td { a href={ "/parametres/tables/" (t.nom) } { (t.nom) } }
+                            td .num { (t.lignes.to_string()) }
+                            td style="color:#78736c" { (t.commentaire.clone()) }
+                        }
+                    }
+                }
+            }
+        },
+    ))
+}
+
+/// Le contenu d'une table, colonne par colonne.
+pub async fn table_page(
+    State(app): State<crate::App>,
+    Path(nom): Path<String>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let page: u64 = q
+        .get("page")
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(1)
+        .max(1);
+    let limite = 100u64;
+    let (colonnes, lignes) = db::tables::lignes(
+        &app.pool,
+        &nom,
+        crate::entite::courante(),
+        limite,
+        (page - 1) * limite,
+    )?;
+
+    Ok(crate::ui::page(
+        "parametres",
+        "tables",
+        &nom,
+        html! {
+            h1 { (nom.clone()) }
+            p .sous-titre {
+                (colonnes.len().to_string()) " colonne(s), " (lignes.len().to_string())
+                " ligne(s) — page " (page.to_string())
+                " · lecture seule"
+            }
+            @if lignes.is_empty() {
+                (crate::ui::vide("Table vide.", Some(("/parametres/tables", "Retour aux tables"))))
+            } @else {
+                div style="overflow-x:auto" {
+                    table {
+                        thead {
+                            tr { @for c in &colonnes { th { (c.clone()) } } }
+                        }
+                        tbody {
+                            @for l in &lignes {
+                                tr {
+                                    @for v in l {
+                                        td {
+                                            (v.clone().unwrap_or_default())
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            div .actions {
+                a .bouton.secondaire href={ "/parametres/tables/" (nom) "?page=" ((page + 1).to_string()) } {
+                    "Page suivante"
+                }
+                a .bouton.secondaire href="/parametres/tables" style="margin-left:8px" {
+                    "Toutes les tables"
+                }
+            }
+        },
+    ))
+}
