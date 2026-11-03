@@ -1,15 +1,15 @@
 //! Droits d'acces par ecran, dans le modele Dolibarr.
 //!
 //! Dolibarr stocke les definitions dans `llx_rights_def` (id, libelle, module,
-//! perms) et les attributions dans `llx_user_rights` (fk_user, fk_id). Ces
-//! tables sont **vides** tant que les modules n'ont pas ete actives : on cree
-//! donc nos propres definitions, sous le module `dolibarr_rs`, avec des
-//! identifiants reserves (9001 et plus).
+//! perms) et les attributions dans `llx_user_rights` (fk_user, fk_id).
 //!
-//! Pour les ecrans dont on connait l'identifiant du coeur, on ecrit aussi la
-//! definition Dolibarr et on **accepte les deux** : un utilisateur a qui
-//! Dolibarr PHP a donne « Read invoices » (id 11) ouvre notre ecran des
-//! factures, et une attribution faite chez nous se lit dans Dolibarr.
+//! Nos propres droits portent des identifiants reserves (9001 et plus). Pour
+//! chaque ecran dont le module Dolibarr est connu, on ecrit **aussi** la
+//! definition du coeur et on accepte ses identifiants : un utilisateur a qui
+//! Dolibarr PHP a donne « Read invoices » (11) ouvre notre ecran des factures,
+//! et une attribution faite chez nous se lit dans Dolibarr.
+//!
+//! Les identifiants sont releves dans les `mod*.class.php` du coeur 24.0.1.
 
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -21,59 +21,65 @@ use mysql::{params, Pool};
 pub struct Definition {
     pub id: i64,
     pub libelle: &'static str,
-    /// Identifiant du coeur Dolibarr, quand il est connu.
-    pub coeur: Option<i64>,
+    /// Identifiants du coeur Dolibarr qui ouvrent le meme ecran.
+    pub coeur: &'static [i64],
 }
 
 /// Droits geres par le noyau : un par ecran de travail.
-///
-/// Les identifiants du coeur sont ceux declares par les modules PHP :
-/// `modFacture` donne 11 (lire), 12 (creer), 16 (paiement).
 pub const DEFINITIONS: &[Definition] = &[
+    // modSociete : 241 lire clients, 242 lire fournisseurs.
     Definition {
         id: 9001,
         libelle: "Tiers",
-        coeur: None,
+        coeur: &[241, 242],
     },
+    // modPropale : 21 lire.
     Definition {
         id: 9002,
         libelle: "Devis",
-        coeur: None,
+        coeur: &[21],
     },
+    // modCommande : 81 lire.
     Definition {
         id: 9003,
         libelle: "Commandes",
-        coeur: None,
+        coeur: &[81],
     },
+    // modFacture : 11 lire, 16 saisir un reglement.
     Definition {
         id: 9004,
         libelle: "Factures et reglements",
-        coeur: Some(11),
+        coeur: &[11, 16],
     },
+    // modProjet : 41 lire (partages), 141 lire tout.
     Definition {
         id: 9005,
         libelle: "Chantiers",
-        coeur: None,
+        coeur: &[41, 141],
     },
+    // modFournisseur : 1181 consulter les fournisseurs.
     Definition {
         id: 9006,
         libelle: "Achats",
-        coeur: None,
+        coeur: &[1181],
     },
+    // modBanque : 111 lire, 114 rapprocher.
     Definition {
         id: 9007,
         libelle: "Banques",
-        coeur: None,
+        coeur: &[111, 114],
     },
+    // modComptabilite : 95 lire CA, bilans, resultats.
     Definition {
         id: 9008,
         libelle: "Comptabilite et exports",
-        coeur: None,
+        coeur: &[95],
     },
+    // Les parametres n'ont pas d'equivalent : c'est notre administration.
     Definition {
         id: 9009,
         libelle: "Parametres",
-        coeur: None,
+        coeur: &[],
     },
 ];
 
@@ -93,18 +99,19 @@ pub fn assurer_definitions(pool: &Pool, entity: i64) -> Result<(), Box<dyn Error
                 "sub" => d.id.to_string(),
             },
         )?;
-        // Meme definition sous l'identifiant du coeur, quand il existe : c'est
-        // cet identifiant que Dolibarr PHP utilise.
-        if let Some(coeur) = d.coeur {
+        // Meme definition sous les identifiants du coeur : c'est eux que
+        // Dolibarr PHP utilise.
+        for coeur in d.coeur {
             conn.exec_drop(
                 "INSERT INTO llx_rights_def \
                  (id, entity, libelle, module, module_origin, perms, subperms, type, bydefault, enabled) \
-                 VALUES (:id, :entity, :libelle, 'facture', 'facture', 'lire', '', 'a', 0, '1') \
+                 VALUES (:id, :entity, :libelle, 'dolibarr_rs', 'dolibarr_rs', 'ecran', :sub, 'r', 0, '1') \
                  ON DUPLICATE KEY UPDATE libelle = VALUES(libelle)",
                 params! {
                     "id" => coeur,
                     "entity" => entity,
                     "libelle" => d.libelle,
+                    "sub" => coeur.to_string(),
                 },
             )?;
         }
@@ -146,27 +153,29 @@ pub fn definir(
     Ok(())
 }
 
-/// Les droits qui ouvrent un chemin d'URL : le notre, et celui du coeur.
+/// Les droits qui ouvrent un chemin d'URL : le notre et ceux du coeur.
 ///
 /// Le prefixe le plus long gagne : `/parametres/utilisateurs` reste dans
 /// « Parametres ».
 pub fn droits_du_chemin(chemin: &str) -> &'static [i64] {
     let carte: &[(&str, &'static [i64])] = &[
-        ("/chantiers", &[9005]),
-        ("/achats", &[9006]),
-        ("/banques", &[9007]),
+        ("/chantiers", &[9005, 41, 141]),
+        ("/achats", &[9006, 1181]),
+        ("/banques", &[9007, 111, 114]),
         ("/factures", &[9004, 11]),
         ("/reglements", &[9004, 11, 16]),
         ("/avoirs", &[9004, 11]),
-        ("/devis", &[9002]),
-        ("/commandes", &[9003]),
-        ("/comptabilite", &[9008]),
-        ("/export", &[9008]),
-        ("/tiers", &[9001]),
-        ("/contacts", &[9001]),
-        ("/produits", &[9001]),
-        ("/stock", &[9001]),
-        ("/tickets", &[9003]),
+        ("/devis", &[9002, 21]),
+        ("/commandes", &[9003, 81]),
+        ("/comptabilite", &[9008, 95]),
+        ("/export", &[9008, 95]),
+        ("/tiers", &[9001, 241, 242]),
+        ("/contacts", &[9001, 241, 242]),
+        ("/produits", &[9001, 31]),
+        ("/stock", &[9001, 31]),
+        ("/tickets", &[9003, 56001]),
+        ("/documents", &[9009, 2501]),
+        ("/agenda", &[9009, 2401, 2411]),
         ("/parametres", &[9009]),
     ];
     carte
@@ -196,10 +205,14 @@ mod tests {
 
     #[test]
     fn les_identifiants_du_coeur_ouvrent_aussi() {
-        // Un utilisateur a qui Dolibarr a donne « Read invoices » (11) passe.
+        // « Read invoices » (11) chez Dolibarr ouvre nos factures.
         assert!(droits_du_chemin("/factures/12").contains(&11));
         // « Issue payments » (16) ouvre la saisie des reglements.
         assert!(droits_du_chemin("/reglements").contains(&16));
+        // « Read thirdparties » (241) ouvre les tiers et les contacts.
+        assert!(droits_du_chemin("/tiers/3").contains(&241));
+        // « Read projects » (41) ouvre les chantiers.
+        assert!(droits_du_chemin("/chantiers").contains(&41));
         // Les parametres restent hors du coeur : un seul identifiant.
         assert_eq!(droits_du_chemin("/parametres"), &[9009]);
     }
