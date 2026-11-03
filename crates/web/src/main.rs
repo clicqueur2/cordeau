@@ -147,7 +147,10 @@ async fn main() {
     };
 
     let pages = Router::new()
-        .route("/installation", get(pages::installation_page))
+        .route(
+            "/installation",
+            get(pages::installation_page).post(pages::installation_creer),
+        )
         .route("/connexion", get(connexion_page).post(connexion))
         .route("/deconnexion", post(deconnexion))
         .route("/compte", get(compte))
