@@ -925,3 +925,5 @@ mod tests {
         assert!(dynamique.to_string().contains("quantite invalide"));
     }
 }
+
+pub mod ticket;
