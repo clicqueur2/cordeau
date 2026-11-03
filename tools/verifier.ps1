@@ -86,6 +86,10 @@ Etape "Chaîne métier (devis → facture → règlement → PDF)" {
 }
 
 # --- 6. Interface web (système) ---------------------------------------------
+# Identifiants de verification : jamais en clair dans un depot public.
+if (-not $env:DOLIBARR_VERIF_LOGIN) { $env:DOLIBARR_VERIF_LOGIN = "maxime" }
+if (-not $env:DOLIBARR_VERIF_MDP) { $env:DOLIBARR_VERIF_MDP = "" }
+
 Etape "Interface web (10 écrans)" {
     $pages = @("/", "/tiers", "/produits", "/devis", "/factures", "/relances",
                "/parametres", "/parametres/dictionnaires", "/parametres/base",
@@ -107,7 +111,7 @@ Etape "Interface web (10 écrans)" {
         return
     }
     $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-    Invoke-WebRequest -Uri "http://127.0.0.1:8090/connexion" -Method POST -UseBasicParsing -TimeoutSec 10 -WebSession $s -Body @{login="maxime";mdp="PierreAngulaire2026!"} | Out-Null
+    Invoke-WebRequest -Uri "http://127.0.0.1:8090/connexion" -Method POST -UseBasicParsing -TimeoutSec 10 -WebSession $s -Body @{login=$env:DOLIBARR_VERIF_LOGIN;mdp=$env:DOLIBARR_VERIF_MDP} | Out-Null
     $ko = 0
     foreach ($p in $pages) {
         try {
