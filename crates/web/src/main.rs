@@ -147,6 +147,7 @@ async fn main() {
     };
 
     let pages = Router::new()
+        .route("/installation", get(pages::installation_page))
         .route("/connexion", get(connexion_page).post(connexion))
         .route("/deconnexion", post(deconnexion))
         .route("/compte", get(compte))
@@ -417,7 +418,7 @@ async fn garde(
     next: axum::middleware::Next,
 ) -> axum::response::Response {
     let chemin = req.uri().path().to_string();
-    if chemin == "/connexion" || chemin.starts_with("/public") {
+    if chemin == "/connexion" || chemin == "/installation" || chemin.starts_with("/public") {
         return next.run(req).await;
     }
     let courant = lire_cookie(req.headers()).and_then(|j| {
