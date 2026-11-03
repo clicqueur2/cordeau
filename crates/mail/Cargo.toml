@@ -1,0 +1,10 @@
+[package]
+name = "mail"
+description = "Client SMTP minimal : envoi des messages du noyau"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+base64 = "0.22"
+native-tls = "0.2"
