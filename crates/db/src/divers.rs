@@ -253,6 +253,36 @@ pub fn lignes_brutes(
         })
         .collect())
 }
+/// Un identifiant SQL acceptable : lettres, chiffres, souligne.
+fn identifiant_sql(s: &str) -> bool {
+    !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// Les seules expressions SQL autorisees a etre posees d'office.
+const EXPRESSIONS_SQL: &[&str] = &["NOW()", "CURDATE()", "0", "1"];
+
+/// Une valeur de colonne, en texte, pour l'affichage et la reprise en
+/// formulaire.
+fn valeur_texte(r: &Row, i: usize) -> Option<String> {
+    r.get_opt::<String, _>(i)
+        .and_then(|v| v.ok())
+        .or_else(|| {
+            r.get_opt::<i64, _>(i)
+                .and_then(|v| v.ok())
+                .map(|n| n.to_string())
+        })
+        // Les colonnes `double(24,8)` ne se decodent ni en texte ni en entier :
+        // sans ce troisieme essai, un montant reviendrait vide dans le formulaire.
+        .or_else(|| {
+            use rust_decimal::prelude::FromPrimitive;
+            r.get_opt::<f64, _>(i).and_then(|v| v.ok()).map(|n| {
+                Decimal::from_f64(n)
+                    .map(|d| d.normalize().to_string())
+                    .unwrap_or_else(|| n.to_string())
+            })
+        })
+}
+
 /// Insertion generique, pour les modules sans ecran d'ecriture dedie.
 ///
 /// Le nom de table et les colonnes viennent du registre cote web (constantes),
@@ -265,12 +295,7 @@ pub fn inserer(
     valeurs: &[(String, Option<String>)],
     exprs: &[(&'static str, &'static str)],
 ) -> Result<u64, Box<dyn Error>> {
-    /// Un identifiant SQL acceptable : lettres, chiffres, souligne.
-    fn identifiant(s: &str) -> bool {
-        !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-    }
-
-    if !identifiant(table) {
+    if !identifiant_sql(table) {
         return Err(format!("nom de table refuse : {table}").into());
     }
 
@@ -279,7 +304,7 @@ pub fn inserer(
     let mut params: Vec<Value> = vec![Value::Int(entity)];
 
     for (colonne, v) in valeurs {
-        if !identifiant(colonne) {
+        if !identifiant_sql(colonne) {
             return Err(format!("nom de colonne refuse : {colonne}").into());
         }
         colonnes.push(colonne);
@@ -292,12 +317,11 @@ pub fn inserer(
 
     // Expressions posees d'office : uniquement des formes fermees, jamais du
     // texte libre.
-    const EXPRESSIONS: &[&str] = &["NOW()", "CURDATE()", "0", "1"];
     for (colonne, expr) in exprs {
-        if !identifiant(colonne) {
+        if !identifiant_sql(colonne) {
             return Err(format!("nom de colonne refuse : {colonne}").into());
         }
-        if !EXPRESSIONS.contains(expr) {
+        if !EXPRESSIONS_SQL.contains(expr) {
             return Err(format!("expression SQL refusee : {expr}").into());
         }
         colonnes.push(colonne);
@@ -336,4 +360,97 @@ pub fn produits_pour_liste(
             (id.to_string(), libelle)
         })
         .collect())
+}
+
+/// Lit une ligne d'une table, colonne par colonne, en texte.
+///
+/// `table` et `colonnes` viennent du registre cote web ; ils sont valides
+/// comme partout ailleurs, et l'entite est toujours dans le WHERE.
+pub fn lire_ligne(
+    pool: &Pool,
+    table: &str,
+    entity: i64,
+    id: i64,
+    colonnes: &[&str],
+) -> Result<Option<Vec<Option<String>>>, Box<dyn Error>> {
+    if !identifiant_sql(table) || colonnes.iter().any(|c| !identifiant_sql(c)) {
+        return Err("nom de table ou de colonne refuse".into());
+    }
+    // Tout est caste en texte : une DATE, un double(24,8) et un entier se
+    // relisent alors de la meme facon, sans deviner le type a l'arrivee.
+    let liste = colonnes
+        .iter()
+        .map(|c| format!("CAST({c} AS CHAR)"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!("SELECT {liste} FROM {table} WHERE rowid = ? AND entity = ?");
+    let mut conn = pool.get_conn()?;
+    let row: Option<Row> = conn.exec_first(sql, (id, entity))?;
+    Ok(row.map(|r| {
+        (0..r.len())
+            .map(|i| valeur_texte(&r, i))
+            .collect::<Vec<_>>()
+    }))
+}
+
+/// Met a jour une ligne. Renvoie le nombre de lignes touchees (0 = rien).
+pub fn mettre_a_jour(
+    pool: &Pool,
+    table: &str,
+    entity: i64,
+    id: i64,
+    valeurs: &[(String, Option<String>)],
+    exprs: &[(&'static str, &'static str)],
+) -> Result<u64, Box<dyn Error>> {
+    if !identifiant_sql(table) {
+        return Err(format!("nom de table refuse : {table}").into());
+    }
+    let mut morceaux: Vec<String> = Vec::new();
+    let mut params: Vec<Value> = Vec::new();
+
+    for (colonne, v) in valeurs {
+        if !identifiant_sql(colonne) {
+            return Err(format!("nom de colonne refuse : {colonne}").into());
+        }
+        morceaux.push(format!("{colonne} = ?"));
+        params.push(match v {
+            Some(s) => Value::from(s.clone()),
+            None => Value::NULL,
+        });
+    }
+    for (colonne, expr) in exprs {
+        if !identifiant_sql(colonne) || !EXPRESSIONS_SQL.contains(expr) {
+            return Err(format!("expression refusee sur {colonne} : {expr}").into());
+        }
+        morceaux.push(format!("{colonne} = {expr}"));
+    }
+    if morceaux.is_empty() {
+        return Ok(0);
+    }
+    params.push(Value::Int(id));
+    params.push(Value::Int(entity));
+
+    let sql = format!(
+        "UPDATE {table} SET {} WHERE rowid = ? AND entity = ?",
+        morceaux.join(", ")
+    );
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(sql, params)?;
+    Ok(conn.affected_rows())
+}
+
+/// Supprime une ligne. Renvoie le nombre de lignes parties (0 = rien).
+pub fn supprimer_ligne(
+    pool: &Pool,
+    table: &str,
+    entity: i64,
+    id: i64,
+) -> Result<u64, Box<dyn Error>> {
+    if !identifiant_sql(table) {
+        return Err(format!("nom de table refuse : {table}").into());
+    }
+    let sql = format!("DELETE FROM {table} WHERE rowid = ? AND entity = ?");
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(sql, (id, entity))?;
+    Ok(conn.affected_rows())
 }

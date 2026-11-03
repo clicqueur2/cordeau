@@ -1748,11 +1748,11 @@ pub const LISTES: &[ListeSimple] = &[
         titre: "Taux de TVA",
         intro: "Dictionnaire des taux de TVA (llx_c_tva) : c'est lui qui alimente \
                 les factures, pas une liste figée dans le code.",
-        sql: "SELECT code, CAST(taux AS CHAR), COALESCE(note, ''), \
+        sql: "SELECT rowid, code, CAST(taux AS CHAR), COALESCE(note, ''), \
                      CASE active WHEN 1 THEN 'actif' ELSE 'inactif' END \
               FROM llx_c_tva WHERE entity = :entity \
               ORDER BY taux DESC, code ASC LIMIT 200",
-        colonnes: &["Code", "Taux", "Note", "État"],
+        colonnes: &["N°", "Code", "Taux", "Note", "État"],
     },
     ListeSimple {
         code: "Salaries",
@@ -1772,12 +1772,13 @@ pub const LISTES: &[ListeSimple] = &[
         code: "Loan",
         titre: "Prêts",
         intro: "Emprunts et échéanciers (llx_loan), lecture seule.",
-        sql: "SELECT label, CAST(capital AS CHAR), \
+        sql: "SELECT rowid, label, CAST(capital AS CHAR), \
                      DATE_FORMAT(datestart, '%Y-%m-%d'), CAST(nbterm AS CHAR), \
                      CAST(rate AS CHAR), CAST(capital_position AS CHAR) \
               FROM llx_loan WHERE entity = :entity \
               ORDER BY datestart DESC, rowid DESC LIMIT 200",
         colonnes: &[
+            "N°",
             "Libellé",
             "Capital",
             "Début",
@@ -1790,7 +1791,7 @@ pub const LISTES: &[ListeSimple] = &[
         code: "ProductBatch",
         titre: "Lots et séries",
         intro: "Lots suivis (llx_product_lot), lecture seule.",
-        sql: "SELECT l.batch, COALESCE(p.ref, ''), COALESCE(p.label, ''), \
+        sql: "SELECT l.rowid, l.batch, COALESCE(p.ref, ''), COALESCE(p.label, ''), \
                      COALESCE(DATE_FORMAT(l.eatby, '%Y-%m-%d'), ''), \
                      COALESCE(DATE_FORMAT(l.sellby, '%Y-%m-%d'), '') \
               FROM llx_product_lot l \
@@ -1798,6 +1799,7 @@ pub const LISTES: &[ListeSimple] = &[
               WHERE l.entity = :entity \
               ORDER BY l.rowid DESC LIMIT 200",
         colonnes: &[
+            "N°",
             "Lot",
             "Réf. produit",
             "Libellé",
@@ -1829,23 +1831,24 @@ pub const LISTES: &[ListeSimple] = &[
         code: "Asset",
         titre: "Immobilisations",
         intro: "Biens immobilisés (llx_asset), lecture seule.",
-        sql: "SELECT a.ref, a.label, DATE_FORMAT(a.date_acquisition, '%Y-%m-%d'), \
+        sql: "SELECT a.rowid, a.ref, a.label, DATE_FORMAT(a.date_acquisition, '%Y-%m-%d'), \
                      CAST(a.acquisition_value_ht AS CHAR), \
                      COALESCE(DATE_FORMAT(a.disposal_date, '%Y-%m-%d'), '') \
               FROM llx_asset a WHERE a.entity = :entity \
               ORDER BY a.date_acquisition DESC, a.rowid DESC LIMIT 200",
-        colonnes: &["Réf.", "Libellé", "Acquis le", "Valeur HT", "Cédé le"],
+        colonnes: &["N°", "Réf.", "Libellé", "Acquis le", "Valeur HT", "Cédé le"],
     },
     ListeSimple {
         code: "Resource",
         titre: "Ressources",
         intro: "Ressources partagées : salles, véhicules, matériel (llx_resource).",
-        sql: "SELECT ref, COALESCE(description, ''), COALESCE(town, ''), \
+        sql: "SELECT rowid, ref, COALESCE(description, ''), COALESCE(town, ''), \
                      COALESCE(phone, ''), COALESCE(email, ''), \
                      CASE fk_statut WHEN 0 THEN 'inactif' ELSE 'actif' END \
               FROM llx_resource WHERE entity = :entity \
               ORDER BY ref ASC LIMIT 200",
         colonnes: &[
+            "N°",
             "Réf.",
             "Description",
             "Ville",
@@ -1914,7 +1917,15 @@ pub async fn liste_simple_page(
                         @for r in &lignes {
                             tr {
                                 @for (i, _) in liste.colonnes.iter().enumerate() {
-                                    td { (valeur(r, i)) }
+                                    td {
+                                        @if i == 0 && creation {
+                                            a href={ "/liste/" (code) "/fiche/" (valeur(r, 0)) } {
+                                                (valeur(r, 0))
+                                            }
+                                        } @else {
+                                            (valeur(r, i))
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2207,4 +2218,142 @@ pub async fn liste_saisie_creer(
         &exprs,
     )?;
     Ok(Redirect::to(&format!("/liste/{code}?ok=cree")))
+}
+
+/// Met une valeur de la base sous une forme lisible dans un champ.
+///
+/// Les colonnes `double(24,8)` rendent « 3.50000000 » ; l'utilisateur doit voir
+/// « 3,5 ». Les nombres passent par le decimal, jamais par un flottant.
+fn valeur_affichable(ch: &ChampSaisie, v: &Option<String>) -> String {
+    let brut = v.clone().unwrap_or_default();
+    match ch.sorte {
+        Sorte::Nombre | Sorte::Entier => {
+            use std::str::FromStr;
+            rust_decimal::Decimal::from_str(&brut)
+                .map(|d| d.normalize().to_string())
+                .unwrap_or(brut)
+        }
+        _ => brut,
+    }
+}
+
+/// Fiche d'une ligne : les memes champs que la creation, remplis.
+pub async fn fiche_saisie(
+    State(app): State<crate::App>,
+    axum::extract::Path((code, id)): axum::extract::Path<(String, i64)>,
+    axum::extract::Query(q): axum::extract::Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let s = saisie(&code).ok_or_else(|| Erreur(format!("aucune fiche pour : {code}")))?;
+    let liste = liste_simple(&code).ok_or_else(|| Erreur(format!("liste inconnue : {code}")))?;
+
+    let colonnes: Vec<&str> = s.champs.iter().map(|ch| ch.nom).collect();
+    let ligne =
+        db::divers::lire_ligne(&app.pool, s.table, crate::entite::courante(), id, &colonnes)?
+            .ok_or_else(|| Erreur(format!("ligne {id} introuvable dans {}", s.table)))?;
+    let valeurs: Vec<String> = s
+        .champs
+        .iter()
+        .enumerate()
+        .map(|(i, ch)| valeur_affichable(ch, ligne.get(i).unwrap_or(&None)))
+        .collect();
+
+    let manquant = q
+        .get("erreur")
+        .and_then(|i| i.parse::<usize>().ok())
+        .and_then(|i| s.champs.get(i))
+        .map(|ch| format!("« {} » est obligatoire.", ch.libelle));
+
+    Ok(crate::ui::page(
+        "listes",
+        "liste",
+        liste.titre,
+        html! {
+            h1 { (liste.titre) " — n° " (id.to_string()) }
+            @if let Some(m) = &manquant {
+                p style="background:#fdf1ef;border-left:3px solid #a33;padding:10px 12px;margin:0 0 16px" {
+                    (m)
+                }
+            }
+            form method="post" action={ "/liste/" (code) "/fiche/" (id.to_string()) } {
+                table {
+                    tbody {
+                        @for (i, ch) in s.champs.iter().enumerate() {
+                            tr {
+                                th {
+                                    (ch.libelle)
+                                    @if ch.obligatoire { span style="color:#a33" { " *" } }
+                                }
+                                td {
+                                    input
+                                        type=(ch.sorte.type_html())
+                                        name=(ch.nom)
+                                        value=(valeurs.get(i).cloned().unwrap_or_default())
+                                        required[ch.obligatoire];
+                                }
+                            }
+                        }
+                    }
+                }
+                div .actions {
+                    button type="submit" { "Enregistrer" }
+                    a .bouton href={ "/liste/" (code) } style="margin-left:8px" { "Retour" }
+                }
+            }
+            form method="post"
+                 action={ "/liste/" (code) "/fiche/" (id.to_string()) "/supprimer" }
+                 onsubmit="return confirm('Supprimer définitivement cette ligne ?')"
+                 style="margin-top:18px" {
+                button type="submit"
+                       style="background:#a33;color:#fff;border:0;padding:9px 16px;cursor:pointer" {
+                    "Supprimer"
+                }
+                span style="color:#78736c;font-size:13px;margin-left:10px" {
+                    "Suppression directe dans " code { (s.table) } " : Dolibarr ne passera pas par là."
+                }
+            }
+        },
+    ))
+}
+
+/// Enregistre la modification d'une fiche.
+pub async fn fiche_saisie_enregistrer(
+    State(app): State<crate::App>,
+    axum::extract::Path((code, id)): axum::extract::Path<(String, i64)>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let s = saisie(&code).ok_or_else(|| Erreur(format!("aucune fiche pour : {code}")))?;
+
+    let mut valeurs: Vec<(String, Option<String>)> = Vec::new();
+    for (i, ch) in s.champs.iter().enumerate() {
+        let brut = f.get(ch.nom).map(String::as_str).unwrap_or("");
+        let v = ch.sorte.normaliser(brut);
+        if ch.obligatoire && v.is_none() {
+            return Ok(Redirect::to(&format!(
+                "/liste/{code}/fiche/{id}?erreur={i}"
+            )));
+        }
+        valeurs.push((ch.nom.to_string(), v));
+    }
+
+    // Les colonnes posees d'office ne sont pas retouchees : une date de
+    // creation ne se reecrit pas.
+    db::divers::mettre_a_jour(
+        &app.pool,
+        s.table,
+        crate::entite::courante(),
+        id,
+        &valeurs,
+        &[],
+    )?;
+    Ok(Redirect::to(&format!("/liste/{code}?ok=modifie")))
+}
+
+/// Supprime une fiche.
+pub async fn fiche_saisie_supprimer(
+    State(app): State<crate::App>,
+    axum::extract::Path((code, id)): axum::extract::Path<(String, i64)>,
+) -> Res<Redirect> {
+    let s = saisie(&code).ok_or_else(|| Erreur(format!("aucune fiche pour : {code}")))?;
+    db::divers::supprimer_ligne(&app.pool, s.table, crate::entite::courante(), id)?;
+    Ok(Redirect::to(&format!("/liste/{code}?ok=supprime")))
 }
