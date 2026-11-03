@@ -711,8 +711,10 @@ name = "db"
 version = "0.1.0"
 dependencies = [
  "auth",
+ "comptabilite",
  "money",
  "mysql",
+ "recurrence",
  "rust_decimal",
  "schema",
 ]
