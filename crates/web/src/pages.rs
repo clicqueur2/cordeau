@@ -2040,6 +2040,12 @@ pub struct Saisie {
     pub reference: Option<(&'static str, &'static str)>,
     /// Cle primaire : `rowid` presque partout, `id` dans les dictionnaires.
     pub pk: &'static str,
+    /// La table porte-t-elle une colonne `entity` ? Faux pour un dictionnaire
+    /// national (pays, types d'evenement).
+    pub entite: bool,
+    /// La cle est-elle auto-incrementee ? Faux pour `llx_c_country`, seme avec
+    /// des identifiants fixes par l'installateur Dolibarr.
+    pub pk_auto: bool,
 }
 
 const fn c(
@@ -2085,6 +2091,8 @@ pub const SAISIES: &[Saisie] = &[
         fixes: &[("datec", "NOW()"), ("paid", "0"), ("active", "1")],
         reference: None,
         pk: "rowid",
+        entite: true,
+        pk_auto: true,
     },
     Saisie {
         code: "Asset",
@@ -2104,6 +2112,8 @@ pub const SAISIES: &[Saisie] = &[
         ],
         reference: None,
         pk: "rowid",
+        entite: true,
+        pk_auto: true,
     },
     Saisie {
         code: "ProductBatch",
@@ -2118,6 +2128,8 @@ pub const SAISIES: &[Saisie] = &[
         fixes: &[],
         reference: None,
         pk: "rowid",
+        entite: true,
+        pk_auto: true,
     },
     Saisie {
         code: "Resource",
@@ -2132,6 +2144,8 @@ pub const SAISIES: &[Saisie] = &[
         fixes: &[("datec", "NOW()"), ("fk_statut", "1")],
         reference: None,
         pk: "rowid",
+        entite: true,
+        pk_auto: true,
     },
     Saisie {
         code: "Tax",
@@ -2146,6 +2160,8 @@ pub const SAISIES: &[Saisie] = &[
         fixes: &[("fk_pays", "1"), ("active", "1")],
         reference: None,
         pk: "rowid",
+        entite: true,
+        pk_auto: true,
     },
     Saisie {
         code: "Adherent",
@@ -2161,6 +2177,8 @@ pub const SAISIES: &[Saisie] = &[
         fixes: &[("morphy", "'phy'"), ("statut", "1"), ("public", "0")],
         reference: Some(("ref", "ADH")),
         pk: "rowid",
+        entite: true,
+        pk_auto: true,
     },
     Saisie {
         code: "Categorie",
@@ -2172,6 +2190,8 @@ pub const SAISIES: &[Saisie] = &[
         fixes: &[("visible", "1"), ("fk_parent", "0")],
         reference: None,
         pk: "rowid",
+        entite: true,
+        pk_auto: true,
     },
     Saisie {
         code: "Don",
@@ -2188,6 +2208,8 @@ pub const SAISIES: &[Saisie] = &[
         ],
         reference: Some(("ref", "DON")),
         pk: "rowid",
+        entite: true,
+        pk_auto: true,
     },
 ];
 
@@ -2381,12 +2403,22 @@ pub async fn liste_saisie_creer(
 
     db::divers::inserer(
         &app.pool,
-        s.table,
+        cible(s),
         crate::entite::courante(),
         &valeurs,
         &exprs,
     )?;
     Ok(Redirect::to(&format!("/liste/{code}?ok=cree")))
+}
+
+/// La cible d'ecriture d'un formulaire declare.
+fn cible(s: &Saisie) -> db::divers::Cible<'_> {
+    db::divers::Cible {
+        table: s.table,
+        cle: s.pk,
+        entite: s.entite,
+        cle_auto: s.pk_auto,
+    }
 }
 
 /// Met une valeur de la base sous une forme lisible dans un champ.
@@ -2418,8 +2450,7 @@ pub async fn fiche_saisie(
     let colonnes: Vec<&str> = s.champs.iter().map(|ch| ch.nom).collect();
     let ligne = db::divers::lire_ligne_par(
         &app.pool,
-        s.table,
-        s.pk,
+        cible(s),
         crate::entite::courante(),
         id,
         &colonnes,
@@ -2514,8 +2545,7 @@ pub async fn fiche_saisie_enregistrer(
     // creation ne se reecrit pas.
     db::divers::mettre_a_jour_par(
         &app.pool,
-        s.table,
-        s.pk,
+        cible(s),
         crate::entite::courante(),
         id,
         &valeurs,
@@ -2530,6 +2560,6 @@ pub async fn fiche_saisie_supprimer(
     axum::extract::Path((code, id)): axum::extract::Path<(String, i64)>,
 ) -> Res<Redirect> {
     let s = saisie(&code).ok_or_else(|| Erreur(format!("aucune fiche pour : {code}")))?;
-    db::divers::supprimer_ligne_par(&app.pool, s.table, s.pk, crate::entite::courante(), id)?;
+    db::divers::supprimer_ligne_par(&app.pool, cible(s), crate::entite::courante(), id)?;
     Ok(Redirect::to(&format!("/liste/{code}?ok=supprime")))
 }

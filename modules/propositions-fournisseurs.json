@@ -1,0 +1,34 @@
+{
+  "code": "PropositionsFournisseurs",
+  "libelle": "Propositions fournisseurs",
+  "droit": {
+    "id": 9504,
+    "libelle": "Propositions fournisseurs"
+  },
+  "menu": {
+    "cle": "propositions-fournisseurs",
+    "entrees": [
+      {
+        "cle": "liste",
+        "libelle": "Propositions",
+        "lien": "/liste/PropositionsFournisseurs"
+      }
+    ]
+  },
+  "listes": [
+    {
+      "code": "PropositionsFournisseurs",
+      "titre": "Propositions fournisseurs",
+      "intro": "Demandes de prix envoyées aux fournisseurs (llx_supplier_proposal), lecture seule : leur création passe par les lignes de commande.",
+      "sql": "SELECT p.rowid, p.ref, COALESCE(s.nom, ''), DATE_FORMAT(p.datec, '%Y-%m-%d'), COALESCE(CAST(p.total_ttc AS CHAR), ''), CAST(p.fk_statut AS CHAR) FROM llx_supplier_proposal p LEFT JOIN llx_societe s ON s.rowid = p.fk_soc WHERE p.entity = :entity ORDER BY p.datec DESC, p.rowid DESC LIMIT 200",
+      "colonnes": [
+        "N°",
+        "Réf.",
+        "Fournisseur",
+        "Date",
+        "Total TTC",
+        "Statut"
+      ]
+    }
+  ]
+}

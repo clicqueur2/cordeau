@@ -237,7 +237,13 @@ pub fn lignes_brutes(
     sql: &str,
 ) -> Result<Vec<Vec<Option<String>>>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
-    let rows: Vec<Row> = conn.exec(sql, params! { "entity" => entity })?;
+    // Un dictionnaire national (llx_c_country) n'a pas de colonne `entity` :
+    // on ne lie le parametre que si la requete le demande.
+    let rows: Vec<Row> = if sql.contains(":entity") {
+        conn.exec(sql, params! { "entity" => entity })?
+    } else {
+        conn.exec(sql, ())?
+    };
     Ok(rows
         .iter()
         .map(|r| {
@@ -262,6 +268,34 @@ fn identifiant_sql(s: &str) -> bool {
 // `'phy'` : la personne morale ou physique d'un adherent, en dur comme dans
 // Dolibarr pour une adhesion de particulier.
 const EXPRESSIONS_SQL: &[&str] = &["NOW()", "CURDATE()", "0", "1", "'phy'"];
+
+/// Ou l'on ecrit : la table, sa cle primaire, et la facon dont elle est
+/// cloisonnee.
+///
+/// Quatre caracteristiques qui vont toujours ensemble : les passer separement
+/// faisait des signatures a huit arguments, illisibles et faciles a inverser.
+#[derive(Clone, Copy)]
+pub struct Cible<'a> {
+    pub table: &'a str,
+    /// Cle primaire : `rowid` presque partout, `id` dans les dictionnaires.
+    pub cle: &'a str,
+    /// La table porte-t-elle une colonne `entity` ?
+    pub entite: bool,
+    /// La cle est-elle auto-incrementee ? Faux pour `llx_c_country`.
+    pub cle_auto: bool,
+}
+
+impl<'a> Cible<'a> {
+    /// Une table ordinaire : `rowid`, entite, cle auto.
+    pub fn ordinaire(table: &'a str) -> Self {
+        Self {
+            table,
+            cle: "rowid",
+            entite: true,
+            cle_auto: true,
+        }
+    }
+}
 
 /// L'expression SQL est-elle dans la liste fermee ? Sert aux modules
 /// declaratifs, qui n'ont pas acces a la constante privee.
@@ -309,18 +343,29 @@ fn valeur_texte(r: &Row, i: usize) -> Option<String> {
 /// doit pouvoir atterrir dans le SQL. Les valeurs, elles, sont toutes liees.
 pub fn inserer(
     pool: &Pool,
-    table: &str,
+    cible: Cible<'_>,
     entity: i64,
     valeurs: &[(String, Option<String>)],
     exprs: &[(&'static str, &'static str)],
 ) -> Result<u64, Box<dyn Error>> {
-    if !identifiant_sql(table) {
+    let Cible {
+        table,
+        cle,
+        entite: avec_entite,
+        cle_auto,
+    } = cible;
+    if !identifiant_sql(table) || !identifiant_sql(cle) {
         return Err(format!("nom de table refuse : {table}").into());
     }
 
-    let mut colonnes: Vec<&str> = vec!["entity"];
-    let mut marques: Vec<&str> = vec!["?"];
-    let mut params: Vec<Value> = vec![Value::Int(entity)];
+    let mut colonnes: Vec<&str> = Vec::new();
+    let mut marques: Vec<&str> = Vec::new();
+    let mut params: Vec<Value> = Vec::new();
+    if avec_entite {
+        colonnes.push("entity");
+        marques.push("?");
+        params.push(Value::Int(entity));
+    }
 
     for (colonne, v) in valeurs {
         if !identifiant_sql(colonne) {
@@ -347,11 +392,25 @@ pub fn inserer(
         marques.push(expr);
     }
 
-    let sql = format!(
-        "INSERT INTO {table} ({}) VALUES ({})",
-        colonnes.join(", "),
-        marques.join(", ")
-    );
+    // Une table dont la cle n'est pas auto-incrementee (les dictionnaires
+    // semes par Dolibarr) recoit MAX(cle) + 1, calcule dans la meme requete.
+    let sql = if cle_auto {
+        format!(
+            "INSERT INTO {table} ({}) VALUES ({})",
+            colonnes.join(", "),
+            marques.join(", ")
+        )
+    } else {
+        let mut avec_cle = vec![cle.to_string()];
+        avec_cle.extend(colonnes.iter().map(|c| c.to_string()));
+        let mut marques_cle = vec![format!("COALESCE(MAX({cle}), 0) + 1")];
+        marques_cle.extend(marques.iter().map(|m| m.to_string()));
+        format!(
+            "INSERT INTO {table} ({}) SELECT {} FROM {table}",
+            avec_cle.join(", "),
+            marques_cle.join(", ")
+        )
+    };
     let mut conn = pool.get_conn()?;
     conn.exec_drop(sql, params)?;
     Ok(conn.last_insert_id())
@@ -387,12 +446,17 @@ pub fn produits_pour_liste(
 /// comme partout ailleurs, et l'entite est toujours dans le WHERE.
 pub fn lire_ligne_par(
     pool: &Pool,
-    table: &str,
-    cle: &str,
+    cible: Cible<'_>,
     entity: i64,
     id: i64,
     colonnes: &[&str],
 ) -> Result<Option<Vec<Option<String>>>, Box<dyn Error>> {
+    let Cible {
+        table,
+        cle,
+        entite: avec_entite,
+        ..
+    } = cible;
     if !identifiant_sql(table)
         || !identifiant_sql(cle)
         || colonnes.iter().any(|c| !identifiant_sql(c))
@@ -406,9 +470,17 @@ pub fn lire_ligne_par(
         .map(|c| format!("CAST({c} AS CHAR)"))
         .collect::<Vec<_>>()
         .join(", ");
-    let sql = format!("SELECT {liste} FROM {table} WHERE {cle} = ? AND entity = ?");
+    let sql = if avec_entite {
+        format!("SELECT {liste} FROM {table} WHERE {cle} = ? AND entity = ?")
+    } else {
+        format!("SELECT {liste} FROM {table} WHERE {cle} = ?")
+    };
     let mut conn = pool.get_conn()?;
-    let row: Option<Row> = conn.exec_first(sql, (id, entity))?;
+    let row: Option<Row> = if avec_entite {
+        conn.exec_first(sql, (id, entity))?
+    } else {
+        conn.exec_first(sql, (id,))?
+    };
     Ok(row.map(|r| {
         (0..r.len())
             .map(|i| valeur_texte(&r, i))
@@ -419,13 +491,18 @@ pub fn lire_ligne_par(
 /// Met a jour une ligne. Renvoie le nombre de lignes touchees (0 = rien).
 pub fn mettre_a_jour_par(
     pool: &Pool,
-    table: &str,
-    cle: &str,
+    cible: Cible<'_>,
     entity: i64,
     id: i64,
     valeurs: &[(String, Option<String>)],
     exprs: &[(&'static str, &'static str)],
 ) -> Result<u64, Box<dyn Error>> {
+    let Cible {
+        table,
+        cle,
+        entite: avec_entite,
+        ..
+    } = cible;
     if !identifiant_sql(table) || !identifiant_sql(cle) {
         return Err(format!("nom de table refuse : {table}").into());
     }
@@ -452,12 +529,18 @@ pub fn mettre_a_jour_par(
         return Ok(0);
     }
     params.push(Value::Int(id));
-    params.push(Value::Int(entity));
+    if avec_entite {
+        params.push(Value::Int(entity));
+    }
 
-    let sql = format!(
-        "UPDATE {table} SET {} WHERE {cle} = ? AND entity = ?",
-        morceaux.join(", ")
-    );
+    let sql = if avec_entite {
+        format!(
+            "UPDATE {table} SET {} WHERE {cle} = ? AND entity = ?",
+            morceaux.join(", ")
+        )
+    } else {
+        format!("UPDATE {table} SET {} WHERE {cle} = ?", morceaux.join(", "))
+    };
     let mut conn = pool.get_conn()?;
     conn.exec_drop(sql, params)?;
     Ok(conn.affected_rows())
@@ -466,17 +549,30 @@ pub fn mettre_a_jour_par(
 /// Supprime une ligne. Renvoie le nombre de lignes parties (0 = rien).
 pub fn supprimer_ligne_par(
     pool: &Pool,
-    table: &str,
-    cle: &str,
+    cible: Cible<'_>,
     entity: i64,
     id: i64,
 ) -> Result<u64, Box<dyn Error>> {
+    let Cible {
+        table,
+        cle,
+        entite: avec_entite,
+        ..
+    } = cible;
     if !identifiant_sql(table) || !identifiant_sql(cle) {
         return Err(format!("nom de table refuse : {table}").into());
     }
-    let sql = format!("DELETE FROM {table} WHERE {cle} = ? AND entity = ?");
+    let sql = if avec_entite {
+        format!("DELETE FROM {table} WHERE {cle} = ? AND entity = ?")
+    } else {
+        format!("DELETE FROM {table} WHERE {cle} = ?")
+    };
     let mut conn = pool.get_conn()?;
-    conn.exec_drop(sql, (id, entity))?;
+    if avec_entite {
+        conn.exec_drop(sql, (id, entity))?;
+    } else {
+        conn.exec_drop(sql, (id,))?;
+    }
     Ok(conn.affected_rows())
 }
 
