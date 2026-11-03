@@ -50,7 +50,7 @@ pub const CATALOGUE: &[Module] = &[
         "Comptabilite",
         "Comptabilité (partie double)",
         "financial",
-        false,
+        true,
     ),
     m(20, "Propale", "Propositions commerciales", "crm", true),
     m(22, "Mailing", "Emailings", "interface", false),
@@ -196,7 +196,7 @@ pub const CATALOGUE: &[Module] = &[
     ),
     m(51000, "Asset", "Immobilisations", "financial", false),
     m(55000, "OpenSurvey", "Sondages", "portal", false),
-    m(56000, "Ticket", "Tickets support", "crm", false),
+    m(56000, "Ticket", "Tickets support", "crm", true),
     m(
         57000,
         "KnowledgeManagement",

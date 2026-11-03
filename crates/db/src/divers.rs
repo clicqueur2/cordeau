@@ -197,3 +197,33 @@ pub fn commandes_fournisseurs(
         })
         .collect())
 }
+
+/// Reference, date, montant, code du mode de paiement.
+pub type PaiementFourn = (String, Option<String>, Decimal, Option<String>);
+
+/// Paiements fournisseurs (`llx_paiementfourn`).
+pub fn paiements_fournisseurs(
+    pool: &Pool,
+    entity: i64,
+    limit: u32,
+) -> Result<Vec<PaiementFourn>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let rows: Vec<Row> = conn.exec(
+        "SELECT p.ref, DATE_FORMAT(p.datep, '%Y-%m-%d'), CAST(p.amount AS CHAR), \
+                t.code \
+         FROM llx_paiementfourn p LEFT JOIN llx_c_paiement t ON t.id = p.fk_paiement \
+         WHERE p.entity = :entity ORDER BY p.datep DESC, p.rowid DESC LIMIT :limit",
+        params! { "entity" => entity, "limit" => limit },
+    )?;
+    Ok(rows
+        .into_iter()
+        .map(|r| {
+            (
+                opt_s(&r, 0).unwrap_or_default(),
+                opt_s(&r, 1),
+                opt_dec(&r, 2).unwrap_or_default(),
+                opt_s(&r, 3),
+            )
+        })
+        .collect())
+}

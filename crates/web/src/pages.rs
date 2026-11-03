@@ -1141,3 +1141,119 @@ pub async fn journal_comptable(
         },
     ))
 }
+
+/// Tickets de support : reclamations clients.
+pub async fn tickets(
+    State(app): State<crate::App>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let liste = db::ticket::list(&app.pool, crate::entite::courante(), 200)?;
+    let clients = db::party::list(&app.pool, crate::entite::courante(), 500, 0)?;
+
+    Ok(crate::ui::page(
+        "tickets",
+        "liste",
+        "Tickets",
+        html! {
+            (message(q.get("ok")))
+            h1 { "Tickets de support" }
+            p .sous-titre {
+                "Une réclamation client tracée : sujet, société, statut. Numérotation TK + AAMM + compteur."
+            }
+
+            @if liste.is_empty() {
+                (crate::ui::vide("Aucun ticket.", None))
+            } @else {
+                table {
+                    thead { tr { th { "Réf." } th { "Sujet" } th { "Société" } th { "Date" } th { "Gravité" } th { "État" } th { "" } } }
+                    tbody {
+                        @for t in &liste {
+                            tr {
+                                td .ref { (t.ref_) }
+                                td { (t.sujet) }
+                                td { (t.tiers.clone().unwrap_or_default()) }
+                                td .ref { (app::fmt_date_fr(t.date.as_deref())) }
+                                td { (t.gravite.clone().unwrap_or_default()) }
+                                td {
+                                    @if t.statut == 8 { span .pastille.p-payee { "fermé" } }
+                                    @else if t.statut == 0 { span .pastille.p-brouillon { "nouveau" } }
+                                    @else { span .pastille.p-validee { "en cours" } }
+                                }
+                                td {
+                                    @if t.statut != 8 {
+                                        form method="post" action={ "/tickets/" (t.rowid) "/fermer" } {
+                                            button type="submit" class="secondaire petit" { "Fermer" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            h2 { "Nouveau ticket" }
+            form method="post" action="/tickets" {
+                table {
+                    tbody {
+                        tr {
+                            th { "Société" }
+                            td {
+                                select name="soc" style="width:100%" {
+                                    option value="" { "— aucun —" }
+                                    @for c in &clients {
+                                        option value=(c.rowid) { (c.nom) }
+                                    }
+                                }
+                            }
+                        }
+                        tr { th { "Sujet" } td { input type="text" name="sujet" required style="width:100%"; } }
+                        tr { th { "Message" } td { textarea name="message" rows="4" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #e6e2dc" {} } }
+                        tr {
+                            th { "Gravité" }
+                            td {
+                                select name="gravite" {
+                                    option value="LOW" { "Basse" }
+                                    option value="NORMAL" { "Normale" }
+                                    option value="HIGH" { "Haute" }
+                                    option value="BLOCKING" { "Bloquante" }
+                                }
+                            }
+                        }
+                    }
+                }
+                div .actions { button type="submit" { "Créer le ticket" } }
+            }
+        },
+    ))
+}
+
+pub async fn ticket_creer(
+    State(app): State<crate::App>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let champ = |c: &str| {
+        f.get(c)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let sujet = champ("sujet").ok_or_else(|| Erreur("sujet du ticket obligatoire".into()))?;
+    let fk_soc = champ("soc").and_then(|v| v.parse::<i64>().ok());
+    db::ticket::creer(
+        &app.pool,
+        crate::entite::courante(),
+        fk_soc,
+        &sujet,
+        champ("message").as_deref(),
+        champ("gravite").as_deref(),
+    )?;
+    Ok(Redirect::to("/tickets?ok=cree"))
+}
+
+pub async fn ticket_fermer(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+) -> Res<Redirect> {
+    db::ticket::fermer(&app.pool, crate::entite::courante(), id)?;
+    Ok(Redirect::to("/tickets?ok=ferme"))
+}
