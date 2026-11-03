@@ -259,12 +259,77 @@ pub struct RenderedPdf {
 // API publique
 // ---------------------------------------------------------------------------
 
+/// Modele de mise en page d'un document.
+///
+/// Dolibarr en propose plusieurs par objet (`doctemplate`). Deux sont portes :
+/// le standard, complet, et l'epure, qui retire les annexes longues pour un
+/// envoi rapide. Les **mentions legales restent dans les deux** : ce n'est pas
+/// une option commerciale, c'est le droit francais.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Modele {
+    /// Document complet : conditions generales de vente et note libre.
+    Standard,
+    /// Document court : ni CGV ni note libre, mentions legales conservees.
+    Epure,
+}
+
+/// Les modeles disponibles, dans l'ordre de presentation.
+pub const MODELES: &[Modele] = &[Modele::Standard, Modele::Epure];
+
+impl Modele {
+    /// Identifiant stable, celui qu'on ecrit dans une constante.
+    pub fn code(self) -> &'static str {
+        match self {
+            Modele::Standard => "standard",
+            Modele::Epure => "epure",
+        }
+    }
+
+    /// Libelle lisible.
+    pub fn label(self) -> &'static str {
+        match self {
+            Modele::Standard => "Standard (avec CGV)",
+            Modele::Epure => "Epure (sans CGV)",
+        }
+    }
+
+    /// Retrouve un modele par son code. Une valeur inconnue rend `None` :
+    /// l'appelant retombe alors sur le standard.
+    pub fn depuis_code(code: &str) -> Option<Self> {
+        MODELES
+            .iter()
+            .copied()
+            .find(|m| m.code().eq_ignore_ascii_case(code.trim()))
+    }
+
+    /// Ce que le modele change dans le document avant composition.
+    ///
+    /// On ne touche ni aux lignes, ni aux totaux, ni aux mentions legales :
+    /// seule l'annexe commerciale disparait.
+    pub fn preparer(self, doc: &mut DocumentView) {
+        if self == Modele::Epure {
+            doc.cgv = None;
+            doc.notes = None;
+        }
+    }
+}
+
 /// Compose le document en PDF et renvoie les octets du fichier.
 ///
 /// Le rendu est deterministe : aucune date systeme, aucun identifiant aleatoire
 /// n'est injecte dans le flux produit.
 pub fn render(doc: &DocumentView) -> Result<Vec<u8>, PdfError> {
     Ok(render_document(doc)?.bytes)
+}
+
+/// Comme [`render_document`], avec un modele de mise en page.
+///
+/// Le document recu n'est pas modifie : le modele s'applique sur une copie,
+/// pour qu'un appelant puisse enchainer deux rendus avec deux modeles.
+pub fn render_avec_modele(doc: &DocumentView, modele: Modele) -> Result<RenderedPdf, PdfError> {
+    let mut copie = doc.clone();
+    modele.preparer(&mut copie);
+    render_document(&copie)
 }
 
 /// Comme [`render`], mais renvoie aussi le nombre de pages composees.
@@ -555,4 +620,28 @@ fn dict(fields: &[(&str, String)]) -> String {
         .map(|(key, value)| format!("{key}: {value}"))
         .collect();
     format!("({})", body.join(", "))
+}
+
+#[cfg(test)]
+mod tests_modeles {
+    use super::Modele;
+
+    #[test]
+    fn les_codes_de_modele_font_l_aller_retour() {
+        for m in super::MODELES {
+            assert_eq!(Modele::depuis_code(m.code()), Some(*m));
+        }
+        // Casse et espaces tolerés : la valeur vient d'une constante saisie
+        // a la main.
+        assert_eq!(Modele::depuis_code(" EPURE "), Some(Modele::Epure));
+        assert_eq!(Modele::depuis_code("standard"), Some(Modele::Standard));
+        // Inconnu : l'appelant retombe sur le standard.
+        assert_eq!(Modele::depuis_code("modele_qui_n_existe_pas"), None);
+        assert_eq!(Modele::depuis_code(""), None);
+    }
+
+    #[test]
+    fn les_libelles_sont_distincts() {
+        assert_ne!(Modele::Standard.label(), Modele::Epure.label());
+    }
 }
