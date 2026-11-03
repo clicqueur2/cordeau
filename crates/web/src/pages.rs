@@ -1635,21 +1635,21 @@ pub const LISTES: &[ListeSimple] = &[
         code: "Adherent",
         titre: "Adhérents",
         intro: "Adhérents enregistrés dans Dolibarr (llx_adherent).",
-        sql: "SELECT ref, CONCAT(lastname, ' ', COALESCE(firstname, '')) AS nom, \
+        sql: "SELECT rowid, ref, CONCAT(lastname, ' ', COALESCE(firstname, '')) AS nom, \
                      COALESCE(town, ''), COALESCE(email, ''), COALESCE(datefin, '') \
               FROM llx_adherent WHERE entity = :entity \
               ORDER BY rowid DESC LIMIT 200",
-        colonnes: &["Réf.", "Nom", "Ville", "E-mail", "Adhésion jusqu'au"],
+        colonnes: &["N°", "Réf.", "Nom", "Ville", "E-mail", "Adhésion jusqu'au"],
     },
     ListeSimple {
         code: "Don",
         titre: "Dons",
         intro: "Dons reçus (llx_don), lecture seule.",
-        sql: "SELECT ref, DATE_FORMAT(datedon, '%Y-%m-%d'), \
+        sql: "SELECT rowid, ref, DATE_FORMAT(datedon, '%Y-%m-%d'), \
                      CAST(amount AS CHAR), CAST(fk_statut AS CHAR) \
               FROM llx_don WHERE entity = :entity \
               ORDER BY datedon DESC, rowid DESC LIMIT 200",
-        colonnes: &["Réf.", "Date", "Montant", "État"],
+        colonnes: &["N°", "Réf.", "Date", "Montant", "État"],
     },
     ListeSimple {
         code: "Reception",
@@ -1666,10 +1666,10 @@ pub const LISTES: &[ListeSimple] = &[
         code: "Categorie",
         titre: "Catégories",
         intro: "Catégories de produits, de tiers et de contacts (llx_categorie).",
-        sql: "SELECT label, CAST(type AS CHAR), COALESCE(description, '') \
+        sql: "SELECT rowid, label, CAST(type AS CHAR), COALESCE(description, '') \
               FROM llx_categorie WHERE entity = :entity OR entity = 0 \
               ORDER BY label ASC LIMIT 200",
-        colonnes: &["Libellé", "Type", "Description"],
+        colonnes: &["N°", "Libellé", "Type", "Description"],
     },
     ListeSimple {
         code: "ExpenseReport",
@@ -1994,6 +1994,10 @@ pub struct ChampSaisie {
     pub libelle: &'static str,
     pub sorte: Sorte,
     pub obligatoire: bool,
+    /// Source d'une liste deroulante (`produits`, `types_adherent`...).
+    pub choix: Option<&'static str>,
+    /// Valeur proposee a la creation.
+    pub defaut: &'static str,
 }
 
 /// Un formulaire de creation.
@@ -2004,6 +2008,8 @@ pub struct Saisie {
     /// Colonnes posees d'office : (`colonne`, expression SQL). `{user}` est
     /// remplace par l'identifiant de l'utilisateur connecte.
     pub fixes: &'static [(&'static str, &'static str)],
+    /// Reference a numeroter : (`colonne`, prefixe).
+    pub reference: Option<(&'static str, &'static str)>,
 }
 
 const fn c(
@@ -2017,6 +2023,20 @@ const fn c(
         libelle,
         sorte,
         obligatoire,
+        choix: None,
+        defaut: "",
+    }
+}
+
+/// Un champ alimente par une liste deroulante.
+const fn cc(nom: &'static str, libelle: &'static str, source: &'static str) -> ChampSaisie {
+    ChampSaisie {
+        nom,
+        libelle,
+        sorte: Sorte::Entier,
+        obligatoire: true,
+        choix: Some(source),
+        defaut: "",
     }
 }
 
@@ -2033,6 +2053,7 @@ pub const SAISIES: &[Saisie] = &[
             c("nbterm", "Nombre d'échéances", Sorte::Entier, false),
         ],
         fixes: &[("datec", "NOW()"), ("paid", "0"), ("active", "1")],
+        reference: None,
     },
     Saisie {
         code: "Asset",
@@ -2050,18 +2071,20 @@ pub const SAISIES: &[Saisie] = &[
             ("fk_user_creat", "{user}"),
             ("status", "0"),
         ],
+        reference: None,
     },
     Saisie {
         code: "ProductBatch",
         table: "llx_product_lot",
         champs: &[
-            c("fk_product", "Identifiant du produit", Sorte::Entier, true),
+            cc("fk_product", "Produit", "produits"),
             c("batch", "Numéro de lot", Sorte::Texte, true),
             c("manufacturing_date", "Fabrication", Sorte::Date, false),
             c("eatby", "À consommer avant", Sorte::Date, false),
             c("sellby", "À vendre avant", Sorte::Date, false),
         ],
         fixes: &[],
+        reference: None,
     },
     Saisie {
         code: "Resource",
@@ -2074,6 +2097,7 @@ pub const SAISIES: &[Saisie] = &[
             c("email", "E-mail", Sorte::Texte, false),
         ],
         fixes: &[("datec", "NOW()"), ("fk_statut", "1")],
+        reference: None,
     },
     Saisie {
         code: "Tax",
@@ -2086,6 +2110,46 @@ pub const SAISIES: &[Saisie] = &[
         // France : c'est le pays de la base. Un taux etranger se saisit dans
         // Dolibarr, avec son pays.
         fixes: &[("fk_pays", "1"), ("active", "1")],
+        reference: None,
+    },
+    Saisie {
+        code: "Adherent",
+        table: "llx_adherent",
+        champs: &[
+            cc("fk_adherent_type", "Type d'adhérent", "types_adherent"),
+            c("lastname", "Nom", Sorte::Texte, true),
+            c("firstname", "Prénom", Sorte::Texte, false),
+            c("town", "Ville", Sorte::Texte, false),
+            c("email", "E-mail", Sorte::Texte, false),
+            c("datefin", "Adhésion jusqu'au", Sorte::Date, false),
+        ],
+        fixes: &[("morphy", "'phy'"), ("statut", "1"), ("public", "0")],
+        reference: Some(("ref", "ADH")),
+    },
+    Saisie {
+        code: "Categorie",
+        table: "llx_categorie",
+        champs: &[
+            c("label", "Libellé", Sorte::Texte, true),
+            cc("type", "Type", "types_categorie"),
+        ],
+        fixes: &[("visible", "1"), ("fk_parent", "0")],
+        reference: None,
+    },
+    Saisie {
+        code: "Don",
+        table: "llx_don",
+        champs: &[
+            c("amount", "Montant", Sorte::Nombre, true),
+            c("datedon", "Date du don", Sorte::Date, false),
+            cc("fk_soc", "Donateur", "tiers"),
+        ],
+        fixes: &[
+            ("fk_country", "1"),
+            ("fk_user_author", "{user}"),
+            ("fk_statut", "1"),
+        ],
+        reference: Some(("ref", "DON")),
     },
 ];
 
@@ -2104,19 +2168,31 @@ pub async fn liste_saisie_form(
     let liste = liste_simple(&code).ok_or_else(|| Erreur(format!("liste inconnue : {code}")))?;
     // Le refus d'une saisie incomplete revient ici, indexe sur le champ, pour
     // que le message soit lisible au lieu d'une page d'erreur.
-    // Un lot se rattache a un produit : on propose la liste plutot que de
-    // demander un identifiant que personne ne connait.
-    let produits: Vec<(String, String)> = if s.champs.iter().any(|c| c.nom == "fk_product") {
-        db::divers::produits_pour_liste(&app.pool, crate::entite::courante())?
-    } else {
-        Vec::new()
-    };
-
     let manquant = q
         .get("erreur")
         .and_then(|i| i.parse::<usize>().ok())
         .and_then(|i| s.champs.get(i))
         .map(|ch| format!("« {} » est obligatoire.", ch.libelle));
+
+    // Les listes deroulantes sont chargees une fois par source.
+    let mut cache: HashMap<&'static str, Vec<(String, String)>> = HashMap::new();
+    let options: Vec<Option<Vec<(String, String)>>> = {
+        let mut v = Vec::new();
+        for ch in s.champs {
+            match ch.choix {
+                Some(src) => {
+                    if !cache.contains_key(src) {
+                        let liste =
+                            db::divers::options_liste(&app.pool, crate::entite::courante(), src)?;
+                        cache.insert(src, liste);
+                    }
+                    v.push(cache.get(src).cloned());
+                }
+                None => v.push(None),
+            }
+        }
+        v
+    };
 
     Ok(crate::ui::page(
         "listes",
@@ -2137,29 +2213,30 @@ pub async fn liste_saisie_form(
             form method="post" action={ "/liste/" (code) "/nouveau" } {
                 table {
                     tbody {
-                        @for ch in s.champs {
+                        @for (i, ch) in s.champs.iter().enumerate() {
                             tr {
                                 th {
                                     (ch.libelle)
                                     @if ch.obligatoire { span style="color:#a33" { " *" } }
                                 }
                                 td {
-                                    @if ch.nom == "fk_product" {
+                                    @if let Some(opts) = options.get(i).cloned().flatten() {
                                         select name=(ch.nom) {
-                                            @for (id, libelle) in &produits {
-                                                option value=(id) { (libelle) }
+                                            @for (valeur, libelle) in &opts {
+                                                option value=(valeur) { (libelle) }
                                             }
                                         }
                                     } @else {
-                                    input
-                                        type=(ch.sorte.type_html())
-                                        name=(ch.nom)
-                                        required[ch.obligatoire];
-                                    @if ch.sorte == Sorte::Nombre {
-                                        p style="color:#78736c;font-size:12px;margin:6px 0 0" {
-                                            "Montant en euros, virgule ou point."
+                                        input
+                                            type=(ch.sorte.type_html())
+                                            name=(ch.nom)
+                                            value=(ch.defaut)
+                                            required[ch.obligatoire];
+                                        @if ch.sorte == Sorte::Nombre {
+                                            p style="color:#78736c;font-size:12px;margin:6px 0 0" {
+                                                "Montant en euros, virgule ou point."
+                                            }
                                         }
-                                    }
                                     }
                                 }
                             }
@@ -2185,14 +2262,45 @@ pub async fn liste_saisie_creer(
     let s = saisie(&code)
         .ok_or_else(|| Erreur(format!("aucun formulaire de création pour : {code}")))?;
 
+    // Reference numerotee quand la table en exige une et que personne ne l'a
+    // saisie (adherents, dons).
+    let mut references: HashMap<&'static str, String> = HashMap::new();
+    if let Some((colonne, prefixe)) = s.reference {
+        references.insert(
+            colonne,
+            db::divers::suivant_ref(
+                &app.pool,
+                s.table,
+                colonne,
+                prefixe,
+                crate::entite::courante(),
+            )?,
+        );
+    }
+
     let mut valeurs: Vec<(String, Option<String>)> = Vec::new();
     for (i, ch) in s.champs.iter().enumerate() {
-        let brut = f.get(ch.nom).map(String::as_str).unwrap_or("");
+        let mut brut = f.get(ch.nom).map(String::as_str).unwrap_or("");
+        if brut.trim().is_empty() {
+            if let Some(r) = references.get(ch.nom) {
+                brut = r;
+            } else if !ch.defaut.is_empty() {
+                brut = ch.defaut;
+            }
+        }
         let v = ch.sorte.normaliser(brut);
         if ch.obligatoire && v.is_none() {
             return Ok(Redirect::to(&format!("/liste/{code}/nouveau?erreur={i}")));
         }
         valeurs.push((ch.nom.to_string(), v));
+    }
+
+    // Une reference numerotee n'est pas forcement un champ du formulaire :
+    // elle doit quand meme entrer en base (adherents, dons).
+    for (colonne, valeur) in &references {
+        if !valeurs.iter().any(|(c, _)| c == colonne) {
+            valeurs.push((colonne.to_string(), Some(valeur.clone())));
+        }
     }
 
     // Les colonnes posees d'office : soit un utilisateur, soit une expression
