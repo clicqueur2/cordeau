@@ -90,6 +90,16 @@ Etape "Interface web (10 écrans)" {
     $pages = @("/", "/tiers", "/produits", "/devis", "/factures", "/relances",
                "/parametres", "/parametres/dictionnaires", "/parametres/base",
                "/parametres/utilisateurs", "/parametres/import", "/parametres/sauvegarde")
+    # Les 18 listes des modules secondaires et les 5 formulaires de saisie.
+    $pages += @("/liste/Adherent", "/liste/Don", "/liste/Reception",
+                "/liste/Categorie", "/liste/ExpenseReport", "/liste/Holiday",
+                "/liste/Mailing", "/liste/Prelevement", "/liste/Ficheinter",
+                "/liste/Bookmark", "/liste/Tax", "/liste/Salaries", "/liste/Loan",
+                "/liste/ProductBatch", "/liste/Accounting", "/liste/Asset",
+                "/liste/Resource", "/liste/PaymentByBankTransfer",
+                "/liste/Loan/nouveau", "/liste/Asset/nouveau",
+                "/liste/ProductBatch/nouveau", "/liste/Resource/nouveau",
+                "/liste/Tax/nouveau")
     $vivant = $false
     try { Invoke-WebRequest -Uri "http://127.0.0.1:8090/connexion" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop | Out-Null; $vivant = $true } catch {}
     if (-not $vivant) {

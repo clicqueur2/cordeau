@@ -62,6 +62,7 @@ pub const MODULES: &[Module] = &[
             e("stock", "Stock", "/stock"),
             e("categories", "Catégories", "/liste/Categorie"),
             e("lots", "Lots et séries", "/liste/ProductBatch"),
+            e("nouveau-lot", "Nouveau lot", "/liste/ProductBatch/nouveau"),
         ],
     },
     Module {
@@ -131,6 +132,7 @@ pub const MODULES: &[Module] = &[
             e("virements", "Virements", "/liste/PaymentByBankTransfer"),
             e("prelevements", "Prélèvements", "/liste/Prelevement"),
             e("prets", "Prêts", "/liste/Loan"),
+            e("nouveau-pret", "Nouveau prêt", "/liste/Loan/nouveau"),
         ],
     },
     Module {
@@ -153,6 +155,11 @@ pub const MODULES: &[Module] = &[
             e("fec", "Comptabilisation et FEC", "/comptabilite/fec"),
             e("ecritures", "Écritures comptables", "/liste/Accounting"),
             e("immobilisations", "Immobilisations", "/liste/Asset"),
+            e(
+                "nouvelle-immobilisation",
+                "Nouvelle immobilisation",
+                "/liste/Asset/nouveau",
+            ),
         ],
     },
     Module {
@@ -185,6 +192,11 @@ pub const MODULES: &[Module] = &[
             e("conges", "Congés", "/liste/Holiday"),
             e("salaires", "Salaires", "/liste/Salaries"),
             e("ressources", "Ressources", "/liste/Resource"),
+            e(
+                "nouvelle-ressource",
+                "Nouvelle ressource",
+                "/liste/Resource/nouveau",
+            ),
         ],
     },
     Module {
@@ -207,6 +219,7 @@ pub const MODULES: &[Module] = &[
             e("sauvegarde", "Sauvegarde", "/parametres/sauvegarde"),
             e("bookmarks", "Signets", "/liste/Bookmark"),
             e("taxes", "Taux de TVA", "/liste/Tax"),
+            e("nouveau-taux", "Nouveau taux", "/liste/Tax/nouveau"),
             e("base", "Base de données", "/parametres/base"),
             e("modules", "Modules / Applications", "/parametres/modules"),
             e("affichage", "Affichage", "/parametres/reglage/affichage"),
@@ -263,8 +276,15 @@ mod tests {
         for m in MODULES {
             for e in m.entrees {
                 assert!(e.lien.starts_with('/'), "lien invalide : {}", e.lien);
-                if let Some(code) = e.lien.strip_prefix("/liste/") {
-                    let code = code.split(['?', '#']).next().unwrap_or(code);
+                if let Some(reste) = e.lien.strip_prefix("/liste/") {
+                    // « /liste/Loan/nouveau » : la liste est le premier segment.
+                    let code = reste
+                        .split(['?', '#'])
+                        .next()
+                        .unwrap_or(reste)
+                        .split('/')
+                        .next()
+                        .unwrap_or(reste);
                     assert!(
                         crate::pages::liste_simple(code).is_some(),
                         "liste inconnue dans le menu : {code}"
@@ -278,5 +298,49 @@ mod tests {
             }
         }
         assert!(vues >= 18, "seulement {vues} listes dans le menu");
+    }
+
+    /// Chaque formulaire de saisie doit viser une liste existante, une table
+    /// reelle et des colonnes nommees comme du SQL. Un registre incoherent
+    /// donnerait une page morte ou une erreur MySQL a l'enregistrement.
+    #[test]
+    fn les_formulaires_de_saisie_sont_coherents() {
+        let identifiant =
+            |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        for s in crate::pages::SAISIES {
+            assert!(
+                crate::pages::liste_simple(s.code).is_some(),
+                "formulaire sans liste : {}",
+                s.code
+            );
+            assert!(
+                !db::droit::droits_du_chemin(&format!("/liste/{}/nouveau", s.code)).is_empty(),
+                "formulaire sans droit : {}",
+                s.code
+            );
+            assert!(identifiant(s.table), "table invalide : {}", s.table);
+            assert!(!s.champs.is_empty(), "formulaire vide : {}", s.code);
+            for ch in s.champs {
+                assert!(identifiant(ch.nom), "colonne invalide : {}", ch.nom);
+            }
+        }
+    }
+
+    /// Un nombre se saisit en francais : « 1 500,50 » doit arriver en base
+    /// comme 1500.50, pas comme zero ni comme une chaine refusee.
+    #[test]
+    fn les_nombres_se_lisent_en_francais() {
+        use crate::pages::Sorte;
+        assert_eq!(
+            Sorte::Nombre.normaliser("1 500,50").as_deref(),
+            Some("1500.50")
+        );
+        assert_eq!(Sorte::Nombre.normaliser(" 12,5 ").as_deref(), Some("12.5"));
+        assert_eq!(Sorte::Entier.normaliser("12").as_deref(), Some("12"));
+        assert_eq!(Sorte::Nombre.normaliser("   "), None);
+        assert_eq!(
+            Sorte::Date.normaliser("2026-01-31").as_deref(),
+            Some("2026-01-31")
+        );
     }
 }
