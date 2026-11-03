@@ -16,6 +16,7 @@ maud = { version = "0.26", features = ["axum"] }
 app = { path = "../app" }
 db = { path = "../db" }
 mail = { path = "../mail" }
+sepa = { path = "../sepa" }
 money = { path = "../money" }
 legal = { path = "../legal" }
 annuaire = { path = "../annuaire" }
