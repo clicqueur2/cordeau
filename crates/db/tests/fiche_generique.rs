@@ -34,7 +34,7 @@ fn fiche_generique_aller_retour() -> Result<(), Box<dyn Error>> {
     ];
     let id = db::divers::inserer(
         &pool,
-        "llx_loan",
+        db::divers::Cible::ordinaire("llx_loan"),
         ENTITY,
         &valeurs,
         &[("datec", "NOW()"), ("paid", "0"), ("active", "1")],
@@ -43,8 +43,7 @@ fn fiche_generique_aller_retour() -> Result<(), Box<dyn Error>> {
     // Relecture : tout revient en texte, y compris les doubles et les dates.
     let lu = db::divers::lire_ligne_par(
         &pool,
-        "llx_loan",
-        "rowid",
+        db::divers::Cible::ordinaire("llx_loan"),
         ENTITY,
         id,
         &["label", "capital", "rate", "paid"],
@@ -57,8 +56,7 @@ fn fiche_generique_aller_retour() -> Result<(), Box<dyn Error>> {
     // Modification : le capital change, le libelle reste.
     let maj = db::divers::mettre_a_jour_par(
         &pool,
-        "llx_loan",
-        "rowid",
+        db::divers::Cible::ordinaire("llx_loan"),
         ENTITY,
         id,
         &[
@@ -68,15 +66,33 @@ fn fiche_generique_aller_retour() -> Result<(), Box<dyn Error>> {
         &[],
     )?;
     assert_eq!(maj, 1);
-    let relu = db::divers::lire_ligne_par(&pool, "llx_loan", "rowid", ENTITY, id, &["capital"])?
-        .ok_or("ligne disparue apres modification")?;
+    let relu = db::divers::lire_ligne_par(
+        &pool,
+        db::divers::Cible::ordinaire("llx_loan"),
+        ENTITY,
+        id,
+        &["capital"],
+    )?
+    .ok_or("ligne disparue apres modification")?;
     assert_eq!(relu[0].as_deref(), Some("2000.00000000"));
 
     // Suppression.
-    let partis = db::divers::supprimer_ligne_par(&pool, "llx_loan", "rowid", ENTITY, id)?;
+    let partis = db::divers::supprimer_ligne_par(
+        &pool,
+        db::divers::Cible::ordinaire("llx_loan"),
+        ENTITY,
+        id,
+    )?;
     assert_eq!(partis, 1);
     assert!(
-        db::divers::lire_ligne_par(&pool, "llx_loan", "rowid", ENTITY, id, &["label"])?.is_none(),
+        db::divers::lire_ligne_par(
+            &pool,
+            db::divers::Cible::ordinaire("llx_loan"),
+            ENTITY,
+            id,
+            &["label"]
+        )?
+        .is_none(),
         "la ligne survit a la suppression"
     );
     Ok(())
@@ -91,17 +107,22 @@ fn fiche_generique_respecte_l_entite() -> Result<(), Box<dyn Error>> {
     let etiquette = format!("RS-ENTITE-{}", std::process::id());
     let id = db::divers::inserer(
         &pool,
-        "llx_loan",
+        db::divers::Cible::ordinaire("llx_loan"),
         ENTITY,
         &[("label".to_string(), Some(etiquette.clone()))],
         &[("datec", "NOW()"), ("rate", "1")],
     )? as i64;
 
-    let ailleurs =
-        db::divers::lire_ligne_par(&pool, "llx_loan", "rowid", ENTITY + 1, id, &["label"])?;
+    let ailleurs = db::divers::lire_ligne_par(
+        &pool,
+        db::divers::Cible::ordinaire("llx_loan"),
+        ENTITY + 1,
+        id,
+        &["label"],
+    )?;
     assert!(ailleurs.is_none(), "la ligne fuit hors de son entite");
 
-    db::divers::supprimer_ligne_par(&pool, "llx_loan", "rowid", ENTITY, id)?;
+    db::divers::supprimer_ligne_par(&pool, db::divers::Cible::ordinaire("llx_loan"), ENTITY, id)?;
     Ok(())
 }
 
@@ -113,23 +134,32 @@ fn fiche_generique_refuse_les_identifiants_bizarres() {
     };
     for table in ["llx_loan; DROP TABLE llx_loan", "llx loan", ""] {
         assert!(
-            db::divers::supprimer_ligne_par(&pool, table, "rowid", ENTITY, 1).is_err(),
+            db::divers::supprimer_ligne_par(
+                &pool,
+                db::divers::Cible {
+                    table,
+                    cle: "rowid",
+                    entite: true,
+                    cle_auto: true
+                },
+                ENTITY,
+                1
+            )
+            .is_err(),
             "table acceptee a tort : {table}"
         );
     }
     assert!(db::divers::lire_ligne_par(
         &pool,
-        "llx_loan",
-        "rowid",
+        db::divers::Cible::ordinaire("llx_loan"),
         ENTITY,
         1,
-        &["label); DROP TABLE llx_user"]
+        &["label); DROP TABLE llx_user"],
     )
     .is_err());
     assert!(db::divers::mettre_a_jour_par(
         &pool,
-        "llx_loan",
-        "rowid",
+        db::divers::Cible::ordinaire("llx_loan"),
         ENTITY,
         1,
         &[("label = 1, capital".to_string(), Some("x".to_string()))],
@@ -139,8 +169,7 @@ fn fiche_generique_refuse_les_identifiants_bizarres() {
     // Une expression d'office non prevue est refusee elle aussi.
     assert!(db::divers::mettre_a_jour_par(
         &pool,
-        "llx_loan",
-        "rowid",
+        db::divers::Cible::ordinaire("llx_loan"),
         ENTITY,
         1,
         &[],

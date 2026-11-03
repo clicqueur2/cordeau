@@ -1,0 +1,83 @@
+{
+  "code": "ProfilsExpediteurs",
+  "libelle": "Profils expéditeurs",
+  "droit": {
+    "id": 9505,
+    "libelle": "Profils expéditeurs"
+  },
+  "menu": {
+    "cle": "profils-expediteurs",
+    "entrees": [
+      {
+        "cle": "liste",
+        "libelle": "Profils",
+        "lien": "/liste/ProfilsExpediteurs"
+      },
+      {
+        "cle": "nouveau",
+        "libelle": "Nouveau profil",
+        "lien": "/liste/ProfilsExpediteurs/nouveau"
+      }
+    ]
+  },
+  "listes": [
+    {
+      "code": "ProfilsExpediteurs",
+      "titre": "Profils expéditeurs",
+      "intro": "Adresses d'envoi et signatures (llx_c_email_senderprofile) : ce que les e-mails sortants portent comme expéditeur.",
+      "sql": "SELECT rowid, label, email, COALESCE(signature, ''), CASE active WHEN 1 THEN 'actif' ELSE 'inactif' END FROM llx_c_email_senderprofile WHERE entity = :entity ORDER BY position ASC, rowid ASC LIMIT 200",
+      "colonnes": [
+        "N°",
+        "Libellé",
+        "E-mail",
+        "Signature",
+        "État"
+      ]
+    }
+  ],
+  "saisies": [
+    {
+      "code": "ProfilsExpediteurs",
+      "table": "llx_c_email_senderprofile",
+      "champs": [
+        {
+          "nom": "label",
+          "libelle": "Libellé",
+          "sorte": "texte",
+          "obligatoire": true
+        },
+        {
+          "nom": "email",
+          "libelle": "Adresse d'envoi",
+          "sorte": "texte",
+          "obligatoire": true
+        },
+        {
+          "nom": "signature",
+          "libelle": "Signature",
+          "sorte": "texte"
+        },
+        {
+          "nom": "position",
+          "libelle": "Position",
+          "sorte": "entier",
+          "defaut": "0"
+        }
+      ],
+      "fixes": [
+        [
+          "date_creation",
+          "NOW()"
+        ],
+        [
+          "active",
+          "1"
+        ],
+        [
+          "private",
+          "0"
+        ]
+      ]
+    }
+  ]
+}

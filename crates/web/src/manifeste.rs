@@ -94,6 +94,9 @@ struct DescriptionListe {
     intro: String,
     sql: String,
     colonnes: Vec<String>,
+    /// Table sans colonne `entity` (dictionnaire national).
+    #[serde(default)]
+    sans_entite: bool,
 }
 
 #[derive(Deserialize)]
@@ -102,6 +105,12 @@ struct DescriptionSaisie {
     table: String,
     #[serde(default = "pk_defaut")]
     pk: String,
+    /// Table sans colonne `entity`.
+    #[serde(default)]
+    sans_entite: bool,
+    /// Cle non auto-incrementee : la prochaine vaut MAX + 1.
+    #[serde(default = "auto_defaut")]
+    pk_auto: bool,
     #[serde(default)]
     champs: Vec<DescriptionChamp>,
     #[serde(default)]
@@ -130,6 +139,10 @@ fn sorte_texte() -> String {
 
 fn pk_defaut() -> String {
     "rowid".to_string()
+}
+
+fn auto_defaut() -> bool {
+    true
 }
 
 struct Charge {
@@ -230,7 +243,7 @@ fn charger_fichier(
         if !db::divers::identifiant_autorise(&l.code) {
             return Err(format!("code de liste invalide : {}", l.code));
         }
-        sql_accepte(&l.sql)?;
+        sql_accepte(&l.sql, l.sans_entite)?;
         if l.colonnes.is_empty() {
             return Err(format!("liste {} sans colonne", l.code));
         }
@@ -296,6 +309,8 @@ fn charger_fichier(
             fixes: Box::leak(fixes.into_boxed_slice()),
             reference,
             pk: fuite(&s.pk),
+            entite: !s.sans_entite,
+            pk_auto: s.pk_auto,
         });
     }
 
@@ -368,8 +383,9 @@ fn charger_fichier(
     Ok((module, droit))
 }
 
-/// Un `SELECT`, une seule instruction, borne a l'entite.
-fn sql_accepte(sql: &str) -> Result<(), String> {
+/// Un `SELECT`, une seule instruction, borne a l'entite sauf pour un
+/// dictionnaire national declare comme tel.
+fn sql_accepte(sql: &str, sans_entite: bool) -> Result<(), String> {
     let s = sql.trim();
     let bas = s.to_lowercase();
     if !bas.starts_with("select") {
@@ -378,7 +394,7 @@ fn sql_accepte(sql: &str) -> Result<(), String> {
     if s.contains(';') || s.contains("--") || s.contains("/*") {
         return Err("SQL refuse : une seule instruction, sans commentaire".to_string());
     }
-    if !s.contains(":entity") {
+    if !sans_entite && !s.contains(":entity") {
         return Err("SQL refuse : :entity obligatoire (cloisonnement des entites)".to_string());
     }
     Ok(())
@@ -406,27 +422,30 @@ mod tests {
 
     #[test]
     fn une_liste_ne_peut_que_lire() {
-        assert!(sql_accepte("SELECT ref FROM llx_x WHERE entity = :entity").is_ok());
-        assert!(sql_accepte("  select ref FROM llx_x WHERE entity = :entity").is_ok());
-        assert!(sql_accepte("DELETE FROM llx_x WHERE entity = :entity").is_err());
-        assert!(sql_accepte("UPDATE llx_x SET a = 1 WHERE entity = :entity").is_err());
+        assert!(sql_accepte("SELECT ref FROM llx_x WHERE entity = :entity", false).is_ok());
+        assert!(sql_accepte("  select ref FROM llx_x WHERE entity = :entity", false).is_ok());
+        assert!(sql_accepte("DELETE FROM llx_x WHERE entity = :entity", false).is_err());
+        assert!(sql_accepte("UPDATE llx_x SET a = 1 WHERE entity = :entity", false).is_err());
     }
 
     #[test]
     fn le_sql_ne_fuit_pas_de_l_entite() {
-        assert!(sql_accepte("SELECT ref FROM llx_x").is_err());
+        assert!(sql_accepte("SELECT ref FROM llx_x", false).is_err());
     }
 
     #[test]
     fn le_sql_ne_porte_qu_une_instruction() {
-        assert!(
-            sql_accepte("SELECT 1 FROM llx_x WHERE entity = :entity; DROP TABLE llx_user").is_err()
-        );
-        assert!(
-            sql_accepte("SELECT 1 -- puis n'importe quoi\nFROM llx_x WHERE entity = :entity")
-                .is_err()
-        );
-        assert!(sql_accepte("SELECT /* x */ 1 FROM llx_x WHERE entity = :entity").is_err());
+        assert!(sql_accepte(
+            "SELECT 1 FROM llx_x WHERE entity = :entity; DROP TABLE llx_user",
+            false
+        )
+        .is_err());
+        assert!(sql_accepte(
+            "SELECT 1 -- puis n'importe quoi\nFROM llx_x WHERE entity = :entity",
+            false
+        )
+        .is_err());
+        assert!(sql_accepte("SELECT /* x */ 1 FROM llx_x WHERE entity = :entity", false).is_err());
     }
 
     #[test]

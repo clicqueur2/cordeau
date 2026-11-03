@@ -1,0 +1,36 @@
+{
+  "code": "Pays",
+  "libelle": "Pays",
+  "droit": { "id": 9503, "libelle": "Pays" },
+  "menu": {
+    "cle": "pays",
+    "entrees": [
+      { "cle": "liste", "libelle": "Pays", "lien": "/liste/Pays" }
+    ]
+  },
+  "listes": [
+    {
+      "code": "Pays",
+      "titre": "Pays",
+      "intro": "Dictionnaire llx_c_country : il décide du taux de TVA proposé et de l'éligibilité SEPA.",
+      "sans_entite": true,
+      "sql": "SELECT rowid, code, COALESCE(code_iso, ''), label, CASE eec WHEN 1 THEN 'UE' ELSE '' END, CASE sepa WHEN 1 THEN 'SEPA' ELSE '' END, COALESCE(phone_code, ''), CASE active WHEN 1 THEN 'actif' ELSE 'inactif' END FROM llx_c_country ORDER BY label ASC LIMIT 300",
+      "colonnes": ["N°", "Code", "ISO", "Libellé", "UE", "SEPA", "Indicatif", "État"]
+    }
+  ],
+  "saisies": [
+    {
+      "code": "Pays",
+      "table": "llx_c_country",
+      "sans_entite": true,
+      "pk_auto": false,
+      "champs": [
+        { "nom": "label", "libelle": "Libellé", "sorte": "texte", "obligatoire": true },
+        { "nom": "code", "libelle": "Code", "sorte": "texte", "obligatoire": true },
+        { "nom": "code_iso", "libelle": "Code ISO (2 lettres)", "sorte": "texte" },
+        { "nom": "phone_code", "libelle": "Indicatif téléphonique", "sorte": "texte" }
+      ],
+      "fixes": [["active", "1"]]
+    }
+  ]
+}
