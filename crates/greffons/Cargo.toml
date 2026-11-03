@@ -1,0 +1,9 @@
+﻿[package]
+name = "greffons"
+description = "Greffons charges a chaud par ABI C"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+libloading = "0.8"

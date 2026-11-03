@@ -1,0 +1,2 @@
+﻿# Greffons : deposez ici une bibliotheque (.dll/.so) exportant les trois
+# symboles du contrat (voir crates/greffons/src/lib.rs).
