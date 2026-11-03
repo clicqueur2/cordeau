@@ -11,3 +11,5 @@ schema = { path = "../schema" }
 rust_decimal = { workspace = true }
 money = { path = "../money" }
 auth = { path = "../auth" }
+comptabilite = { path = "../comptabilite" }
+recurrence = { path = "../recurrence" }
