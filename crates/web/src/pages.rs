@@ -2838,7 +2838,10 @@ pub async fn greffons_page() -> Res<Markup> {
 /// La page ne montre que des compteurs — aucun nom, aucun identifiant — et
 /// n'ecrit rien : elle peut donc etre consultee sans etre connecte, ce qui est
 /// exactement le cas au premier demarrage.
-pub async fn installation_page(State(app): State<crate::App>) -> Res<Markup> {
+pub async fn installation_page(
+    State(app): State<crate::App>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
     let attendues = db::installation::TABLES_ATTENDUES;
     let etat = db::installation::etat(&app.pool, crate::entite::courante(), attendues)?;
 
@@ -2912,6 +2915,96 @@ pub async fn installation_page(State(app): State<crate::App>) -> Res<Markup> {
                     @for m in etat.manques() { li { (m) } }
                 }
             }
+            @if etat.admins == 0 {
+                h2 { "Créer l'administrateur" }
+                p .sous-titre {
+                    "Cette page n'accepte la création que tant qu'aucun administrateur "
+                    "n'existe : ensuite elle refuse, pour ne pas devenir une porte dérobée."
+                }
+                @if let Some(e) = q.get("erreur") {
+                    p .erreur { (e) }
+                }
+                form method="post" action="/installation" {
+                    table {
+                        tbody {
+                            tr {
+                                th { "Identifiant" }
+                                td { input type="text" name="login" required value="admin" style="width:100%"; }
+                            }
+                            tr {
+                                th { "Mot de passe" }
+                                td { input type="password" name="mot_de_passe" required minlength="8" style="width:100%"; }
+                            }
+                            tr {
+                                th { "E-mail" }
+                                td { input type="email" name="email" style="width:100%"; }
+                            }
+                            tr {
+                                th { "Nom de la société" }
+                                td { input type="text" name="societe" style="width:100%"; }
+                            }
+                        }
+                    }
+                    div .actions { button type="submit" { "Installer" } }
+                }
+            }
         },
     ))
+}
+
+/// Cree le premier administrateur et nomme la societe.
+///
+/// Garde absolue : n'ecrit que si **aucun** administrateur n'existe. Sans cela,
+/// `/installation` resterait ouverte et permettrait de recreer un compte admin
+/// sur une instance en service. Le compte est cree avec le hachage bcrypt de
+/// Dolibarr (`$2y$`), donc il fonctionne aussi bien ici que dans Dolibarr PHP.
+pub async fn installation_creer(
+    State(app): State<crate::App>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let entity = crate::entite::courante();
+
+    // La garde, avant tout le reste.
+    let etat = db::installation::etat(&app.pool, entity, db::installation::TABLES_ATTENDUES)?;
+    if etat.admins > 0 {
+        return Ok(Redirect::to(
+            "/installation?erreur=Installation%20deja%20faite",
+        ));
+    }
+
+    let champ = |cle: &str| {
+        f.get(cle)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let login = champ("login").ok_or_else(|| Erreur("identifiant obligatoire".into()))?;
+    let mot_de_passe =
+        champ("mot_de_passe").ok_or_else(|| Erreur("mot de passe obligatoire".into()))?;
+    if mot_de_passe.chars().count() < 8 {
+        return Ok(Redirect::to(
+            "/installation?erreur=Mot%20de%20passe%20trop%20court%20(8%20caracteres%20minimum)",
+        ));
+    }
+
+    db::user::creer(
+        &app.pool,
+        entity,
+        &db::user::NouvelUtilisateur {
+            login: login.clone(),
+            mot_de_passe,
+            nom: "Administrateur".to_string(),
+            prenom: String::new(),
+            email: champ("email"),
+            admin: true,
+        },
+    )?;
+
+    if let Some(societe) = champ("societe") {
+        db::company::set_const(&app.pool, "MAIN_INFO_SOCIETE_NOM", &societe)?;
+    }
+
+    // Les modules : sans eux, la barre de menus serait vide au premier ecran.
+    db::module::semer_modules_portes(&app.pool, entity)?;
+
+    Ok(Redirect::to("/connexion?ok=installe"))
 }
