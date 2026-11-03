@@ -219,3 +219,45 @@ pub fn rapprocher(
     )?;
     Ok(())
 }
+
+/// Met a jour un compte bancaire. La reference reste, elle identifie le compte
+/// dans les ecritures deja passees.
+#[allow(clippy::too_many_arguments)]
+pub fn modifier_compte(
+    pool: &Pool,
+    entity: i64,
+    rowid: i64,
+    label: &str,
+    banque: Option<&str>,
+    iban: Option<&str>,
+    bic: Option<&str>,
+    clos: bool,
+) -> Result<(), Box<dyn Error>> {
+    let label = label.trim();
+    if label.is_empty() {
+        return Err("le libelle du compte est obligatoire".into());
+    }
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(
+        "UPDATE llx_bank_account SET label = :label, bank = :banque, \
+          iban_prefix = :iban, bic = :bic, clos = :clos \
+         WHERE entity = :entity AND rowid = :rowid",
+        params! {
+            "label" => label,
+            "banque" => banque,
+            "iban" => iban,
+            "bic" => bic,
+            "clos" => if clos { 1 } else { 0 },
+            "entity" => entity,
+            "rowid" => rowid,
+        },
+    )?;
+    Ok(())
+}
+
+/// Un compte precis.
+pub fn compte(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Compte>, Box<dyn Error>> {
+    Ok(comptes(pool, entity)?
+        .into_iter()
+        .find(|c| c.rowid == rowid))
+}

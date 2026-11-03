@@ -1377,3 +1377,242 @@ pub async fn ticket_statut(
     db::ticket::changer_statut(&app.pool, crate::entite::courante(), id, statut)?;
     Ok(Redirect::to(&format!("/tickets/{id}?ok=statut")))
 }
+
+/// Edition d'un chantier.
+pub async fn chantier_modifier(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let c = db::projet::get(&app.pool, crate::entite::courante(), id)?
+        .ok_or_else(|| Erreur("chantier introuvable".into()))?;
+    let clients = db::party::list(&app.pool, crate::entite::courante(), 500, 0)?;
+
+    Ok(crate::ui::page(
+        "chantiers",
+        "liste",
+        &c.ref_,
+        html! {
+            (message(q.get("ok")))
+            h1 { "Modifier " (c.ref_) }
+            p .sous-titre { (c.title) }
+            form method="post" action={ "/chantiers/" (id) "/modifier" } {
+                table {
+                    tbody {
+                        tr {
+                            th { "Client" }
+                            td {
+                                select name="soc" style="width:100%" {
+                                    option value="" { "— chantier interne —" }
+                                    @for s in &clients {
+                                        option value=(s.rowid) selected[c.fk_soc == Some(s.rowid)] { (s.nom) }
+                                    }
+                                }
+                            }
+                        }
+                        tr { th { "Intitulé" } td { input type="text" name="title" value=(c.title) required style="width:100%"; } }
+                        tr { th { "Début" } td { input type="date" name="debut" value=(c.date_start.clone().unwrap_or_default()) style="width:170px"; } }
+                        tr { th { "Fin prévue" } td { input type="date" name="fin" value=(c.date_end.clone().unwrap_or_default()) style="width:170px"; } }
+                        tr { th { "Budget HT" } td { input type="number" name="budget" step="0.01" min="0" value=(app::fmt_dec(c.budget)) style="width:150px"; } }
+                        tr { th { "Description" } td { input type="text" name="description" value=(c.description.clone().unwrap_or_default()) style="width:100%"; } }
+                    }
+                }
+                div .actions {
+                    button type="submit" { "Enregistrer" }
+                    a .bouton.secondaire href={ "/chantiers/" (id) } { "Retour" }
+                }
+            }
+        },
+    ))
+}
+
+pub async fn chantier_enregistrer(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let champ = |c: &str| {
+        f.get(c)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let titre = champ("title").ok_or_else(|| Erreur("intitulé obligatoire".into()))?;
+    let mut nouveau = db::projet::NewProjet::new(&titre);
+    nouveau.fk_soc = champ("soc").and_then(|v| v.parse().ok());
+    nouveau.date_start = champ("debut");
+    nouveau.date_end = champ("fin");
+    nouveau.description = champ("description");
+    nouveau.budget = f
+        .get("budget")
+        .map(|v| v.replace(',', "."))
+        .and_then(|v| v.parse().ok())
+        .unwrap_or_default();
+    db::projet::update(&app.pool, crate::entite::courante(), id, &nouveau)?;
+    Ok(Redirect::to(&format!(
+        "/chantiers/{id}/modifier?ok=enregistre"
+    )))
+}
+
+/// Fiche d'un fournisseur.
+pub async fn fournisseur_fiche(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let f = db::achat::fournisseur_par_id(&app.pool, crate::entite::courante(), id)?
+        .ok_or_else(|| Erreur("fournisseur introuvable".into()))?;
+    let factures: Vec<_> =
+        db::achat::factures_fournisseur(&app.pool, crate::entite::courante(), 500, 0)?
+            .into_iter()
+            .filter(|x| x.fk_soc == id)
+            .collect();
+    let total: rust_decimal::Decimal = factures
+        .iter()
+        .map(|x| x.total_ttc.unwrap_or_default())
+        .sum();
+
+    Ok(crate::ui::page(
+        "achats",
+        "fournisseurs",
+        &f.nom,
+        html! {
+            (message(q.get("ok")))
+            h1 { (f.nom) }
+            p .sous-titre {
+                "Code " code { (f.code_fournisseur.clone().unwrap_or_default()) }
+                " — " (factures.len()) " facture(s), " (crate::ui::euros(total)) " TTC"
+            }
+            form method="post" action={ "/achats/fournisseur/" (id) "/modifier" } {
+                table {
+                    tbody {
+                        tr { th { "Nom" } td { input type="text" name="nom" value=(f.nom) required style="width:100%"; } }
+                        tr { th { "E-mail" } td { input type="email" name="email" value=(f.email.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th { "Téléphone" } td { input type="text" name="telephone" value="" style="width:100%"; } }
+                        tr { th { "Adresse" } td { input type="text" name="adresse" value=(f.address.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th { "Ville" } td { input type="text" name="ville" value=(f.town.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th { "SIRET" } td { input type="text" name="siret" value=(f.siret.clone().unwrap_or_default()) style="width:100%"; } }
+                    }
+                }
+                div .actions {
+                    button type="submit" { "Enregistrer" }
+                    a .bouton.secondaire href="/achats" { "Retour" }
+                }
+            }
+
+            @if !factures.is_empty() {
+                h2 { "Factures fournisseurs" }
+                table {
+                    thead { tr { th { "Réf." } th { "Chez le fournisseur" } th { "Date" } th .num { "TTC" } } }
+                    tbody {
+                        @for x in &factures {
+                            tr {
+                                td .ref { (x.ref_) }
+                                td .ref { (x.ref_supplier.clone().unwrap_or_default()) }
+                                td .ref { (app::fmt_date_fr(x.datef.as_deref())) }
+                                td .num { (crate::ui::euros(x.total_ttc.unwrap_or_default())) }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    ))
+}
+
+pub async fn fournisseur_enregistrer(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let champ = |c: &str| {
+        f.get(c)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let nom = champ("nom").ok_or_else(|| Erreur("nom obligatoire".into()))?;
+    db::achat::modifier_fournisseur(
+        &app.pool,
+        crate::entite::courante(),
+        id,
+        &nom,
+        champ("email").as_deref(),
+        champ("telephone").as_deref(),
+        champ("adresse").as_deref(),
+        champ("ville").as_deref(),
+        champ("siret").as_deref(),
+    )?;
+    Ok(Redirect::to(&format!(
+        "/achats/fournisseur/{id}/modifier?ok=enregistre"
+    )))
+}
+
+/// Fiche d'un compte bancaire.
+pub async fn compte_fiche(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let c = db::banque::compte(&app.pool, crate::entite::courante(), id)?
+        .ok_or_else(|| Erreur("compte introuvable".into()))?;
+    let solde = db::banque::solde(&app.pool, crate::entite::courante(), id)?;
+
+    Ok(crate::ui::page(
+        "banques",
+        "comptes",
+        &c.ref_,
+        html! {
+            (message(q.get("ok")))
+            h1 { (c.label) }
+            p .sous-titre { "Référence " code { (c.ref_) } " — solde " strong { (crate::ui::euros(solde)) } }
+            form method="post" action={ "/banques/" (id) "/modifier" } {
+                table {
+                    tbody {
+                        tr { th { "Libellé" } td { input type="text" name="label" value=(c.label) required style="width:100%"; } }
+                        tr { th { "Banque" } td { input type="text" name="banque" value=(c.banque.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th { "IBAN" } td { input type="text" name="iban" value=(c.iban.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th { "BIC" } td { input type="text" name="bic" value=(c.bic.clone().unwrap_or_default()) style="width:260px"; } }
+                        tr {
+                            th { "Compte clos" }
+                            td {
+                                select name="clos" {
+                                    option value="0" selected[!c.clos] { "Non" }
+                                    option value="1" selected[c.clos] { "Oui" }
+                                }
+                            }
+                        }
+                    }
+                }
+                div .actions {
+                    button type="submit" { "Enregistrer" }
+                    a .bouton.secondaire href="/banques" { "Retour" }
+                }
+            }
+        },
+    ))
+}
+
+pub async fn compte_enregistrer(
+    State(app): State<crate::App>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let champ = |c: &str| {
+        f.get(c)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let label = champ("label").ok_or_else(|| Erreur("libellé obligatoire".into()))?;
+    db::banque::modifier_compte(
+        &app.pool,
+        crate::entite::courante(),
+        id,
+        &label,
+        champ("banque").as_deref(),
+        champ("iban").as_deref(),
+        champ("bic").as_deref(),
+        f.get("clos").map(|v| v == "1").unwrap_or(false),
+    )?;
+    Ok(Redirect::to(&format!(
+        "/banques/{id}/modifier?ok=enregistre"
+    )))
+}
