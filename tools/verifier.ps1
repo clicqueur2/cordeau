@@ -47,7 +47,9 @@ Etape "Analyse statique (clippy -D warnings)" {
 
 # --- 3. Tests unitaires et d'intégration ------------------------------------
 Etape "Tests (unitaires + intégration + doctests)" {
-    $sortie = & cargo test --workspace 2>&1 | Out-String -Stream
+    $sortie# Un seul fil : les tests ecrivent dans la meme base reelle et se
+# bloquent mutuellement (deadlock 1213) quand ils tournent en parallele.
+$sortie = & cargo test --workspace -- --test-threads=1 2>&1 | Out-String -Stream
     $code = $LASTEXITCODE
     $sortie | Select-String -Pattern "^test result" | ForEach-Object { Write-Host "    $($_.Line)" }
     $total = 0
