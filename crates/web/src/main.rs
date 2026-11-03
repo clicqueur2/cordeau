@@ -276,6 +276,7 @@ async fn main() {
         .route("/achats/sepa/fichier", get(sepa_ecran::fichier))
         .route("/campagnes", get(campagnes::page))
         .route("/campagnes/envoyer", post(campagnes::envoyer))
+        .route("/parametres/greffons", get(pages::greffons_page))
         .route("/parametres/tables", get(pages::tables_page))
         .route("/parametres/tables/:nom", get(pages::table_page))
         .route("/parametres/emails/essai", post(pages::email_essai))

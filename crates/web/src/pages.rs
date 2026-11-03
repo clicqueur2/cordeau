@@ -2793,3 +2793,42 @@ pub async fn table_page(
         },
     ))
 }
+
+/// Greffons charges depuis le dossier : ce que le noyau accepte d'executer.
+pub async fn greffons_page() -> Res<Markup> {
+    let dossier = std::env::var("DOLIBARR_GREFFONS").unwrap_or_else(|_| "greffons".to_string());
+    let liste = greffons::charger_dossier(std::path::Path::new(&dossier))
+        .map_err(|e| Erreur(e.to_string()))?;
+
+    Ok(crate::ui::page(
+        "parametres",
+        "greffons",
+        "Greffons",
+        html! {
+            h1 { "Greffons" }
+            p .sous-titre {
+                "Bibliothèques chargées à chaud, contrat ABI C version "
+                (greffons::API.to_string())
+                ". Dossier : " code { (dossier) }
+            }
+            @if liste.is_empty() {
+                (crate::ui::vide(
+                    "Aucun greffon chargé. Déposez une bibliothèque (.dll, .so) dans le dossier.",
+                    None,
+                ))
+            } @else {
+                table {
+                    thead { tr { th { "Greffon" } th { "Fichier" } } }
+                    tbody {
+                        @for g in &liste {
+                            tr {
+                                td { (g.nom.clone()) }
+                                td style="color:#78736c" { (g.chemin.display().to_string()) }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    ))
+}
