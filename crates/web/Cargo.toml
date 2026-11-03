@@ -15,6 +15,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
 maud = { version = "0.26", features = ["axum"] }
 app = { path = "../app" }
 db = { path = "../db" }
+mail = { path = "../mail" }
 money = { path = "../money" }
 legal = { path = "../legal" }
 annuaire = { path = "../annuaire" }

@@ -270,6 +270,7 @@ async fn main() {
             "/parametres/utilisateurs/:id/droits",
             get(pages::utilisateur_droits).post(pages::utilisateur_droits_enregistrer),
         )
+        .route("/parametres/emails/essai", post(pages::email_essai))
         .route(
             "/parametres/reglage/:cle",
             get(pages::reglages).post(pages::reglages_enregistrer),

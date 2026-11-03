@@ -118,12 +118,14 @@ pub const SECTIONS: &[Section] = &[
     Section {
         cle: "emails",
         titre: "Emails et notifications",
-        intro: "Parametres SMTP. L'envoi n'est pas encore implemente : les valeurs sont enregistrees pour la suite.",
+        intro: "Parametres SMTP. L'envoi est actif : serveur, compte, mot de passe, puis un essai pour verifier.",
         champs: &[
             Champ { cle: "DOLIBARR_RS_SMTP_HOST", libelle: "Serveur SMTP", genre: "text", defaut: "" },
             Champ { cle: "DOLIBARR_RS_SMTP_PORT", libelle: "Port", genre: "nombre", defaut: "587" },
             Champ { cle: "DOLIBARR_RS_SMTP_UTILISATEUR", libelle: "Utilisateur", genre: "text", defaut: "" },
             Champ { cle: "DOLIBARR_RS_EMAIL_EXPEDITEUR", libelle: "Adresse d'expedition", genre: "text", defaut: "" },
+            Champ { cle: "DOLIBARR_RS_SMTP_MOTDEPASSE", libelle: "Mot de passe SMTP", genre: "text", defaut: "" },
+            Champ { cle: "DOLIBARR_RS_SMTP_SECURITE", libelle: "Securite (aucune, starttls, directe)", genre: "text", defaut: "" },
         ],
     },
     Section {
@@ -204,8 +206,133 @@ pub async fn reglages(
                 }
                 div .actions { button type="submit" { "Enregistrer" } }
             }
+            @if s.cle == "emails" {
+                h2 { "Envoyer un essai" }
+                p .sous-titre {
+                    "Le message part vraiment, par le serveur ci-dessus. Une erreur SMTP s'affiche "
+                    "telle quelle : c'est elle qui dit quoi corriger."
+                }
+                (message(q.get("ok")))
+                @if let Some(e) = q.get("erreur") {
+                    p .erreur { (e) }
+                }
+                form method="post" action="/parametres/emails/essai" {
+                    table {
+                        tbody {
+                            tr {
+                                th { "Destinataire" }
+                                td {
+                                    input type="email" name="destinataire" required
+                                          value=(q.get("destinataire").cloned().unwrap_or_default())
+                                          style="width:100%";
+                                }
+                            }
+                        }
+                    }
+                    div .actions { button type="submit" { "Envoyer l'essai" } }
+                }
+            }
         },
     ))
+}
+
+/// Envoie un e-mail d'essai par le serveur SMTP configure.
+///
+/// C'est le seul endroit qui parle au reseau pour du courrier : l'appel est
+/// bloquant, donc execute hors du fil asynchrone. Une erreur SMTP remonte son
+/// code et sa phrase, telles quelles — « 535 5.7.8 Authentication failed »
+/// vaut mieux qu'un « l'envoi a echoue ».
+pub async fn email_essai(
+    State(app): State<crate::App>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let destinataire = f
+        .get("destinataire")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| Erreur("destinataire obligatoire".into()))?;
+
+    let const_ou = |cle: &str| {
+        db::company::get_const(&app.pool, cle)
+            .ok()
+            .flatten()
+            .unwrap_or_default()
+    };
+    let hote = const_ou("DOLIBARR_RS_SMTP_HOST");
+    if hote.trim().is_empty() {
+        return Ok(Redirect::to(
+            "/parametres/reglage/emails?erreur=Serveur%20SMTP%20non%20renseigne",
+        ));
+    }
+    let port = const_ou("DOLIBARR_RS_SMTP_PORT")
+        .parse::<u16>()
+        .unwrap_or(587);
+    let mut mot_de_passe = const_ou("DOLIBARR_RS_SMTP_MOTDEPASSE");
+    // La variable d'environnement l'emporte : un secret n'a pas a trainer en
+    // base quand le serveur peut le fournir.
+    if let Ok(v) = std::env::var("DOLIBARR_SMTP_PASSWORD") {
+        if !v.is_empty() {
+            mot_de_passe = v;
+        }
+    }
+
+    let config = mail::Config {
+        hote: hote.trim().to_string(),
+        port,
+        utilisateur: const_ou("DOLIBARR_RS_SMTP_UTILISATEUR").trim().to_string(),
+        mot_de_passe,
+        expediteur: const_ou("DOLIBARR_RS_EMAIL_EXPEDITEUR").trim().to_string(),
+        nom_expediteur: const_ou("MAIN_INFO_SOCIETE_NOM").trim().to_string(),
+        securite: match const_ou("DOLIBARR_RS_SMTP_SECURITE").trim() {
+            "aucune" => mail::Securite::Aucune,
+            "directe" => mail::Securite::Directe,
+            "starttls" => mail::Securite::Starttls,
+            // Par defaut : 465 direct, tout le reste en STARTTLS.
+            _ => mail::Config::securite_pour(port),
+        },
+        delai: 20,
+    };
+
+    let message = mail::Message::texte(
+        &config.expediteur,
+        &[destinataire.as_str()],
+        "Essai d'envoi - noyau Dolibarr en Rust",
+        "Ce message a ete envoye par le noyau.
+
+Si vous le lisez, le serveur SMTP, le compte et le mot de passe sont bons.
+
+--\nNoyau Dolibarr en Rust",
+    );
+
+    let resultat = tokio::task::spawn_blocking(move || mail::envoyer(&config, &message)).await;
+
+    match resultat {
+        Ok(Ok(())) => Ok(Redirect::to("/parametres/reglage/emails?ok=essai_envoye")),
+        Ok(Err(e)) => Ok(Redirect::to(&format!(
+            "/parametres/reglage/emails?erreur={}&destinataire={}",
+            encode(&e.to_string()),
+            encode(&destinataire)
+        ))),
+        Err(e) => Ok(Redirect::to(&format!(
+            "/parametres/reglage/emails?erreur={}",
+            encode(&format!("tache interrompue : {e}"))
+        ))),
+    }
+}
+
+/// Encode une valeur pour un parametre d'URL.
+fn encode(s: &str) -> String {
+    let mut sortie = String::new();
+    for octet in s.bytes() {
+        match octet {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                sortie.push(octet as char)
+            }
+            b' ' => sortie.push('+'),
+            autre => sortie.push_str(&format!("%{autre:02X}")),
+        }
+    }
+    sortie
 }
 
 pub async fn reglages_enregistrer(
