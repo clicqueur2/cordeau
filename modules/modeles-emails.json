@@ -1,0 +1,41 @@
+{
+  "code": "ModelesEmails",
+  "libelle": "Modèles d'e-mails",
+  "droit": { "id": 9501, "libelle": "Modèles d'e-mails" },
+  "menu": {
+    "cle": "modeles-emails",
+    "entrees": [
+      { "cle": "liste", "libelle": "Modèles", "lien": "/liste/ModelesEmails" },
+      { "cle": "nouveau", "libelle": "Nouveau modèle", "lien": "/liste/ModelesEmails/nouveau" }
+    ]
+  },
+  "listes": [
+    {
+      "code": "ModelesEmails",
+      "titre": "Modèles d'e-mails",
+      "intro": "Modèles de messages (llx_c_email_templates) : ceux que Dolibarr utilise pour les devis, factures et relances.",
+      "sql": "SELECT rowid, label, COALESCE(topic, ''), COALESCE(lang, ''), CAST(type_template AS CHAR), COALESCE(module, '') FROM llx_c_email_templates WHERE entity = :entity ORDER BY label ASC LIMIT 200",
+      "colonnes": ["N°", "Libellé", "Objet", "Langue", "Type", "Module"]
+    }
+  ],
+  "saisies": [
+    {
+      "code": "ModelesEmails",
+      "table": "llx_c_email_templates",
+      "champs": [
+        { "nom": "label", "libelle": "Libellé", "sorte": "texte", "obligatoire": true },
+        { "nom": "topic", "libelle": "Objet du message", "sorte": "texte" },
+        { "nom": "content", "libelle": "Corps du message", "sorte": "texte" },
+        { "nom": "lang", "libelle": "Langue (fr_FR)", "sorte": "texte", "defaut": "fr_FR" },
+        { "nom": "type_template", "libelle": "Type", "sorte": "entier" }
+      ],
+      "fixes": [
+        ["datec", "NOW()"],
+        ["active", "1"],
+        ["enabled", "1"],
+        ["private", "0"],
+        ["position", "0"]
+      ]
+    }
+  ]
+}

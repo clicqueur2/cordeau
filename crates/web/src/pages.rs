@@ -1874,8 +1874,36 @@ pub const LISTES: &[ListeSimple] = &[
     },
 ];
 
+/// Listes ajoutees par les modules declaratifs.
+///
+/// Un `RwLock` et non un `OnceLock` : chaque module ajoute les siennes, et le
+/// premier arrive ne doit pas condamner les suivants. Chaque liste est fuitee
+/// a l'enregistrement, donc les references rendues sont vraiment `'static`.
+static LISTES_DECLAREES: std::sync::RwLock<Vec<&'static ListeSimple>> =
+    std::sync::RwLock::new(Vec::new());
+
+/// Ajoute des listes venues d'un module declaratif.
+pub fn enregistrer_listes(listes: Vec<ListeSimple>) {
+    let mut v = LISTES_DECLAREES.write().unwrap_or_else(|e| e.into_inner());
+    for l in listes {
+        if v.iter().any(|x| x.code.eq_ignore_ascii_case(l.code)) {
+            continue;
+        }
+        v.push(Box::leak(Box::new(l)));
+    }
+}
+
+/// Toutes les listes : celles du noyau, puis celles des modules.
 pub fn liste_simple(code: &str) -> Option<&'static ListeSimple> {
-    LISTES.iter().find(|l| l.code.eq_ignore_ascii_case(code))
+    if let Some(l) = LISTES.iter().find(|l| l.code.eq_ignore_ascii_case(code)) {
+        return Some(l);
+    }
+    LISTES_DECLAREES
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .find(|l| l.code.eq_ignore_ascii_case(code))
+        .copied()
 }
 
 /// Affiche une liste en lecture seule, avec un lien de creation quand le
@@ -2010,6 +2038,8 @@ pub struct Saisie {
     pub fixes: &'static [(&'static str, &'static str)],
     /// Reference a numeroter : (`colonne`, prefixe).
     pub reference: Option<(&'static str, &'static str)>,
+    /// Cle primaire : `rowid` presque partout, `id` dans les dictionnaires.
+    pub pk: &'static str,
 }
 
 const fn c(
@@ -2054,6 +2084,7 @@ pub const SAISIES: &[Saisie] = &[
         ],
         fixes: &[("datec", "NOW()"), ("paid", "0"), ("active", "1")],
         reference: None,
+        pk: "rowid",
     },
     Saisie {
         code: "Asset",
@@ -2072,6 +2103,7 @@ pub const SAISIES: &[Saisie] = &[
             ("status", "0"),
         ],
         reference: None,
+        pk: "rowid",
     },
     Saisie {
         code: "ProductBatch",
@@ -2085,6 +2117,7 @@ pub const SAISIES: &[Saisie] = &[
         ],
         fixes: &[],
         reference: None,
+        pk: "rowid",
     },
     Saisie {
         code: "Resource",
@@ -2098,6 +2131,7 @@ pub const SAISIES: &[Saisie] = &[
         ],
         fixes: &[("datec", "NOW()"), ("fk_statut", "1")],
         reference: None,
+        pk: "rowid",
     },
     Saisie {
         code: "Tax",
@@ -2111,6 +2145,7 @@ pub const SAISIES: &[Saisie] = &[
         // Dolibarr, avec son pays.
         fixes: &[("fk_pays", "1"), ("active", "1")],
         reference: None,
+        pk: "rowid",
     },
     Saisie {
         code: "Adherent",
@@ -2125,6 +2160,7 @@ pub const SAISIES: &[Saisie] = &[
         ],
         fixes: &[("morphy", "'phy'"), ("statut", "1"), ("public", "0")],
         reference: Some(("ref", "ADH")),
+        pk: "rowid",
     },
     Saisie {
         code: "Categorie",
@@ -2135,6 +2171,7 @@ pub const SAISIES: &[Saisie] = &[
         ],
         fixes: &[("visible", "1"), ("fk_parent", "0")],
         reference: None,
+        pk: "rowid",
     },
     Saisie {
         code: "Don",
@@ -2150,11 +2187,35 @@ pub const SAISIES: &[Saisie] = &[
             ("fk_statut", "1"),
         ],
         reference: Some(("ref", "DON")),
+        pk: "rowid",
     },
 ];
 
+/// Formulaires ajoutes par les modules declaratifs.
+static SAISIES_DECLAREES: std::sync::RwLock<Vec<&'static Saisie>> =
+    std::sync::RwLock::new(Vec::new());
+
+/// Ajoute des formulaires venus d'un module declaratif.
+pub fn enregistrer_saisies(saisies: Vec<Saisie>) {
+    let mut v = SAISIES_DECLAREES.write().unwrap_or_else(|e| e.into_inner());
+    for s in saisies {
+        if v.iter().any(|x| x.code.eq_ignore_ascii_case(s.code)) {
+            continue;
+        }
+        v.push(Box::leak(Box::new(s)));
+    }
+}
+
 pub fn saisie(code: &str) -> Option<&'static Saisie> {
-    SAISIES.iter().find(|s| s.code.eq_ignore_ascii_case(code))
+    if let Some(s) = SAISIES.iter().find(|s| s.code.eq_ignore_ascii_case(code)) {
+        return Some(s);
+    }
+    SAISIES_DECLAREES
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .find(|s| s.code.eq_ignore_ascii_case(code))
+        .copied()
 }
 
 /// Formulaire de creation.
@@ -2355,9 +2416,15 @@ pub async fn fiche_saisie(
     let liste = liste_simple(&code).ok_or_else(|| Erreur(format!("liste inconnue : {code}")))?;
 
     let colonnes: Vec<&str> = s.champs.iter().map(|ch| ch.nom).collect();
-    let ligne =
-        db::divers::lire_ligne(&app.pool, s.table, crate::entite::courante(), id, &colonnes)?
-            .ok_or_else(|| Erreur(format!("ligne {id} introuvable dans {}", s.table)))?;
+    let ligne = db::divers::lire_ligne_par(
+        &app.pool,
+        s.table,
+        s.pk,
+        crate::entite::courante(),
+        id,
+        &colonnes,
+    )?
+    .ok_or_else(|| Erreur(format!("ligne {id} introuvable dans {}", s.table)))?;
     let valeurs: Vec<String> = s
         .champs
         .iter()
@@ -2445,9 +2512,10 @@ pub async fn fiche_saisie_enregistrer(
 
     // Les colonnes posees d'office ne sont pas retouchees : une date de
     // creation ne se reecrit pas.
-    db::divers::mettre_a_jour(
+    db::divers::mettre_a_jour_par(
         &app.pool,
         s.table,
+        s.pk,
         crate::entite::courante(),
         id,
         &valeurs,
@@ -2462,6 +2530,6 @@ pub async fn fiche_saisie_supprimer(
     axum::extract::Path((code, id)): axum::extract::Path<(String, i64)>,
 ) -> Res<Redirect> {
     let s = saisie(&code).ok_or_else(|| Erreur(format!("aucune fiche pour : {code}")))?;
-    db::divers::supprimer_ligne(&app.pool, s.table, crate::entite::courante(), id)?;
+    db::divers::supprimer_ligne_par(&app.pool, s.table, s.pk, crate::entite::courante(), id)?;
     Ok(Redirect::to(&format!("/liste/{code}?ok=supprime")))
 }

@@ -165,7 +165,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                 header {
                     span .marque { "Pierre " span { "Angulaire" } }
                     nav {
-                        @for m in crate::menu::MODULES.iter().filter(|m| crate::menu_actif::est_actif(m.code)) {
+                        @for m in crate::menu::modules().into_iter().filter(|m| crate::menu_actif::est_actif(m.code) || crate::manifeste::est_declare(m.code)) {
                             a class=(if m.cle == module.cle { "actif" } else { "" })
                               href=(lien_module(m)) { (m.libelle) }
                         }
@@ -202,7 +202,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                         }
                         hr;
                         div .module-titre { "Tous les modules" }
-                        @for m in crate::menu::MODULES.iter().filter(|m| crate::menu_actif::est_actif(m.code)) {
+                        @for m in crate::menu::modules().into_iter().filter(|m| crate::menu_actif::est_actif(m.code) || crate::manifeste::est_declare(m.code)) {
                             a href=(lien_module(m)) { (m.libelle) }
                         }
                     }

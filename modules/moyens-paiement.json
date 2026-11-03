@@ -1,0 +1,38 @@
+{
+  "code": "MoyensPaiement",
+  "libelle": "Moyens de paiement",
+  "droit": { "id": 9502, "libelle": "Moyens de paiement" },
+  "menu": {
+    "cle": "moyens-paiement",
+    "entrees": [
+      { "cle": "liste", "libelle": "Moyens de paiement", "lien": "/liste/MoyensPaiement" },
+      { "cle": "nouveau", "libelle": "Nouveau moyen", "lien": "/liste/MoyensPaiement/nouveau" }
+    ]
+  },
+  "listes": [
+    {
+      "code": "MoyensPaiement",
+      "titre": "Moyens de paiement",
+      "intro": "Dictionnaire llx_c_paiement : ce que proposent les écrans de règlement et ce que lit la comptabilité.",
+      "sql": "SELECT id, code, libelle, CASE active WHEN 1 THEN 'actif' ELSE 'inactif' END, COALESCE(accountancy_code, '') FROM llx_c_paiement WHERE entity = :entity ORDER BY position ASC, id ASC LIMIT 200",
+      "colonnes": ["N°", "Code", "Libellé", "État", "Compte comptable"]
+    }
+  ],
+  "saisies": [
+    {
+      "code": "MoyensPaiement",
+      "table": "llx_c_paiement",
+      "pk": "id",
+      "champs": [
+        { "nom": "code", "libelle": "Code (ex. VIR)", "sorte": "texte", "obligatoire": true },
+        { "nom": "libelle", "libelle": "Libellé", "sorte": "texte", "obligatoire": true },
+        { "nom": "accountancy_code", "libelle": "Compte comptable", "sorte": "texte" },
+        { "nom": "position", "libelle": "Position", "sorte": "entier", "defaut": "0" }
+      ],
+      "fixes": [
+        ["active", "1"],
+        ["type", "0"]
+      ]
+    }
+  ]
+}

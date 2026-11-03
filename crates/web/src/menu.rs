@@ -251,6 +251,27 @@ pub const MODULES: &[Module] = &[
     },
 ];
 
+/// Modules ajoutes par les fichiers declaratifs.
+///
+/// Chacun est construit une fois puis « fuit » : le registre ne rend que des
+/// references de duree de vie `'static`, comme les modules du noyau.
+static DECLARES: std::sync::RwLock<Vec<&'static Module>> = std::sync::RwLock::new(Vec::new());
+
+/// Ajoute un module declaratif a la barre.
+pub fn enregistrer(module: Module) {
+    let statique: &'static Module = Box::leak(Box::new(module));
+    let mut v = DECLARES.write().unwrap_or_else(|e| e.into_inner());
+    if !v.iter().any(|m| m.cle == statique.cle) {
+        v.push(statique);
+    }
+}
+
+/// Tous les modules : ceux du noyau, puis ceux des fichiers.
+pub fn modules() -> Vec<&'static Module> {
+    let declares = DECLARES.read().unwrap_or_else(|e| e.into_inner());
+    MODULES.iter().chain(declares.iter().copied()).collect()
+}
+
 /// Module contenant la section demandee.
 ///
 /// Plusieurs ecrans partagent un module : les relances vivent dans
@@ -261,7 +282,10 @@ pub fn module_de(section: &str) -> &'static Module {
         "parametres" => "outils",
         autre => autre,
     };
-    MODULES.iter().find(|m| m.cle == cle).unwrap_or(&MODULES[0])
+    modules()
+        .into_iter()
+        .find(|m| m.cle == cle)
+        .unwrap_or(&MODULES[0])
 }
 #[cfg(test)]
 mod tests {
@@ -273,7 +297,7 @@ mod tests {
     #[test]
     fn les_listes_du_menu_existent_et_sont_protegees() {
         let mut vues = 0;
-        for m in MODULES {
+        for m in modules() {
             for e in m.entrees {
                 assert!(e.lien.starts_with('/'), "lien invalide : {}", e.lien);
                 if let Some(reste) = e.lien.strip_prefix("/liste/") {
