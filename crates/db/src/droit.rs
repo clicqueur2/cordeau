@@ -119,6 +119,28 @@ pub fn assurer_definitions(pool: &Pool, entity: i64) -> Result<(), Box<dyn Error
     Ok(())
 }
 
+/// Cree (ou met a jour) une definition de droit isolee.
+///
+/// Les modules declaratifs portent leurs propres droits : on les ecrit dans
+/// `llx_rights_def` comme les notres, pour qu'une attribution faite ici se
+/// lise dans Dolibarr.
+pub fn assurer_un(pool: &Pool, entity: i64, id: i64, libelle: &str) -> Result<(), Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(
+        "INSERT INTO llx_rights_def \
+         (id, entity, libelle, module, module_origin, perms, subperms, type, bydefault, enabled) \
+         VALUES (:id, :entity, :libelle, 'dolibarr_rs', 'dolibarr_rs', 'ecran', :sub, 'r', 0, '1') \
+         ON DUPLICATE KEY UPDATE libelle = VALUES(libelle)",
+        params! {
+            "id" => id,
+            "entity" => entity,
+            "libelle" => libelle,
+            "sub" => id.to_string(),
+        },
+    )?;
+    Ok(())
+}
+
 /// Droits attribues a un utilisateur.
 pub fn droits(pool: &Pool, fk_user: i64) -> Result<BTreeSet<i64>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;

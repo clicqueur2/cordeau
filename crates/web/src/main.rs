@@ -6,6 +6,7 @@
 mod api;
 mod entite;
 pub(crate) mod journal_erreurs;
+mod manifeste;
 mod menu;
 mod menu_actif;
 mod pages;
@@ -110,6 +111,21 @@ async fn main() {
     }
 
     // Definitions de droits : idempotent, une fois par demarrage.
+    // Modules declaratifs : un fichier JSON suffit, sans recompiler.
+    {
+        let dossier = std::env::var("DOLIBARR_MODULES")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| std::path::PathBuf::from("modules"));
+        match manifeste::charger(&pool, entite::courante(), &dossier) {
+            Ok(0) => {}
+            Ok(n) => println!(
+                "{n} module(s) declare(s) charge(s) depuis {}",
+                dossier.display()
+            ),
+            Err(e) => eprintln!("modules declaratifs : {e}"),
+        }
+    }
+
     if let Err(e) = db::droit::assurer_definitions(&pool, entite::courante()) {
         eprintln!("definitions de droits impossibles : {e}");
     }
@@ -416,7 +432,12 @@ async fn garde(
     // Droits par ecran : un utilisateur non administrateur doit avoir le droit
     // du module. Le droit est cherche une fois par requete, pas par lien.
     if !courant.admin {
-        let exiges = db::droit::droits_du_chemin(&chemin);
+        // Un module declaratif peut porter son propre droit : il passe avant
+        // la carte du noyau, plus precise sur le chemin.
+        let exiges: Vec<i64> = match manifeste::droit_du_chemin(&chemin) {
+            Some(id) => vec![id],
+            None => db::droit::droits_du_chemin(&chemin).to_vec(),
+        };
         if !exiges.is_empty() {
             let autorise = db::user::par_login(&app.pool, &courant.login)
                 .ok()
@@ -697,7 +718,7 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
 
             h2 { "Accès rapides" }
             div .cartes {
-                @for m in crate::menu::MODULES {
+                @for m in crate::menu::modules() {
                     div .carte {
                         div .libelle { (m.libelle) }
                         @for e in m.entrees {

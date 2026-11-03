@@ -263,6 +263,23 @@ fn identifiant_sql(s: &str) -> bool {
 // Dolibarr pour une adhesion de particulier.
 const EXPRESSIONS_SQL: &[&str] = &["NOW()", "CURDATE()", "0", "1", "'phy'"];
 
+/// L'expression SQL est-elle dans la liste fermee ? Sert aux modules
+/// declaratifs, qui n'ont pas acces a la constante privee.
+pub fn expression_autorisee(expr: &str) -> bool {
+    EXPRESSIONS_SQL.contains(&expr)
+}
+
+/// Un identifiant SQL acceptable ? Meme regle que partout ici : lettres,
+/// chiffres, souligne.
+pub fn identifiant_autorise(s: &str) -> bool {
+    identifiant_sql(s)
+}
+
+/// Les expressions acceptees, pour les messages d'erreur.
+pub fn expressions_autorisees() -> &'static [&'static str] {
+    EXPRESSIONS_SQL
+}
+
 /// Une valeur de colonne, en texte, pour l'affichage et la reprise en
 /// formulaire.
 fn valeur_texte(r: &Row, i: usize) -> Option<String> {
@@ -368,14 +385,18 @@ pub fn produits_pour_liste(
 ///
 /// `table` et `colonnes` viennent du registre cote web ; ils sont valides
 /// comme partout ailleurs, et l'entite est toujours dans le WHERE.
-pub fn lire_ligne(
+pub fn lire_ligne_par(
     pool: &Pool,
     table: &str,
+    cle: &str,
     entity: i64,
     id: i64,
     colonnes: &[&str],
 ) -> Result<Option<Vec<Option<String>>>, Box<dyn Error>> {
-    if !identifiant_sql(table) || colonnes.iter().any(|c| !identifiant_sql(c)) {
+    if !identifiant_sql(table)
+        || !identifiant_sql(cle)
+        || colonnes.iter().any(|c| !identifiant_sql(c))
+    {
         return Err("nom de table ou de colonne refuse".into());
     }
     // Tout est caste en texte : une DATE, un double(24,8) et un entier se
@@ -385,7 +406,7 @@ pub fn lire_ligne(
         .map(|c| format!("CAST({c} AS CHAR)"))
         .collect::<Vec<_>>()
         .join(", ");
-    let sql = format!("SELECT {liste} FROM {table} WHERE rowid = ? AND entity = ?");
+    let sql = format!("SELECT {liste} FROM {table} WHERE {cle} = ? AND entity = ?");
     let mut conn = pool.get_conn()?;
     let row: Option<Row> = conn.exec_first(sql, (id, entity))?;
     Ok(row.map(|r| {
@@ -396,15 +417,16 @@ pub fn lire_ligne(
 }
 
 /// Met a jour une ligne. Renvoie le nombre de lignes touchees (0 = rien).
-pub fn mettre_a_jour(
+pub fn mettre_a_jour_par(
     pool: &Pool,
     table: &str,
+    cle: &str,
     entity: i64,
     id: i64,
     valeurs: &[(String, Option<String>)],
     exprs: &[(&'static str, &'static str)],
 ) -> Result<u64, Box<dyn Error>> {
-    if !identifiant_sql(table) {
+    if !identifiant_sql(table) || !identifiant_sql(cle) {
         return Err(format!("nom de table refuse : {table}").into());
     }
     let mut morceaux: Vec<String> = Vec::new();
@@ -433,7 +455,7 @@ pub fn mettre_a_jour(
     params.push(Value::Int(entity));
 
     let sql = format!(
-        "UPDATE {table} SET {} WHERE rowid = ? AND entity = ?",
+        "UPDATE {table} SET {} WHERE {cle} = ? AND entity = ?",
         morceaux.join(", ")
     );
     let mut conn = pool.get_conn()?;
@@ -442,16 +464,17 @@ pub fn mettre_a_jour(
 }
 
 /// Supprime une ligne. Renvoie le nombre de lignes parties (0 = rien).
-pub fn supprimer_ligne(
+pub fn supprimer_ligne_par(
     pool: &Pool,
     table: &str,
+    cle: &str,
     entity: i64,
     id: i64,
 ) -> Result<u64, Box<dyn Error>> {
-    if !identifiant_sql(table) {
+    if !identifiant_sql(table) || !identifiant_sql(cle) {
         return Err(format!("nom de table refuse : {table}").into());
     }
-    let sql = format!("DELETE FROM {table} WHERE rowid = ? AND entity = ?");
+    let sql = format!("DELETE FROM {table} WHERE {cle} = ? AND entity = ?");
     let mut conn = pool.get_conn()?;
     conn.exec_drop(sql, (id, entity))?;
     Ok(conn.affected_rows())
