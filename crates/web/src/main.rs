@@ -192,6 +192,7 @@ async fn main() {
             "/tickets/:id/fermer",
             axum::routing::post(pages::ticket_fermer),
         )
+        .route("/liste/:code", get(pages::liste_simple_page))
         .route("/contacts", get(pages::contacts).post(pages::contact_creer))
         .route(
             "/contacts/:id/modifier",

@@ -227,3 +227,29 @@ pub fn paiements_fournisseurs(
         })
         .collect())
 }
+/// Execute une requete de liste et renvoie ses lignes en texte.
+///
+/// Le SQL vient d'une table fermee cote web (aucune saisie utilisateur), et
+/// :entity est toujours fourni : une liste ne peut pas deborder d'entite.
+pub fn lignes_brutes(
+    pool: &Pool,
+    entity: i64,
+    sql: &str,
+) -> Result<Vec<Vec<Option<String>>>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let rows: Vec<Row> = conn.exec(sql, params! { "entity" => entity })?;
+    Ok(rows
+        .iter()
+        .map(|r| {
+            (0..r.len())
+                .map(|i| {
+                    r.get_opt::<String, _>(i).and_then(|v| v.ok()).or_else(|| {
+                        r.get_opt::<i64, _>(i)
+                            .and_then(|v| v.ok())
+                            .map(|n| n.to_string())
+                    })
+                })
+                .collect()
+        })
+        .collect())
+}
