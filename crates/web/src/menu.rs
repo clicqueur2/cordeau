@@ -286,6 +286,71 @@ pub fn depuis_base() -> bool {
     DEPUIS_BASE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// Entites deja chargees : on ne relit `llx_menu` qu'une fois par entite.
+static CHARGEES: std::sync::Mutex<Vec<i64>> = std::sync::Mutex::new(Vec::new());
+
+/// Charge la barre depuis `llx_menu` pour une entite, une seule fois.
+///
+/// Dolibarr ne code pas sa barre dans le PHP : il la lit dans cette table.
+/// Quand elle est peuplee, c'est elle qui fait foi. L'entite n'est connue
+/// qu'a la premiere requete d'une session — d'ou ce chargement paresseux.
+///
+/// Rend le nombre de menus de tete lus, 0 si la table est vide.
+pub fn charger_depuis_base(pool: &db::Pool, entity: i64) -> usize {
+    {
+        let deja = CHARGEES.lock().unwrap_or_else(|e| e.into_inner());
+        if deja.contains(&entity) {
+            return 0;
+        }
+    }
+
+    let entrees = match db::menu::lire(pool, entity) {
+        Ok(e) => e,
+        Err(e) => {
+            eprintln!("lecture de llx_menu impossible (entite {entity}) : {e}");
+            return 0;
+        }
+    };
+    if entrees.is_empty() {
+        return 0;
+    }
+
+    let arbre = db::menu::arbre(&entrees);
+    let n = arbre.len();
+    {
+        let mut v = DECLARES.write().unwrap_or_else(|e| e.into_inner());
+        v.clear();
+        for (tete, enfants) in arbre {
+            let mut liste: Vec<Entree> = Vec::new();
+            for e in enfants {
+                liste.push(Entree {
+                    cle: fuite(&e.titre),
+                    libelle: fuite(&e.titre),
+                    lien: if e.url.is_empty() { "/" } else { fuite(&e.url) },
+                });
+            }
+            v.push(Box::leak(Box::new(Module {
+                cle: fuite(&tete.titre),
+                libelle: fuite(&tete.titre),
+                code: fuite(&tete.mainmenu),
+                entrees: Box::leak(liste.into_boxed_slice()),
+            })));
+        }
+    }
+    basculer_sur_base();
+    CHARGEES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push(entity);
+    n
+}
+
+/// Rend une chaine vivante aussi longtemps que le serveur : la barre est
+/// construite en `&'static str`, comme les modules du noyau.
+fn fuite(s: &str) -> &'static str {
+    Box::leak(s.to_string().into_boxed_str())
+}
+
 /// Tous les modules : ceux du noyau, puis ceux des fichiers.
 pub fn modules() -> Vec<&'static Module> {
     let declares = DECLARES.read().unwrap_or_else(|e| e.into_inner());
