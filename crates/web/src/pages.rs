@@ -1692,6 +1692,183 @@ pub const LISTES: &[ListeSimple] = &[
               ORDER BY date_debut DESC, rowid DESC LIMIT 200",
         colonnes: &["Réf.", "Du", "Au", "Statut"],
     },
+    ListeSimple {
+        code: "Mailing",
+        titre: "Emailings",
+        intro: "Campagnes d'e-mailing (llx_mailing), lecture seule.",
+        sql: "SELECT titre, COALESCE(sujet, ''), DATE_FORMAT(date_creat, '%Y-%m-%d'), \
+                     CASE statut WHEN 0 THEN 'Brouillon' WHEN 1 THEN 'Validé' \
+                                 WHEN 2 THEN 'Envoyé' ELSE CAST(statut AS CHAR) END \
+              FROM llx_mailing WHERE entity = :entity \
+              ORDER BY date_creat DESC, rowid DESC LIMIT 200",
+        colonnes: &["Titre", "Sujet", "Créé le", "Statut"],
+    },
+    ListeSimple {
+        code: "Prelevement",
+        titre: "Prélèvements",
+        intro: "Bordereaux de prélèvement SEPA (llx_prelevement_bons), lecture seule.",
+        sql: "SELECT p.ref, DATE_FORMAT(p.datec, '%Y-%m-%d'), \
+                     CAST(p.amount AS CHAR), \
+                     CASE p.statut WHEN 0 THEN 'Brouillon' WHEN 1 THEN 'Validé' \
+                                   WHEN 2 THEN 'Déposé' WHEN 3 THEN 'Crédité' \
+                                   WHEN 4 THEN 'Rejeté' ELSE CAST(p.statut AS CHAR) END \
+              FROM llx_prelevement_bons p \
+              WHERE p.entity = :entity \
+              ORDER BY p.datec DESC, p.rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Date", "Montant", "Statut"],
+    },
+    ListeSimple {
+        code: "Ficheinter",
+        titre: "Fiches d'intervention",
+        intro: "Fiches d'intervention (llx_fichinter), lecture seule.",
+        sql: "SELECT f.ref, DATE_FORMAT(f.datec, '%Y-%m-%d'), \
+                     COALESCE(s.nom, ''), \
+                     CASE f.fk_statut WHEN 0 THEN 'Brouillon' WHEN 1 THEN 'Validée' \
+                                      WHEN 2 THEN 'Clôturée' ELSE CAST(f.fk_statut AS CHAR) END \
+              FROM llx_fichinter f \
+              LEFT JOIN llx_societe s ON s.rowid = f.fk_soc \
+              WHERE f.entity = :entity \
+              ORDER BY f.datec DESC, f.rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Date", "Tiers", "Statut"],
+    },
+    ListeSimple {
+        code: "Bookmark",
+        titre: "Signets",
+        intro: "Signets enregistrés par les utilisateurs (llx_bookmark).",
+        sql: "SELECT title, url, DATE_FORMAT(dateb, '%Y-%m-%d'), \
+                     COALESCE(u.login, '') \
+              FROM llx_bookmark b \
+              LEFT JOIN llx_user u ON u.rowid = b.fk_user \
+              WHERE b.entity = :entity \
+              ORDER BY b.position ASC, b.rowid ASC LIMIT 200",
+        colonnes: &["Titre", "Adresse", "Créé le", "Utilisateur"],
+    },
+    ListeSimple {
+        code: "Tax",
+        titre: "Taux de TVA",
+        intro: "Dictionnaire des taux de TVA (llx_c_tva) : c'est lui qui alimente \
+                les factures, pas une liste figée dans le code.",
+        sql: "SELECT code, CAST(taux AS CHAR), COALESCE(note, ''), \
+                     CASE active WHEN 1 THEN 'actif' ELSE 'inactif' END \
+              FROM llx_c_tva WHERE entity = :entity \
+              ORDER BY taux DESC, code ASC LIMIT 200",
+        colonnes: &["Code", "Taux", "Note", "État"],
+    },
+    ListeSimple {
+        code: "Salaries",
+        titre: "Salaires",
+        intro: "Bulletins de salaire (llx_salary), lecture seule.",
+        sql: "SELECT s.ref, DATE_FORMAT(s.datec, '%Y-%m-%d'), \
+                     COALESCE(CONCAT(u.firstname, ' ', u.lastname), ''), \
+                     CAST(s.amount AS CHAR), \
+                     CASE s.paye WHEN 1 THEN 'Payé' ELSE 'À payer' END \
+              FROM llx_salary s \
+              LEFT JOIN llx_user u ON u.rowid = s.fk_user \
+              WHERE s.entity = :entity \
+              ORDER BY s.datec DESC, s.rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Date", "Salarié", "Montant", "Paiement"],
+    },
+    ListeSimple {
+        code: "Loan",
+        titre: "Prêts",
+        intro: "Emprunts et échéanciers (llx_loan), lecture seule.",
+        sql: "SELECT label, CAST(capital AS CHAR), \
+                     DATE_FORMAT(datestart, '%Y-%m-%d'), CAST(nbterm AS CHAR), \
+                     CAST(rate AS CHAR), CAST(capital_position AS CHAR) \
+              FROM llx_loan WHERE entity = :entity \
+              ORDER BY datestart DESC, rowid DESC LIMIT 200",
+        colonnes: &[
+            "Libellé",
+            "Capital",
+            "Début",
+            "Échéances",
+            "Taux",
+            "Capital restant",
+        ],
+    },
+    ListeSimple {
+        code: "ProductBatch",
+        titre: "Lots et séries",
+        intro: "Lots suivis (llx_product_lot), lecture seule.",
+        sql: "SELECT l.batch, COALESCE(p.ref, ''), COALESCE(p.label, ''), \
+                     COALESCE(DATE_FORMAT(l.eatby, '%Y-%m-%d'), ''), \
+                     COALESCE(DATE_FORMAT(l.sellby, '%Y-%m-%d'), '') \
+              FROM llx_product_lot l \
+              LEFT JOIN llx_product p ON p.rowid = l.fk_product \
+              WHERE l.entity = :entity \
+              ORDER BY l.rowid DESC LIMIT 200",
+        colonnes: &[
+            "Lot",
+            "Réf. produit",
+            "Libellé",
+            "À consommer avant",
+            "À vendre avant",
+        ],
+    },
+    ListeSimple {
+        code: "Accounting",
+        titre: "Écritures comptables",
+        intro: "Table llx_accounting_bookkeeping : ce que Dolibarr y écrit. Vide tant \
+                qu'aucun export n'a été validé — le grand livre de l'écran Comptabilité \
+                est, lui, dérivé des documents.",
+        sql: "SELECT numero_compte, COALESCE(label_compte, ''), \
+                     COALESCE(label_operation, ''), DATE_FORMAT(doc_date, '%Y-%m-%d'), \
+                     CAST(debit AS CHAR), CAST(credit AS CHAR) \
+              FROM llx_accounting_bookkeeping WHERE entity = :entity \
+              ORDER BY doc_date DESC, rowid DESC LIMIT 200",
+        colonnes: &[
+            "Compte",
+            "Libellé compte",
+            "Opération",
+            "Date",
+            "Débit",
+            "Crédit",
+        ],
+    },
+    ListeSimple {
+        code: "Asset",
+        titre: "Immobilisations",
+        intro: "Biens immobilisés (llx_asset), lecture seule.",
+        sql: "SELECT a.ref, a.label, DATE_FORMAT(a.date_acquisition, '%Y-%m-%d'), \
+                     CAST(a.acquisition_value_ht AS CHAR), \
+                     COALESCE(DATE_FORMAT(a.disposal_date, '%Y-%m-%d'), '') \
+              FROM llx_asset a WHERE a.entity = :entity \
+              ORDER BY a.date_acquisition DESC, a.rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Libellé", "Acquis le", "Valeur HT", "Cédé le"],
+    },
+    ListeSimple {
+        code: "Resource",
+        titre: "Ressources",
+        intro: "Ressources partagées : salles, véhicules, matériel (llx_resource).",
+        sql: "SELECT ref, COALESCE(description, ''), COALESCE(town, ''), \
+                     COALESCE(phone, ''), COALESCE(email, ''), \
+                     CASE fk_statut WHEN 0 THEN 'inactif' ELSE 'actif' END \
+              FROM llx_resource WHERE entity = :entity \
+              ORDER BY ref ASC LIMIT 200",
+        colonnes: &[
+            "Réf.",
+            "Description",
+            "Ville",
+            "Téléphone",
+            "E-mail",
+            "État",
+        ],
+    },
+    ListeSimple {
+        code: "PaymentByBankTransfer",
+        titre: "Virements",
+        intro: "Règlements par virement (llx_paiement, moyen de paiement VIR) : c'est \
+                la matière du bordereau de virement.",
+        sql: "SELECT p.ref, DATE_FORMAT(p.datep, '%Y-%m-%d'), \
+                     CAST(p.amount AS CHAR), COALESCE(ba.label, ''), COALESCE(p.num_paiement, '') \
+              FROM llx_paiement p \
+              JOIN llx_c_paiement cp ON cp.id = p.fk_paiement \
+              LEFT JOIN llx_bank b ON b.rowid = p.fk_bank \
+              LEFT JOIN llx_bank_account ba ON ba.rowid = b.fk_account \
+              WHERE p.entity = :entity AND cp.code = 'VIR' \
+              ORDER BY p.datep DESC, p.rowid DESC LIMIT 200",
+        colonnes: &["Réf.", "Date", "Montant", "Compte bancaire", "N° pièce"],
+    },
 ];
 
 pub fn liste_simple(code: &str) -> Option<&'static ListeSimple> {

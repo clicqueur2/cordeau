@@ -49,6 +49,7 @@ pub const MODULES: &[Module] = &[
             e("fournisseurs", "Fournisseurs", "/tiers?type=fournisseur"),
             e("contacts", "Contacts/Adresses", "/contacts"),
             e("adherents", "Adhérents", "/liste/Adherent"),
+            e("dons", "Dons", "/liste/Don"),
         ],
     },
     Module {
@@ -60,6 +61,7 @@ pub const MODULES: &[Module] = &[
             e("liste", "Catalogue", "/produits"),
             e("stock", "Stock", "/stock"),
             e("categories", "Catégories", "/liste/Categorie"),
+            e("lots", "Lots et séries", "/liste/ProductBatch"),
         ],
     },
     Module {
@@ -84,6 +86,11 @@ pub const MODULES: &[Module] = &[
             e("contrats", "Contrats", "/contrats"),
             e("receptions", "Réceptions", "/liste/Reception"),
             e("expeditions", "Expéditions", "/expeditions"),
+            e(
+                "interventions",
+                "Fiches d'intervention",
+                "/liste/Ficheinter",
+            ),
         ],
     },
     Module {
@@ -121,6 +128,9 @@ pub const MODULES: &[Module] = &[
                 "Rapprochement bancaire",
                 "/banques#rapprochement",
             ),
+            e("virements", "Virements", "/liste/PaymentByBankTransfer"),
+            e("prelevements", "Prélèvements", "/liste/Prelevement"),
+            e("prets", "Prêts", "/liste/Loan"),
         ],
     },
     Module {
@@ -141,6 +151,8 @@ pub const MODULES: &[Module] = &[
             ),
             e("grand-livre", "Grand livre", "/comptabilite/grand-livre"),
             e("fec", "Comptabilisation et FEC", "/comptabilite/fec"),
+            e("ecritures", "Écritures comptables", "/liste/Accounting"),
+            e("immobilisations", "Immobilisations", "/liste/Asset"),
         ],
     },
     Module {
@@ -159,12 +171,20 @@ pub const MODULES: &[Module] = &[
         ],
     },
     Module {
+        cle: "communication",
+        code: "Mailing",
+        libelle: "Communication",
+        entrees: &[e("emailings", "Emailings", "/liste/Mailing")],
+    },
+    Module {
         cle: "rh",
         code: "HRM",
         libelle: "RH",
         entrees: &[
             e("frais", "Notes de frais", "/liste/ExpenseReport"),
             e("conges", "Congés", "/liste/Holiday"),
+            e("salaires", "Salaires", "/liste/Salaries"),
+            e("ressources", "Ressources", "/liste/Resource"),
         ],
     },
     Module {
@@ -185,6 +205,8 @@ pub const MODULES: &[Module] = &[
             ),
             e("import", "Import / Export", "/parametres/import"),
             e("sauvegarde", "Sauvegarde", "/parametres/sauvegarde"),
+            e("bookmarks", "Signets", "/liste/Bookmark"),
+            e("taxes", "Taux de TVA", "/liste/Tax"),
             e("base", "Base de données", "/parametres/base"),
             e("modules", "Modules / Applications", "/parametres/modules"),
             e("affichage", "Affichage", "/parametres/reglage/affichage"),
@@ -227,4 +249,34 @@ pub fn module_de(section: &str) -> &'static Module {
         autre => autre,
     };
     MODULES.iter().find(|m| m.cle == cle).unwrap_or(&MODULES[0])
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Tout lien « /liste/<Code> » du menu doit exister dans le registre, et
+    /// tout ecran doit avoir un droit : un lien mort ou un ecran ouvert a tous
+    /// sont les deux facons de casser la navigation sans s'en apercevoir.
+    #[test]
+    fn les_listes_du_menu_existent_et_sont_protegees() {
+        let mut vues = 0;
+        for m in MODULES {
+            for e in m.entrees {
+                assert!(e.lien.starts_with('/'), "lien invalide : {}", e.lien);
+                if let Some(code) = e.lien.strip_prefix("/liste/") {
+                    let code = code.split(['?', '#']).next().unwrap_or(code);
+                    assert!(
+                        crate::pages::liste_simple(code).is_some(),
+                        "liste inconnue dans le menu : {code}"
+                    );
+                    assert!(
+                        !db::droit::droits_du_chemin(e.lien).is_empty(),
+                        "aucun droit exige pour {code} : l'ecran serait ouvert a tout compte"
+                    );
+                    vues += 1;
+                }
+            }
+        }
+        assert!(vues >= 18, "seulement {vues} listes dans le menu");
+    }
 }
