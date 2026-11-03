@@ -34,6 +34,7 @@ pub mod proposal;
 pub mod reglement;
 pub mod relance;
 pub mod sauvegarde;
+pub mod sepa;
 pub mod situation;
 pub mod stock;
 pub mod tables;
