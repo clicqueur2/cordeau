@@ -100,7 +100,11 @@ async fn main() {
         eprintln!("liste des entites indisponible : {e}");
     }
 
-    // Modules actives : la barre de menus en depend.
+    // Modules actives : la barre de menus en depend. On seme d'abord les
+    // modules portes, puis on charge : l'ordre compte, sinon la barre est vide.
+    if let Err(e) = db::module::semer_modules_portes(&pool, entite::courante()) {
+        eprintln!("semis des modules impossible : {e}");
+    }
     if let Err(e) = menu_actif::charger(&pool, entite::courante()) {
         eprintln!("chargement des modules impossibles : {e}");
     }
@@ -123,18 +127,6 @@ async fn main() {
         pool: Arc::new(pool),
         sessions: Arc::new(Mutex::new(HashMap::new())),
     };
-
-    // Installation neuve : les modules dont un ecran existe sont actives
-    // d'emblee, comme Dolibarr active un socle a l'installation.
-    match db::module::actifs(&app.pool, entite::courante()) {
-        Ok(actifs) if actifs.is_empty() => {
-            if let Err(e) = db::module::activer_modules_portes(&app.pool, entite::courante()) {
-                eprintln!("activation des modules impossible : {e}");
-            }
-        }
-        Ok(_) => {}
-        Err(e) => eprintln!("lecture des modules impossible : {e}"),
-    }
 
     let pages = Router::new()
         .route("/connexion", get(connexion_page).post(connexion))
@@ -178,6 +170,11 @@ async fn main() {
         )
         .route("/achats/facture/:id/valider", post(achat_facture_valider))
         .route("/achats/fournisseur", post(achat_fournisseur_creer))
+        .route("/tickets", get(pages::tickets).post(pages::ticket_creer))
+        .route(
+            "/tickets/:id/fermer",
+            axum::routing::post(pages::ticket_fermer),
+        )
         .route("/contacts", get(pages::contacts).post(pages::contact_creer))
         .route("/stock", get(pages::stock))
         .route("/expeditions", get(pages::expeditions))
@@ -1610,6 +1607,7 @@ async fn achats(State(app): State<App>, Query(q): Query<HashMap<String, String>>
     let p = &app.pool;
     let liste = db::achat::fournisseurs(p, entite::courante(), 500, 0)?;
     let factures = db::achat::factures_fournisseur(p, entite::courante(), 100, 0)?;
+    let paiements = db::divers::paiements_fournisseurs(p, entite::courante(), 50)?;
     let total = db::achat::total_achats(p, entite::courante())?;
 
     Ok(ui::page(
@@ -1657,6 +1655,23 @@ async fn achats(State(app): State<App>, Query(q): Query<HashMap<String, String>>
                     }
                 }
                 div .actions { button type="submit" { "Créer le fournisseur" } }
+            }
+
+            @if !paiements.is_empty() {
+                h2 { "Paiements fournisseurs" }
+                table {
+                    thead { tr { th { "Réf." } th { "Date" } th { "Mode" } th .num { "Montant" } } }
+                    tbody {
+                        @for (ref_, date, montant, mode) in &paiements {
+                            tr {
+                                td .ref { (ref_) }
+                                td .ref { (app::fmt_date_fr(date.as_deref())) }
+                                td { (mode.clone().unwrap_or_default()) }
+                                td .num { (ui::euros(*montant)) }
+                            }
+                        }
+                    }
+                }
             }
 
             h2 { "Factures fournisseurs" }

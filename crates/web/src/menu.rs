@@ -102,6 +102,12 @@ pub const MODULES: &[Module] = &[
         ],
     },
     Module {
+        cle: "tickets",
+        code: "Ticket",
+        libelle: "Tickets",
+        entrees: &[e("liste", "Tickets", "/tickets")],
+    },
+    Module {
         cle: "banques",
         code: "Banque",
         libelle: "Banques",

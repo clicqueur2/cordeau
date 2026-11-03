@@ -36,6 +36,7 @@ pub mod relance;
 pub mod sauvegarde;
 pub mod situation;
 pub mod stock;
+pub mod ticket;
 pub mod user;
 
 use mysql::prelude::*;
