@@ -558,6 +558,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "comptabilite"
+version = "0.1.0"
+dependencies = [
+ "rust_decimal",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1360,6 +1367,13 @@ name = "hypher"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45f2b4f6b5da34d400d4c112eadcc14512cc5d04307a8eee182586d9bebd7ce6"
+
+[[package]]
+name = "i18n"
+version = "0.1.0"
+dependencies = [
+ "rust_decimal",
+]
 
 [[package]]
 name = "icu_collator"
@@ -2675,6 +2689,13 @@ checksum = "c4ed38b89c2c77ff968c524145ad65fb010f38af5c7a224b53b81d47ac2daa81"
 dependencies = [
  "bytemuck",
  "font-types",
+]
+
+[[package]]
+name = "recurrence"
+version = "0.1.0"
+dependencies = [
+ "rust_decimal",
 ]
 
 [[package]]
