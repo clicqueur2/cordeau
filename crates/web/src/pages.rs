@@ -2898,6 +2898,13 @@ pub async fn installation_page(
                         td { "" }
                     }
                     tr {
+                        td { "Barre de menus" }
+                        td {
+                            @if crate::menu::depuis_base() { "lue dans llx_menu" } @else { "celle du noyau" }
+                        }
+                        td { "" }
+                    }
+                    tr {
                         td { "SMTP" }
                         td {
                             @match &etat.smtp {

@@ -113,6 +113,39 @@ async fn main() {
     }
 
     // Definitions de droits : idempotent, une fois par demarrage.
+    // Barre de menus : si Dolibarr a peuple `llx_menu`, c'est elle qui fait foi.
+    // On ne recopie pas sa disposition, on la lit.
+    match db::menu::lire(&pool, entite::courante()) {
+        Ok(entrees) if !entrees.is_empty() => {
+            let arbre = db::menu::arbre(&entrees);
+            let n = arbre.len();
+            for (tete, enfants) in arbre {
+                let mut liste: Vec<menu::Entree> = Vec::new();
+                for e in enfants {
+                    liste.push(menu::Entree {
+                        cle: fuite_str(&e.titre),
+                        libelle: fuite_str(&e.titre),
+                        lien: if e.url.is_empty() {
+                            "/"
+                        } else {
+                            fuite_str(&e.url)
+                        },
+                    });
+                }
+                menu::enregistrer(menu::Module {
+                    cle: fuite_str(&tete.titre),
+                    libelle: fuite_str(&tete.titre),
+                    code: fuite_str(&tete.mainmenu),
+                    entrees: Box::leak(liste.into_boxed_slice()),
+                });
+            }
+            menu::basculer_sur_base();
+            println!("{n} menus lus dans llx_menu : la barre suit Dolibarr");
+        }
+        Ok(_) => {}
+        Err(e) => eprintln!("lecture de llx_menu impossible : {e}"),
+    }
+
     // Modules declaratifs : un fichier JSON suffit, sans recompiler.
     {
         let dossier = std::env::var("DOLIBARR_MODULES")
@@ -4396,4 +4429,10 @@ fn pdf_response(bytes: &[u8], nom: &str) -> Response {
         bytes.to_vec(),
     )
         .into_response()
+}
+
+/// Rend une chaine vivante aussi longtemps que le serveur : la barre de menus
+/// est construite en `&'static str`, comme les modules du noyau.
+fn fuite_str(s: &str) -> &'static str {
+    Box::leak(s.to_string().into_boxed_str())
 }
