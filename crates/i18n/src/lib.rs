@@ -591,3 +591,5 @@ mod tests {
 }
 
 pub mod dolibarr;
+
+pub mod ecrans;

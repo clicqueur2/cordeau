@@ -714,6 +714,7 @@ dependencies = [
  "comptabilite",
  "money",
  "mysql",
+ "pos",
  "recurrence",
  "rust_decimal",
  "schema",
