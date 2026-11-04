@@ -69,7 +69,9 @@ pub fn lire(pool: &Pool, entity: i64) -> Result<Vec<Entree>, Box<dyn Error>> {
                 mainmenu: mainmenu.unwrap_or_default(),
                 niveau: level.unwrap_or(0) as i32,
                 type_menu: type_menu.unwrap_or_default(),
-                actif: !matches!(enabled.as_deref(), Some("0") | Some("")),
+                // Chez Dolibarr, enabled vide veut dire « toujours actif » (aucune
+                // condition) ; seul "0" desactive.
+                actif: !matches!(enabled.as_deref(), Some("0")),
             },
         )
         .collect())
