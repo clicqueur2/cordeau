@@ -6,6 +6,7 @@
 mod api;
 mod campagnes;
 mod entite;
+mod extrafields_ecran;
 pub(crate) mod journal_erreurs;
 mod livre_tenu;
 mod manifeste;
@@ -295,6 +296,15 @@ async fn main() {
         .route("/parametres/greffons", get(pages::greffons_page))
         .route("/parametres/tables", get(pages::tables_page))
         .route("/parametres/tables/:nom", get(pages::table_page))
+        .route("/parametres/extrafields", get(extrafields_ecran::liste))
+        .route(
+            "/parametres/extrafields/:elementtype",
+            get(extrafields_ecran::cible),
+        )
+        .route(
+            "/extrafields/:elementtype/:id",
+            get(extrafields_ecran::objet).post(extrafields_ecran::enregistrer),
+        )
         .route("/parametres/emails/essai", post(pages::email_essai))
         .route(
             "/parametres/reglage/:cle",
