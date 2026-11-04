@@ -142,6 +142,8 @@ pub struct NewInvoice {
     /// Date de la prestation (écrite sur chaque ligne, colonne `date_start`).
     pub date_prestation: Option<String>,
     pub fk_cond_reglement: Option<i64>,
+    /// Chantier auquel la facture se rattache.
+    pub fk_projet: Option<i64>,
     pub lines: Vec<NewInvoiceLine>,
 }
 
@@ -525,12 +527,12 @@ fn create_sous_verrou(
             "INSERT INTO llx_facture \
              (entity, ref, fk_soc, type, fk_facture_source, ref_client, datec, datef, \
               date_lim_reglement, fk_statut, paye, total_ht, total_tva, total_ttc, \
-              remise_percent, note_private, note_public, fk_cond_reglement) \
+              remise_percent, note_private, note_public, fk_cond_reglement, fk_projet) \
              VALUES (:entity, :ref, :fk_soc, :type, :source, :ref_client, NOW(), \
               :datef, \
               :echeance, :statut, 0, \
               :total_ht, :total_tva, :total_ttc, 0, :note_private, :note_public, \
-              :cond)",
+              :cond, :projet)",
             params! {
                 "entity" => entity,
                 "ref" => reference.as_str(),
@@ -539,6 +541,7 @@ fn create_sous_verrou(
                 "source" => source,
                 "ref_client" => new.ref_client.as_deref(),
                 "cond" => cond,
+            "projet" => new.fk_projet,
                 "datef" => datef.as_str(),
                 "echeance" => echeance.as_str(),
                 "statut" => STATUT_BROUILLON,

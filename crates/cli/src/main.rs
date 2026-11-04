@@ -712,6 +712,7 @@ fn proposal_run(
                 fin_validite: flag(args, "--validite").map(|s| s.to_string()),
                 deposit_percent: flag(args, "--acompte")
                     .and_then(|v| v.replace(',', ".").parse().ok()),
+                fk_projet: flag(args, "--projet").and_then(|v| v.parse().ok()),
                 lines,
             };
             let id = db::proposal::create(pool, entity, &new)?;

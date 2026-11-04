@@ -80,6 +80,8 @@ pub struct NewProposal {
     pub fk_cond_reglement: Option<i64>,
     pub deposit_percent: Option<Decimal>,
     pub lines: Vec<NewProposalLine>,
+    /// Chantier auquel le devis se rattache.
+    pub fk_projet: Option<i64>,
 }
 
 impl NewProposal {
@@ -482,10 +484,10 @@ pub fn create(pool: &Pool, entity: i64, new: &NewProposal) -> Result<i64, Box<dy
             "INSERT INTO llx_propal \
              (entity, ref, fk_soc, datec, datep, fk_statut, total_ht, total_tva, \
               total_ttc, remise_percent, note_private, note_public, \
-              fk_cond_reglement, deposit_percent, fin_validite) \
+              fk_cond_reglement, deposit_percent, fin_validite, fk_projet) \
              VALUES (:entity, :ref, :fk_soc, NOW(), COALESCE(:datep, CURDATE()), 0, \
               :total_ht, :total_tva, :total_ttc, 0, :note_private, :note_public, \
-              :cond, :deposit, :fin)",
+              :cond, :deposit, :fin, :projet)",
             params! {
                 "entity" => entity,
                 "ref" => reference.as_str(),
@@ -497,6 +499,7 @@ pub fn create(pool: &Pool, entity: i64, new: &NewProposal) -> Result<i64, Box<dy
                 "note_private" => new.note_private.as_deref(),
                 "note_public" => new.note_public.as_deref(),
                 "cond" => new.fk_cond_reglement,
+                "projet" => new.fk_projet,
                 "deposit" => new.deposit_percent.map(|d| d.to_string()),
                 "fin" => new.fin_validite.as_deref(),
             },
