@@ -385,6 +385,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
 
     let contenu = html! {
         h1 { "Caisse" }
+        (etat_scelle_pour(&app).await?)
         p .sous-titre {
             "Encaissement au comptoir. Aujourd'hui : "
             strong { (ventes.to_string()) }
@@ -650,6 +651,99 @@ pub async fn ajouter(
 pub async fn vider(State(_app): State<crate::App>) -> crate::Res<axum::response::Redirect> {
     vider_panier(crate::entite::courante());
     Ok(axum::response::Redirect::to("/caisse?ok=vide"))
+}
+
+// ---------------------------------------------------------------------------
+// Conformite : scelle de la journee et archive verifiable.
+//
+// L'article 286-I-3° bis du CGI demande l'inalterabilite, la conservation et
+// l'archivage des donnees de caisse. Ces ecrans ne certifient rien : ils
+// rendent la chose visible et utilisable — sceller, constater, archiver.
+// ---------------------------------------------------------------------------
+
+/// Etat du scelle du jour, affiche a cote du panier.
+pub async fn etat_scelle_pour(app: &crate::App) -> crate::Res<maud::Markup> {
+    let jour = db::caisse_scelle::aujourd_hui_iso();
+    let scelle = db::caisse_scelle::calculer(&app.pool, crate::entite::courante(), &jour)?;
+
+    Ok(match scelle.intact() {
+        None => maud::html! {
+            div .carte {
+                div .libelle { "Scelle du " (jour) }
+                div .valeur { "non pose" }
+                div .note { (scelle.ventes.to_string()) " vente(s) a sceller." }
+                form method="post" action="/caisse/sceller" style="margin-top:10px" {
+                    button type="submit" { "Sceller la journee" }
+                }
+            }
+        },
+        Some(true) => maud::html! {
+            div .carte {
+                div .libelle { "Scelle du " (jour) }
+                div .valeur style="color:#2f6b45" { "intact" }
+                div .note {
+                    (scelle.ventes.to_string()) " vente(s) - "
+                    (crate::ui::euros(scelle.total)) " - empreinte "
+                    code { (scelle.empreinte.chars().take(12).collect::<String>()) }
+                }
+                a .bouton.secondaire href={ "/caisse/archive?date=" (jour) } style="margin-top:10px" {
+                    "Telecharger l'archive"
+                }
+            }
+        },
+        Some(false) => maud::html! {
+            div .carte.alerte {
+                div .libelle { "Scelle du " (jour) }
+                div .valeur { "FALSIFIE" }
+                div .note {
+                    "Les ventes ne correspondent plus au scelle pose : une ligne a ete "
+                    "modifiee, ajoutee ou supprimee."
+                }
+                a .bouton.secondaire href={ "/caisse/archive?date=" (jour) } style="margin-top:10px" {
+                    "Voir l'archive"
+                }
+            }
+        },
+    })
+}
+
+/// Pose le scelle du jour, ou relit celui qui existe.
+pub async fn sceller(State(app): State<crate::App>) -> crate::Res<axum::response::Redirect> {
+    let jour = db::caisse_scelle::aujourd_hui_iso();
+    let scelle = db::caisse_scelle::sceller(&app.pool, crate::entite::courante(), &jour)?;
+    let code = if scelle.intact() == Some(false) {
+        "scelle_desaccord"
+    } else {
+        "scelle"
+    };
+    Ok(axum::response::Redirect::to(&format!("/caisse?ok={code}")))
+}
+
+/// L'archive verifiable, en piece jointe texte.
+pub async fn archive(
+    State(app): State<crate::App>,
+    axum::extract::Query(q): axum::extract::Query<HashMap<String, String>>,
+) -> crate::Res<axum::response::Response> {
+    use axum::response::IntoResponse;
+    let jour = q
+        .get("date")
+        .cloned()
+        .unwrap_or_else(db::caisse_scelle::aujourd_hui_iso);
+    let texte = db::caisse_scelle::archive(&app.pool, crate::entite::courante(), &jour)?;
+    Ok((
+        [
+            (
+                axum::http::header::CONTENT_TYPE,
+                "text/plain; charset=utf-8",
+            ),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                "attachment; filename=\"caisse-archive.txt\"",
+            ),
+        ],
+        texte,
+    )
+        .into_response())
 }
 
 #[cfg(test)]
