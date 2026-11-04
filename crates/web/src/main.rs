@@ -7,6 +7,7 @@ mod api;
 mod campagnes;
 mod entite;
 pub(crate) mod journal_erreurs;
+mod livre_tenu;
 mod manifeste;
 mod menu;
 mod menu_actif;
@@ -293,6 +294,7 @@ async fn main() {
         )
         .route("/comptabilite", get(comptabilite))
         .route("/comptabilite/grand-livre", get(grand_livre))
+        .route("/comptabilite/livre-tenu", get(livre_tenu::page))
         .route("/comptabilite/fec", get(fec_page).post(fec_generer))
         .route("/comptabilite/journal", get(pages::journal_comptable))
         .route(
