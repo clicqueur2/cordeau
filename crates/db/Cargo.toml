@@ -14,3 +14,4 @@ auth = { path = "../auth" }
 comptabilite = { path = "../comptabilite" }
 recurrence = { path = "../recurrence" }
 pos = { path = "../pos" }
+sha2 = { workspace = true }
