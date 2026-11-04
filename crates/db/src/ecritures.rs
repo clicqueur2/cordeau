@@ -82,6 +82,13 @@ pub const COMPTE_TVA_COLLECTEE: &str = "445710";
 /// TVA deductible sur les achats.
 pub const COMPTE_TVA_DEDUCTIBLE: &str = "445660";
 
+/// Journal de banque.
+pub const JOURNAL_BANQUE: &str = "BQ";
+
+/// Compte de banque (512). Un seul compte suffit tant qu'il n'y a pas de
+/// rapprochement bancaire : c'est le defaut releve par l'audit.
+pub const COMPTE_BANQUE: &str = "512000";
+
 /// Journal des ventes.
 pub const JOURNAL_VENTES: &str = "VE";
 /// Journal des achats.
@@ -591,4 +598,65 @@ pub fn ecritures_du_journal(
         (a.date.as_str(), a.numero.as_str()).cmp(&(b.date.as_str(), b.numero.as_str()))
     });
     Ok(ecritures)
+}
+
+/// Ecriture d'un **reglement client** : debit de la banque, credit du client.
+///
+/// Sans cette ecriture, le compte 411 ne s'eteint jamais : l'audit du FEC
+/// (`AUDIT-FEC.md`, chef n° 3) a releve qu'aucun lettrage n'etait possible
+/// parce que l'encaissement n'existait pas dans le grand livre. C'est ce
+/// chainon-ci.
+///
+/// Le compte de banque est `512000` : un seul compte, faute de rapprochement
+/// bancaire — choix assume, ecrit ici.
+pub fn reglement_client(
+    pool: &Pool,
+    entity: i64,
+    paiement_id: i64,
+) -> Result<comptabilite::Ecriture, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let ligne: Option<(Option<String>, Option<String>, Option<String>)> = conn.exec_first(
+        "SELECT p.ref, DATE_FORMAT(p.datep, '%Y-%m-%d'), CAST(p.amount AS CHAR) \
+         FROM llx_paiement p WHERE p.entity = :entity AND p.rowid = :id",
+        params! { "entity" => entity, "id" => paiement_id },
+    )?;
+    let (reference, date, montant) =
+        ligne.ok_or_else(|| format!("paiement {paiement_id} introuvable"))?;
+    let reference = reference.unwrap_or_else(|| format!("P{paiement_id}"));
+    let date = date.unwrap_or_else(|| "1970-01-01".to_string());
+    let montant: Decimal = montant
+        .and_then(|m| m.parse().ok())
+        .ok_or("montant de paiement illisible")?;
+    if montant <= Decimal::ZERO {
+        return Err(format!("paiement {paiement_id} sans montant").into());
+    }
+
+    let lignes = vec![
+        comptabilite::Ligne {
+            compte: COMPTE_BANQUE.to_string(),
+            libelle: format!("Encaissement {reference}"),
+            debit: montant,
+            credit: Decimal::ZERO,
+            journal: JOURNAL_BANQUE.to_string(),
+            date: date.clone(),
+        },
+        comptabilite::Ligne {
+            compte: COMPTE_CLIENTS.to_string(),
+            libelle: format!("Encaissement {reference}"),
+            debit: Decimal::ZERO,
+            credit: montant,
+            journal: JOURNAL_BANQUE.to_string(),
+            date: date.clone(),
+        },
+    ];
+
+    let ecriture = comptabilite::Ecriture {
+        numero: format!("BQ-{reference}"),
+        date,
+        libelle: format!("Encaissement {reference}"),
+        lignes,
+    };
+    // On ne rend pas une ecriture que le moteur refuserait.
+    comptabilite::verifier(&ecriture)?;
+    Ok(ecriture)
 }
