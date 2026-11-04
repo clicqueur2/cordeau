@@ -595,6 +595,20 @@ pub fn create_from_proposal(
 ) -> Result<i64, Box<dyn Error>> {
     let devis = crate::proposal::get(pool, entity, fk_propal)?
         .ok_or_else(|| format!("devis {fk_propal} introuvable dans l'entite {entity}"))?;
+    // Chez Dolibarr, seul un devis SIGNE se facture : `STATUS_SIGNED` ouvre les
+    // conversions dans `htdocs/comm/propal/card.php`. Sans ce garde-fou, notre
+    // ecran facturait un brouillon (cf. EXTRACTIONS/devis.md).
+    // 2 = signe, 4 = facture (reste convertible).
+    match devis.fk_statut {
+        2 | 4 => {}
+        autre => {
+            return Err(format!(
+                "devis {} en statut {autre} : seul un devis signe peut etre facture",
+                devis.ref_
+            )
+            .into())
+        }
+    }
     let fk_soc = devis.fk_soc.ok_or("le devis n'a pas de tiers")?;
     let lignes = crate::proposal::lines(pool, entity, fk_propal)?;
     if lignes.is_empty() {

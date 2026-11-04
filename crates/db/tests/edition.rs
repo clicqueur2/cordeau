@@ -150,6 +150,11 @@ fn un_devis_ne_se_facture_qu_une_fois() -> Result<(), Box<dyn Error>> {
     )];
     let devis = db::proposal::create(&pool, ENTITY, &new)?;
 
+    // Un devis doit etre SIGNE pour se facturer : c'est la regle de Dolibarr
+    // (STATUS_SIGNED ouvre les conversions), verifiee dans EXTRACTIONS/devis.md.
+    db::proposal::validate(&pool, ENTITY, devis)?;
+    db::proposal::cloturer(&pool, ENTITY, devis, 2)?;
+
     let facture = db::invoice::create_from_proposal(&pool, ENTITY, devis)?;
     let err = db::invoice::create_from_proposal(&pool, ENTITY, devis)
         .expect_err("la seconde facturation doit etre refusee");

@@ -612,6 +612,35 @@ pub fn validate(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Erro
     )?;
     Ok(())
 }
+/// Cloture un devis valide : 2 = signe (accepte), 3 = non signe (refuse).
+///
+/// Dolibarr n'expose que `close` avec un statut ; c'est la transition qui ouvre
+/// les conversions en facture ou en commande. Sans elle, un devis valide ne
+/// peut plus rien devenir.
+pub fn cloturer(pool: &Pool, entity: i64, rowid: i64, statut: i16) -> Result<(), Box<dyn Error>> {
+    if statut != 2 && statut != 3 {
+        return Err(format!("statut de cloture invalide : {statut} (attendu 2 ou 3)").into());
+    }
+    let mut conn = pool.get_conn()?;
+    let courant: Option<i64> = conn.exec_first(
+        "SELECT fk_statut FROM llx_propal WHERE entity = :entity AND rowid = :rowid",
+        params! { "entity" => entity, "rowid" => rowid },
+    )?;
+    match courant {
+        None => return Err(format!("devis {rowid} introuvable").into()),
+        Some(s) if s != 1 => {
+            return Err(format!("devis {rowid} non valide (statut {s}) : rien a cloturer").into())
+        }
+        _ => {}
+    }
+    conn.exec_drop(
+        "UPDATE llx_propal SET fk_statut = :statut, tms = NOW() \
+         WHERE entity = :entity AND rowid = :rowid",
+        params! { "statut" => statut, "entity" => entity, "rowid" => rowid },
+    )?;
+    Ok(())
+}
+
 pub fn delete(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let existe: Option<i64> = conn.exec_first(
