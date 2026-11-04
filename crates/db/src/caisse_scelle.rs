@@ -47,6 +47,120 @@ pub struct Scelle {
     pub empreinte_enregistree: Option<String>,
 }
 
+/// Produit une **archive verifiable** d'une journee de ventes.
+///
+/// Le fichier se suffit a lui-meme : chaque ligne porte la reference, la date,
+/// le montant TTC et le condensat de la chaine a cet instant. La derniere ligne
+/// reprend le condensat final. On peut donc le conserver dix ans et le
+/// re-verifier **sans la base** — c'est la mecanique d'archivage de l'article
+/// 286 CGI.
+///
+/// Une ligne par vente, champs separes par `|` :
+///
+/// ```text
+/// VENTE|POS-20261104-0001|2026-11-04|10.00|<condensat>
+/// SCELLE|2026-11-04|<condensat final>|<nombre>|<total>
+/// ```
+pub fn archive(pool: &Pool, entity: i64, date: &str) -> Result<String, Box<dyn Error>> {
+    let ventes = ventes_du_jour(pool, entity, date)?;
+    let mut chaine = String::from("GENESE");
+    let mut total = Decimal::ZERO;
+    let mut sortie = String::new();
+
+    for v in &ventes {
+        chaine = empreinte(&chaine, v);
+        total += v.total_ttc;
+        sortie.push_str(&format!(
+            "VENTE|{}|{}|{}|{}\n",
+            v.reference, v.date, v.total_ttc, chaine
+        ));
+    }
+    sortie.push_str(&format!(
+        "SCELLE|{}|{}|{}|{}\n",
+        date,
+        chaine,
+        ventes.len(),
+        total
+    ));
+    Ok(sortie)
+}
+
+/// Resultat de la re-verification d'une archive.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerificationArchive {
+    pub date: String,
+    pub ventes: usize,
+    pub total: Decimal,
+    /// Vrai quand le condensat recalcule egale celui de la ligne `SCELLE`.
+    pub intact: bool,
+}
+
+/// Re-verifie une archive **sans acces a la base**.
+///
+/// Toute ligne alteree, ajoutee ou retiree casse la chaine : le condensat final
+/// ne tombe plus juste. C'est le seul controle qui vaille pour une archive
+/// conservee hors du systeme.
+pub fn verifier_archive(texte: &str) -> Result<VerificationArchive, Box<dyn Error>> {
+    let mut chaine = String::from("GENESE");
+    let mut total = Decimal::ZERO;
+    let mut ventes = 0usize;
+    let mut sceau: Option<(String, String, usize, Decimal)> = None;
+
+    for ligne in texte.lines() {
+        if ligne.trim().is_empty() {
+            continue;
+        }
+        let champs: Vec<&str> = ligne.split('|').collect();
+        match champs.first().copied() {
+            Some("VENTE") => {
+                if champs.len() != 5 {
+                    return Err(format!("ligne VENTE malformee : {ligne}").into());
+                }
+                let montant: Decimal = champs[3].parse().map_err(|_| "montant illisible")?;
+                let v = Vente {
+                    reference: champs[1].to_string(),
+                    date: champs[2].to_string(),
+                    total_ttc: montant,
+                };
+                chaine = empreinte(&chaine, &v);
+                total += v.total_ttc;
+                ventes += 1;
+                if chaine != champs[4] {
+                    return Ok(VerificationArchive {
+                        date: String::new(),
+                        ventes,
+                        total,
+                        intact: false,
+                    });
+                }
+            }
+            Some("SCELLE") => {
+                if champs.len() != 5 {
+                    return Err(format!("ligne SCELLE malformee : {ligne}").into());
+                }
+                sceau = Some((
+                    champs[1].to_string(),
+                    champs[2].to_string(),
+                    champs[3].parse().unwrap_or(0),
+                    champs[4].parse().unwrap_or_default(),
+                ));
+            }
+            Some(autre) => return Err(format!("ligne inconnue : {autre}").into()),
+            None => return Err("ligne vide".into()),
+        }
+    }
+
+    let (date, empreinte_finale, nombre, total_annonce) =
+        sceau.ok_or("archive sans ligne SCELLE")?;
+
+    Ok(VerificationArchive {
+        intact: empreinte_finale == chaine && nombre == ventes && total_annonce == total,
+        date,
+        ventes,
+        total,
+    })
+}
+
 impl Scelle {
     /// Le scellé correspond-il à ce qui est enregistré ?
     ///
