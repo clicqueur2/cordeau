@@ -288,6 +288,42 @@ impl Catalogue {
         }
     }
 
+    /// Le texte d'une cle dans une langue, ou `None` si elle n'y est pas.
+    ///
+    /// Contrairement a [`Catalogue::t`], qui rend la cle quand il ne trouve
+    /// rien, celle-ci dit **si la traduction existe**. C'est ce qu'il faut pour
+    /// distinguer « traduit » de « cle recopiee » — une cle anglaise traduite en
+    /// anglais donne le meme texte que la cle, et `t` ne permet pas de le voir.
+    pub fn obtenir(&self, langue: &str, cle: &str) -> Option<&str> {
+        let langue = normaliser_langue(langue)?;
+        self.traductions
+            .get(&langue)
+            .and_then(|textes| textes.get(cle.trim()))
+            .filter(|texte| !texte.is_empty())
+            .map(|texte| texte.as_str())
+    }
+
+    /// L'index inverse d'une langue : texte affiche -> ses cles.
+    ///
+    /// Plusieurs cles peuvent porter le meme texte. On les rend **toutes**,
+    /// triees : c'est l'appelant qui choisit celle qui a une traduction dans la
+    /// langue visee. S'arreter a la premiere ferait perdre betement les textes
+    /// dont la premiere cle n'est pas traduite.
+    pub fn index_inverse(&self, langue: &str) -> BTreeMap<String, Vec<String>> {
+        let langue = normaliser_langue(langue).unwrap_or_else(|| self.langue_par_defaut.clone());
+        let Some(table) = self.traductions.get(&langue) else {
+            return BTreeMap::new();
+        };
+        let mut inverse: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for (cle, texte) in table {
+            let cles = inverse.entry(texte.clone()).or_default();
+            if !cles.contains(cle) {
+                cles.push(cle.clone());
+            }
+        }
+        inverse
+    }
+
     /// Comme [`Catalogue::t`], puis remplace chaque `{nom}` par la valeur
     /// fournie.
     ///

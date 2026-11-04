@@ -12,6 +12,7 @@ mod devises_ecran;
 mod entite;
 mod extrafields_ecran;
 pub(crate) mod journal_erreurs;
+mod langue;
 mod livre_tenu;
 mod manifeste;
 mod menu;
