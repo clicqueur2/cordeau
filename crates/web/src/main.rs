@@ -296,6 +296,7 @@ async fn main() {
         .route("/parametres/greffons", get(pages::greffons_page))
         .route("/parametres/tables", get(pages::tables_page))
         .route("/parametres/tables/:nom", get(pages::table_page))
+        .route("/parametres/evenements", get(pages::evenements_page))
         .route("/parametres/extrafields", get(extrafields_ecran::liste))
         .route(
             "/parametres/extrafields/:elementtype",
@@ -415,6 +416,29 @@ fn lire_cookie(headers: &axum::http::HeaderMap) -> Option<String> {
         }
     }
     None
+}
+
+/// L'adresse du client, pour le journal des evenements.
+///
+/// `X-Forwarded-For` n'a de valeur que posee par un proxy de confiance : un
+/// client direct peut la forger. Quand elle est absente, on retombe sur la
+/// connexion locale, qui est la verite de ce processus.
+fn ip_client(headers: &axum::http::HeaderMap) -> String {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(',').next())
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "127.0.0.1".to_string())
+}
+
+/// Le navigateur declare, tronque a la taille de la colonne.
+fn agent_client(headers: &axum::http::HeaderMap) -> Option<String> {
+    headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.chars().take(255).collect())
 }
 
 /// Change l'entite de la session en cours.
@@ -620,11 +644,30 @@ async fn connexion_page(Query(q): Query<HashMap<String, String>>) -> Markup {
     )
 }
 
-async fn connexion(State(app): State<App>, Form(f): Form<HashMap<String, String>>) -> Response {
+async fn connexion(
+    State(app): State<App>,
+    headers: axum::http::HeaderMap,
+    Form(f): Form<HashMap<String, String>>,
+) -> Response {
     let login = f.get("login").map(|s| s.trim()).unwrap_or("");
     let mdp = f.get("mdp").cloned().unwrap_or_default();
+    let ip = ip_client(&headers);
+    let agent = agent_client(&headers);
     match db::user::authentifier(&app.pool, login, &mdp) {
         Ok(Some(u)) => {
+            // Connexion reussie : on la consigne avant tout le reste, pour que
+            // le journal existe meme si la suite echoue.
+            let _ = db::events::enregistrer(
+                &app.pool,
+                &db::events::Nouvel::connexion(
+                    db::events::CONNEXION,
+                    u.entity,
+                    Some(u.rowid),
+                    &format!("connexion de {}", u.login),
+                    &ip,
+                    agent.as_deref(),
+                ),
+            );
             let j = jeton(&u.login);
             app.sessions.lock().unwrap().insert(
                 j.clone(),
@@ -650,13 +693,46 @@ async fn connexion(State(app): State<App>, Form(f): Form<HashMap<String, String>
             )
                 .into_response()
         }
-        _ => Redirect::to("/connexion?erreur=1").into_response(),
+        _ => {
+            // Echec : on consigne le login tente, jamais le mot de passe.
+            let _ = db::events::enregistrer(
+                &app.pool,
+                &db::events::Nouvel::connexion(
+                    db::events::CONNEXION_ECHEC,
+                    // Un echec n'a pas de compte, donc pas d'entite : l'evenement
+                    // est global (0) et visible depuis toutes les societes. C'est
+                    // justement quand on cherche une intrusion qu'on en a besoin.
+                    0,
+                    None,
+                    &format!("connexion refusee pour « {login} »"),
+                    &ip,
+                    agent.as_deref(),
+                ),
+            );
+            Redirect::to("/connexion?erreur=1").into_response()
+        }
     }
 }
 
 async fn deconnexion(State(app): State<App>, headers: axum::http::HeaderMap) -> Response {
+    let mut compte: Option<(String, i64, Option<i64>)> = None;
     if let Some(j) = lire_cookie(&headers) {
-        app.sessions.lock().unwrap().remove(&j);
+        if let Some(s) = app.sessions.lock().unwrap().remove(&j) {
+            compte = Some((s.login, s.entity, None));
+        }
+    }
+    if let Some((login, entity, fk)) = compte {
+        let _ = db::events::enregistrer(
+            &app.pool,
+            &db::events::Nouvel::connexion(
+                db::events::DECONNEXION,
+                entity,
+                fk,
+                &format!("deconnexion de {login}"),
+                &ip_client(&headers),
+                agent_client(&headers).as_deref(),
+            ),
+        );
     }
     (
         [(
@@ -2398,6 +2474,7 @@ async fn parametres_modules(
 
 async fn parametres_module_basculer(
     State(app): State<App>,
+    headers: axum::http::HeaderMap,
     Form(f): Form<HashMap<String, String>>,
 ) -> Res<Redirect> {
     let code = f
@@ -2408,6 +2485,27 @@ async fn parametres_module_basculer(
     let actif = f.get("actif").map(|v| v == "1").unwrap_or(false);
     db::module::definir_actif(&app.pool, entite::courante(), &code, actif)?;
     menu_actif::charger(&app.pool, entite::courante())?;
+    // Un module qui s'active change ce que l'ERP sait faire : cela se consigne.
+    let _ = db::events::enregistrer(
+        &app.pool,
+        &db::events::Nouvel {
+            type_: if actif {
+                db::events::MODULE_ACTIVE
+            } else {
+                db::events::MODULE_DESACTIVE
+            },
+            entity: entite::courante(),
+            fk_user: None,
+            description: &format!(
+                "module {code} {}",
+                if actif { "active" } else { "desactive" }
+            ),
+            ip: &ip_client(&headers),
+            agent: agent_client(&headers).as_deref(),
+            fk_object: None,
+            methode: None,
+        },
+    );
     Ok(Redirect::to("/parametres/modules?ok=module"))
 }
 
