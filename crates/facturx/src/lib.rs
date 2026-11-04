@@ -96,6 +96,13 @@ pub struct Facture {
     pub total_tva: Decimal,
     pub total_ttc: Decimal,
     pub devise: String,
+    /// Code moyen de paiement EN 16931 (BT-81) : 30 = virement, 10 = especes,
+    /// 58 = SEPA. Facultatif, mais attendu par la plupart des plateformes.
+    pub moyen_paiement: Option<String>,
+    /// IBAN du compte a crediter (BT-84).
+    pub iban: Option<String>,
+    /// Processus metier (BT-23). « A1 » = commande, valeur d'usage en France.
+    pub processus: Option<String>,
 }
 
 /// Ce qui empêche de produire un XML valable.
@@ -239,8 +246,12 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
             "    <ram:GuidelineSpecifiedDocumentContextParameter>\n",
             "      <ram:ID>urn:cen.eu:en16931:2017</ram:ID>\n",
             "    </ram:GuidelineSpecifiedDocumentContextParameter>\n",
+            "    <ram:BusinessProcessSpecifiedDocumentContextParameter>\n",
+            "      <ram:ID>{processus}</ram:ID>\n",
+            "    </ram:BusinessProcessSpecifiedDocumentContextParameter>\n",
             "  </rsm:ExchangedDocumentContext>\n",
         ),
+        processus = echappe(facture.processus.as_deref().unwrap_or("A1")),
     );
     let _ = write!(
         x,
@@ -330,6 +341,7 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
             "        <ram:DuePayableAmount>{ttc}</ram:DuePayableAmount>\n",
             "      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n",
             "      {echeance}",
+            "      {paiement}",
             "    </ram:ApplicableHeaderTradeSettlement>\n",
             "  </rsm:SupplyChainTradeTransaction>\n",
             "</rsm:CrossIndustryInvoice>\n",
@@ -355,6 +367,28 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
         ht = m(facture.total_ht),
         tva = m(facture.total_tva),
         ttc = m(facture.total_ttc),
+        paiement = {
+            let mut s = String::new();
+            if let Some(code) = &facture.moyen_paiement {
+                let _ = write!(
+                    s,
+                    "      <ram:SpecifiedTradeSettlementPaymentMeans>\
+                     <ram:TypeCode>{}</ram:TypeCode>\n",
+                    echappe(code)
+                );
+                if let Some(iban) = &facture.iban {
+                    let _ = write!(
+                        s,
+                        "        <ram:PayeePartyCreditorFinancialAccount>\
+                         <ram:IBANID>{}</ram:IBANID>\
+                         </ram:PayeePartyCreditorFinancialAccount>\n",
+                        echappe(iban)
+                    );
+                }
+                s.push_str("      </ram:SpecifiedTradeSettlementPaymentMeans>\n");
+            }
+            s
+        },
         echeance = match &facture.echeance {
             Some(e) => format!(
                 "      <ram:SpecifiedTradePaymentTerms><ram:DueDateDateTime>\
@@ -513,6 +547,92 @@ pub fn extraire(pdf: &[u8]) -> Result<String, Erreur> {
     Err(Erreur::Pdf("aucun fichier joint dans ce PDF".into()))
 }
 
+// ---------------------------------------------------------------------------
+// Verification au regard de la norme.
+//
+// On ne valide pas le XSD (il faudrait embarquer le schema) : on verifie la
+// **presence des elements obligatoires** de la norme EN 16931, en citant leur
+// numero (BT-xx / BG-xx). Un element manquant est un motif de rejet par une
+// plateforme agreee, donc on le nomme.
+// ---------------------------------------------------------------------------
+
+/// Un element obligatoire absent, avec son numero de la norme.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Manquement {
+    /// Numero de la norme, par exemple « BT-5 ».
+    pub reference: &'static str,
+    /// Ce que la norme demande.
+    pub libelle: &'static str,
+}
+
+/// Les elements obligatoires d'une facture **EN 16931**, avec la balise qui les
+/// porte dans le CII. La liste suit la norme, pas notre implementation.
+const OBLIGATOIRES: &[(&str, &str, &str)] = &[
+    // En-tete du document.
+    ("BT-1", "Numero de facture", "<ram:ID>"),
+    ("BT-2", "Date d'emission", "<udt:DateTimeString"),
+    (
+        "BT-3",
+        "Type de document (380 = facture)",
+        "<ram:TypeCode>380</ram:TypeCode>",
+    ),
+    ("BT-5", "Devise de la facture", "<ram:InvoiceCurrencyCode>"),
+    (
+        "BT-23",
+        "Processus metier",
+        "<ram:BusinessProcessSpecifiedDocumentContextParameter>",
+    ),
+    // Vendeur (BG-4).
+    ("BT-27", "Nom du vendeur", "<ram:SellerTradeParty>"),
+    (
+        "BT-30",
+        "Identifiant legal du vendeur (SIREN/SIRET)",
+        "schemeID=\"0009\"",
+    ),
+    ("BT-31", "Numero de TVA du vendeur", "schemeID=\"VA\""),
+    ("BG-5", "Adresse du vendeur", "<ram:PostalTradeAddress>"),
+    // Acheteur (BG-7).
+    ("BT-44", "Nom de l'acheteur", "<ram:BuyerTradeParty>"),
+    ("BG-8", "Adresse de l'acheteur", "<ram:PostalTradeAddress>"),
+    // Totaux (BG-22).
+    ("BT-106", "Somme des lignes HT", "<ram:LineTotalAmount>"),
+    ("BT-109", "Total HT", "<ram:TaxBasisTotalAmount>"),
+    ("BT-110", "Total TVA", "<ram:TaxTotalAmount"),
+    ("BT-112", "Total TTC", "<ram:GrandTotalAmount>"),
+    ("BT-115", "Montant du", "<ram:DuePayableAmount>"),
+    // Ventilation de TVA (BG-23).
+    ("BT-116", "Base HT par taux", "<ram:BasisAmount>"),
+    (
+        "BT-117",
+        "Montant de TVA par taux",
+        "<ram:CalculatedAmount>",
+    ),
+    (
+        "BT-118",
+        "Code de categorie de TVA",
+        "<ram:CategoryCode>S</ram:CategoryCode>",
+    ),
+    ("BT-119", "Taux de TVA", "<ram:RateApplicablePercent>"),
+    // Lignes (BG-25).
+    ("BT-126", "Identifiant de ligne", "<ram:LineID>"),
+    ("BT-129", "Quantite", "<ram:BilledQuantity"),
+    ("BT-130", "Unite", "unitCode="),
+    ("BT-131", "Montant de la ligne", "<ram:LineTotalAmount>"),
+    ("BT-146", "Prix unitaire", "<ram:ChargeAmount>"),
+];
+
+/// Verifie la presence des elements obligatoires. Rend la liste des manquants,
+/// vide si tout est la.
+pub fn verifier_norme(xml: &str) -> Vec<Manquement> {
+    let mut manquants = Vec::new();
+    for (reference, libelle, balise) in OBLIGATOIRES {
+        if !xml.contains(balise) {
+            manquants.push(Manquement { reference, libelle });
+        }
+    }
+    manquants
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -567,6 +687,9 @@ mod tests {
             total_tva: d("220"),
             total_ttc: d("1420"),
             devise: "EUR".into(),
+            moyen_paiement: Some("30".into()),
+            iban: Some("FR7616807003483848689521643".into()),
+            processus: Some("A1".into()),
         }
     }
 
@@ -624,6 +747,20 @@ mod tests {
             xml(&f, Profil::Basic),
             Err(Erreur::TotauxIncoherents(_))
         ));
+    }
+
+    #[test]
+    fn le_xml_ne_manque_d_aucun_element_obligatoire() {
+        let x = xml(&facture(), Profil::En16931).unwrap();
+        let manquants = verifier_norme(&x);
+        assert!(manquants.is_empty(), "elements manquants : {:?}", manquants);
+    }
+
+    #[test]
+    fn un_xml_vide_manque_de_tout() {
+        let manquants = verifier_norme("");
+        assert_eq!(manquants.len(), OBLIGATOIRES.len());
+        assert_eq!(manquants[0].reference, "BT-1");
     }
 
     #[test]
