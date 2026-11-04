@@ -12,6 +12,7 @@ mod menu;
 mod menu_actif;
 mod pages;
 mod plugin;
+mod recur_ecran;
 mod sepa_ecran;
 pub(crate) mod ui;
 
@@ -280,6 +281,8 @@ async fn main() {
         .route("/achats/sepa/fichier", get(sepa_ecran::fichier))
         .route("/campagnes", get(campagnes::page))
         .route("/campagnes/envoyer", post(campagnes::envoyer))
+        .route("/recurrences", get(recur_ecran::page))
+        .route("/recurrences/generer", post(recur_ecran::generer))
         .route("/parametres/greffons", get(pages::greffons_page))
         .route("/parametres/tables", get(pages::tables_page))
         .route("/parametres/tables/:nom", get(pages::table_page))
