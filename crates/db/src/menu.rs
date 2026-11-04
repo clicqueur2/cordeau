@@ -41,7 +41,8 @@ type LigneMenu = (
     Option<String>,
     Option<i64>,
     Option<String>,
-    Option<i64>,
+    // `enabled` est du texte chez Dolibarr : '1' ou une expression PHP.
+    Option<String>,
 );
 
 /// Lit l'arbre des menus d'une entite, dans l'ordre d'affichage.
@@ -50,7 +51,7 @@ type LigneMenu = (
 pub fn lire(pool: &Pool, entity: i64) -> Result<Vec<Entree>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let rows: Vec<LigneMenu> = conn.exec(
-        "SELECT rowid, fk_menu, position, titre, url, mainmenu, level, type, enabled \
+        "SELECT rowid, fk_menu, position, titre, url, mainmenu, level, type, CAST(enabled AS CHAR) \
              FROM llx_menu WHERE entity = :entity \
              ORDER BY fk_menu ASC, position ASC, rowid ASC",
         params! { "entity" => entity },
@@ -68,7 +69,7 @@ pub fn lire(pool: &Pool, entity: i64) -> Result<Vec<Entree>, Box<dyn Error>> {
                 mainmenu: mainmenu.unwrap_or_default(),
                 niveau: level.unwrap_or(0) as i32,
                 type_menu: type_menu.unwrap_or_default(),
-                actif: enabled.map(|e| e > 0).unwrap_or(true),
+                actif: !matches!(enabled.as_deref(), Some("0") | Some("")),
             },
         )
         .collect())
