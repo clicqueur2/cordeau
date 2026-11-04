@@ -71,12 +71,53 @@ pub struct Ligne {
     pub prix_unitaire_ht: Decimal,
     pub taux_tva: Decimal,
     pub montant_ht: Decimal,
+    /// Motif d'exoneration, quand la ligne n'est pas soumise au taux normal.
+    pub exoneration: Option<Exoneration>,
+}
+
+/// Un motif d'exoneration de TVA, tel que Factur-X le porte.
+///
+/// Deux elements de la norme : le **code** (BT-120, une valeur de la liste
+/// VATEX de la Commission) et le **texte** libre (BT-121). Dolibarr les tient
+/// dans `llx_c_tva.einvoice_vatex`, colonne ajoutee en 23.0 pour preparer la
+/// reforme francaise.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Exoneration {
+    /// Code VATEX, par exemple `VATEX-EU-132`.
+    pub code: String,
+    /// Texte libre, quand le code ne suffit pas.
+    pub motif: Option<String>,
+}
+
+impl Exoneration {
+    /// La categorie de TVA (BT-118) que ce code impose.
+    ///
+    /// C'est la categorie qui decide de tout : une exoneration declaree en
+    /// categorie « S » (taux normal) est simplement fausse, et une plateforme
+    /// la refuse. Un code qu'on ne reconnait pas tombe en « E » (exonere),
+    /// qui est la categorie la plus prudente — et qui exige un motif.
+    pub fn categorie(&self) -> &'static str {
+        let c = self.code.to_uppercase();
+        if c.contains("AUTOLIQ") || c.contains("-AE") {
+            "AE"
+        } else if c.contains("-IC") || c.contains("-K") {
+            "K"
+        } else if c.contains("-G") {
+            "G"
+        } else if c.contains("-O") {
+            "O"
+        } else {
+            "E"
+        }
+    }
 }
 
 /// Une ventilation de TVA.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VentilationTva {
     pub taux: Decimal,
+    /// Le motif d'exoneration de cette ventilation, s'il y en a un.
+    pub exoneration: Option<Exoneration>,
     pub base_ht: Decimal,
     pub montant: Decimal,
 }
@@ -169,17 +210,55 @@ pub fn ventiler(lignes: &[Ligne]) -> Vec<VentilationTva> {
     let mut par_taux: std::collections::BTreeMap<String, VentilationTva> =
         std::collections::BTreeMap::new();
     for l in lignes {
-        let e = par_taux
-            .entry(l.taux_tva.normalize().to_string())
-            .or_insert(VentilationTva {
-                taux: l.taux_tva,
-                base_ht: Decimal::ZERO,
-                montant: Decimal::ZERO,
-            });
+        // La cle porte le taux **et** le motif : deux exonerations differentes
+        // au meme taux sont deux lignes de ventilation, pas une.
+        let cle = format!(
+            "{}|{}",
+            l.taux_tva.normalize(),
+            l.exoneration
+                .as_ref()
+                .map(|e| e.code.clone())
+                .unwrap_or_default()
+        );
+        let e = par_taux.entry(cle).or_insert(VentilationTva {
+            taux: l.taux_tva,
+            exoneration: l.exoneration.clone(),
+            base_ht: Decimal::ZERO,
+            montant: Decimal::ZERO,
+        });
         e.base_ht += l.montant_ht;
         e.montant += (l.montant_ht * l.taux_tva / Decimal::from(100)).round_dp(2);
     }
     par_taux.into_values().collect()
+}
+
+/// Les deux elements d'exoneration (BT-120, BT-121), ou rien.
+///
+/// `ExemptionReasonCode` et `ExemptionReason` vivent dans
+/// `ram:ApplicableTradeTax`, apres la categorie. Omettre le motif quand il y a
+/// une exoneration fait rejeter la facture.
+fn bloc_exoneration(e: Option<&Exoneration>) -> String {
+    let Some(e) = e else {
+        return String::new();
+    };
+    let mut s = String::new();
+    if !e.code.trim().is_empty() {
+        let _ = write!(
+            s,
+            "<ram:ExemptionReasonCode>{}</ram:ExemptionReasonCode>",
+            echappe(&e.code)
+        );
+    }
+    if let Some(motif) = &e.motif {
+        if !motif.trim().is_empty() {
+            let _ = write!(
+                s,
+                "<ram:ExemptionReason>{}</ram:ExemptionReason>",
+                echappe(motif)
+            );
+        }
+    }
+    s
 }
 
 /// Produit le XML CII.
@@ -281,7 +360,8 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
                 "      </ram:SpecifiedLineTradeAgreement>\n",
                 "      <ram:SpecifiedLineTradeDelivery><ram:BilledQuantity unitCode=\"{unite}\">{qte}</ram:BilledQuantity></ram:SpecifiedLineTradeDelivery>\n",
                 "      <ram:SpecifiedLineTradeSettlement>\n",
-                "        <ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode>",
+                "        <ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>{categorie}</ram:CategoryCode>",
+                "{exoneration}",
                 "<ram:RateApplicablePercent>{taux}</ram:RateApplicablePercent></ram:ApplicableTradeTax>\n",
                 "        <ram:SpecifiedTradeSettlementLineMonetarySummation>",
                 "<ram:LineTotalAmount>{ht}</ram:LineTotalAmount>",
@@ -296,6 +376,8 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
             qte = l.quantite.normalize(),
             taux = m(l.taux_tva),
             ht = m(l.montant_ht),
+            categorie = l.exoneration.as_ref().map(|e| e.categorie()).unwrap_or("S"),
+            exoneration = bloc_exoneration(l.exoneration.as_ref()),
         );
     }
 
@@ -355,12 +437,15 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
                     "        <ram:CalculatedAmount>{}</ram:CalculatedAmount>\n",
                     "        <ram:TypeCode>VAT</ram:TypeCode>\n",
                     "        <ram:BasisAmount>{}</ram:BasisAmount>\n",
-                    "        <ram:CategoryCode>S</ram:CategoryCode>\n",
+                    "        <ram:CategoryCode>{}</ram:CategoryCode>\n",
+                    "        {}\n",
                     "        <ram:RateApplicablePercent>{}</ram:RateApplicablePercent>\n",
                     "      </ram:ApplicableTradeTax>\n",
                 ),
                 m(v.montant),
                 m(v.base_ht),
+                v.exoneration.as_ref().map(|e| e.categorie()).unwrap_or("S"),
+                bloc_exoneration(v.exoneration.as_ref()),
                 m(v.taux)
             ))
             .collect::<String>(),
@@ -605,7 +690,9 @@ const OBLIGATOIRES: &[(&str, &str, &str)] = &[
     (
         "BT-118",
         "Code de categorie de TVA",
-        "<ram:CategoryCode>S</ram:CategoryCode>",
+        // Une facture entierement exoneree n'a pas de « S » : exiger la lettre
+        // ferait refuser une facture conforme.
+        "<ram:CategoryCode>",
     ),
     ("BT-119", "Taux de TVA", "<ram:RateApplicablePercent>"),
     // Lignes (BG-25).
@@ -727,6 +814,40 @@ pub fn regles_metier(facture: &Facture) -> Vec<Violation> {
         });
     }
 
+    // Une exoneration sans code ni motif ne dit pas pourquoi : c'est
+    // exactement ce que BT-120 et BT-121 servent a eviter (BR-E-10, BR-AE-10).
+    for ventilation in &ventilations {
+        if let Some(e) = &ventilation.exoneration {
+            let sans_code = e.code.trim().is_empty();
+            let sans_motif = e
+                .motif
+                .as_deref()
+                .map(|m| m.trim().is_empty())
+                .unwrap_or(true);
+            if sans_code && sans_motif {
+                v.push(Violation {
+                    reference: "BR-E-10",
+                    libelle: "une exoneration doit porter un code ou un motif",
+                });
+                break;
+            }
+        }
+    }
+
+    // Une ligne exoneree avec un taux non nul se contredit : soit la TVA est
+    // due, soit elle ne l'est pas. Ce n'est pas une regle BR numerotee, c'est
+    // une coherence de la donnee ; on le dit sous notre propre etiquette.
+    if facture
+        .lignes
+        .iter()
+        .any(|l| l.exoneration.is_some() && l.taux_tva != Decimal::ZERO)
+    {
+        v.push(Violation {
+            reference: "VATEX",
+            libelle: "une ligne exoneree porte un taux de TVA non nul",
+        });
+    }
+
     // BR-06 / BR-07 : les noms sont obligatoires.
     if facture.vendeur.nom.trim().is_empty() {
         v.push(Violation {
@@ -784,6 +905,7 @@ mod tests {
                     prix_unitaire_ht: d("500"),
                     taux_tva: d("20"),
                     montant_ht: d("1000"),
+                    exoneration: None,
                 },
                 Ligne {
                     designation: "Bordure T3".into(),
@@ -792,6 +914,7 @@ mod tests {
                     prix_unitaire_ht: d("200"),
                     taux_tva: d("10"),
                     montant_ht: d("200"),
+                    exoneration: None,
                 },
             ],
             total_ht: d("1200"),
@@ -897,6 +1020,123 @@ mod tests {
         let mut f4 = facture();
         f4.total_ht = d("1000.005");
         assert!(regles_metier(&f4).iter().any(|v| v.reference == "BR-DEC"));
+    }
+
+    fn exonere(code: &str) -> Exoneration {
+        Exoneration {
+            code: code.into(),
+            motif: None,
+        }
+    }
+
+    #[test]
+    fn le_code_vatex_impose_la_categorie() {
+        assert_eq!(exonere("VATEX-EU-132").categorie(), "E");
+        assert_eq!(exonere("VATEX-FR-FRANCHISE").categorie(), "E");
+        assert_eq!(exonere("VATEX-EU-AE").categorie(), "AE");
+        assert_eq!(exonere("VATEX-FR-AUTOLIQ").categorie(), "AE");
+        assert_eq!(exonere("VATEX-EU-IC").categorie(), "K");
+        assert_eq!(exonere("VATEX-EU-G").categorie(), "G");
+        assert_eq!(exonere("VATEX-EU-O").categorie(), "O");
+        // Un code inconnu tombe en « exonere », la categorie la plus prudente.
+        assert_eq!(exonere("VATEX-FR-QUELQUE-CHOSE").categorie(), "E");
+    }
+
+    /// Une ligne exoneree sort en categorie E, taux 0, avec ses deux elements.
+    #[test]
+    fn l_exoneration_sort_dans_le_xml_et_change_la_categorie() {
+        let mut f = facture();
+        f.lignes = vec![Ligne {
+            designation: "Travaux de renovation".into(),
+            quantite: d("1"),
+            unite: Some("C62".into()),
+            prix_unitaire_ht: d("1000"),
+            taux_tva: d("0"),
+            montant_ht: d("1000"),
+            exoneration: Some(Exoneration {
+                code: "VATEX-FR-FRANCHISE".into(),
+                motif: Some("Franchise en base de TVA, article 293 B du CGI".into()),
+            }),
+        }];
+        f.total_ht = d("1000");
+        f.total_tva = d("0");
+        f.total_ttc = d("1000");
+
+        let x = xml(&f, Profil::En16931).expect("xml");
+        assert!(
+            x.contains("<ram:ExemptionReasonCode>VATEX-FR-FRANCHISE</ram:ExemptionReasonCode>"),
+            "{x}"
+        );
+        assert!(x.contains("article 293 B du CGI"), "{x}");
+        assert!(x.contains("<ram:CategoryCode>E</ram:CategoryCode>"), "{x}");
+        assert!(
+            !x.contains("<ram:CategoryCode>S</ram:CategoryCode>"),
+            "aucune ligne ne doit rester en categorie S : {x}"
+        );
+        // Le XML reste conforme aux elements obligatoires.
+        assert!(verifier_norme(&x).is_empty(), "{:?}", verifier_norme(&x));
+        assert!(regles_metier(&f).is_empty(), "{:?}", regles_metier(&f));
+    }
+
+    /// Deux motifs differents au meme taux sont deux ventilations, pas une.
+    #[test]
+    fn deux_motifs_au_meme_taux_ne_fusionnent_pas() {
+        let mut f = facture();
+        f.lignes = vec![
+            Ligne {
+                designation: "Exonere A".into(),
+                quantite: d("1"),
+                unite: None,
+                prix_unitaire_ht: d("100"),
+                taux_tva: d("0"),
+                montant_ht: d("100"),
+                exoneration: Some(exonere("VATEX-EU-132")),
+            },
+            Ligne {
+                designation: "Exonere B".into(),
+                quantite: d("1"),
+                unite: None,
+                prix_unitaire_ht: d("200"),
+                taux_tva: d("0"),
+                montant_ht: d("200"),
+                exoneration: Some(exonere("VATEX-EU-IC")),
+            },
+        ];
+        let ventilations = ventiler(&f.lignes);
+        assert_eq!(ventilations.len(), 2, "deux motifs, deux ventilations");
+        assert!(ventilations
+            .iter()
+            .any(|v| v.exoneration.as_ref().unwrap().categorie() == "E"));
+        assert!(ventilations
+            .iter()
+            .any(|v| v.exoneration.as_ref().unwrap().categorie() == "K"));
+    }
+
+    #[test]
+    fn une_exoneration_sans_code_ni_motif_est_signalee() {
+        let mut f = facture();
+        f.lignes[0].exoneration = Some(Exoneration {
+            code: "  ".into(),
+            motif: None,
+        });
+        f.lignes[0].taux_tva = d("0");
+        let violations = regles_metier(&f);
+        assert!(
+            violations.iter().any(|v| v.reference == "BR-E-10"),
+            "{violations:?}"
+        );
+    }
+
+    #[test]
+    fn une_ligne_exoneree_avec_un_taux_non_nul_est_signalee() {
+        let mut f = facture();
+        f.lignes[0].exoneration = Some(exonere("VATEX-EU-132"));
+        // 20 % conserve : la donnee se contredit.
+        let violations = regles_metier(&f);
+        assert!(
+            violations.iter().any(|v| v.reference == "VATEX"),
+            "{violations:?}"
+        );
     }
 
     #[test]

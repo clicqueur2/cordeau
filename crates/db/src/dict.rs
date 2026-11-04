@@ -58,6 +58,52 @@ pub fn unites(pool: &Pool) -> Result<Vec<Entree>, Box<dyn Error>> {
         .collect())
 }
 
+/// Le motif d'exoneration de TVA attache a un taux (`llx_c_tva.einvoice_vatex`).
+///
+/// Dolibarr a ajoute cette colonne en **23.0**, dans le meme mouvement que la
+/// preparation de la facturation electronique francaise. Elle porte le code
+/// VATEX que la facture doit declarer (BT-120) ; le libelle du taux sert de
+/// texte (BT-121).
+///
+/// Une colonne vide n'est pas une exoneration : on rend `None`, et la ligne
+/// reste au taux normal. C'est le cas de l'immense majorite des taux.
+pub fn exoneration_tva(
+    pool: &Pool,
+    entity: i64,
+    fk_pays: i64,
+    taux: Decimal,
+) -> Result<Option<CodeExoneration>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let ligne: Option<(Option<String>, Option<String>)> = conn.exec_first(
+        "SELECT einvoice_vatex, note FROM llx_c_tva \
+         WHERE active = 1 AND (fk_pays IS NULL OR fk_pays = :pays) \
+           AND (entity = :entity OR entity = 0) \
+           AND taux = :taux \
+           AND einvoice_vatex IS NOT NULL AND TRIM(einvoice_vatex) <> '' \
+         LIMIT 1",
+        params! { "pays" => fk_pays, "entity" => entity, "taux" => taux.normalize().to_string() },
+    )?;
+
+    Ok(ligne.and_then(|(code, note)| {
+        let code = code.unwrap_or_default().trim().to_string();
+        if code.is_empty() {
+            return None;
+        }
+        let note = opt_s(note);
+        Some(CodeExoneration {
+            code,
+            libelle: if note.is_empty() { None } else { Some(note) },
+        })
+    }))
+}
+
+/// Le code VATEX d'un taux de TVA, et son libelle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodeExoneration {
+    pub code: String,
+    pub libelle: Option<String>,
+}
+
 /// Taux de TVA actifs pour un pays et une entite (`llx_c_tva`).
 ///
 /// Dolibarr stocke un jeu de taux par pays ; `fk_pays` peut etre nul pour les

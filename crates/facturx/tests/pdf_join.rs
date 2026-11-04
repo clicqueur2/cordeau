@@ -37,6 +37,7 @@ fn facture() -> Facture {
             prix_unitaire_ht: d("500"),
             taux_tva: d("20"),
             montant_ht: d("1000"),
+            exoneration: None,
         }],
         total_ht: d("1000"),
         total_tva: d("200"),
