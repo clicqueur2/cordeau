@@ -1,0 +1,9 @@
+﻿[package]
+name = "facturx"
+description = "Factur-X : XML CII conforme EN 16931"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rust_decimal = { workspace = true }
