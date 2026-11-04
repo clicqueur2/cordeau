@@ -479,9 +479,17 @@ fn create_sous_verrou(
     // `MIN(rowid)` rend NULL quand la table est vide : decoder en i64 ferait
     // paniquer le pilote MySQL (`exec_first::<i64>` sur NULL). On lit donc un
     // `Option<Option<i64>>` et on traite l'absence comme une erreur lisible.
+    // Les conditions de reglement sont un dictionnaire : Dolibarr les seme sur
+    // une entite, et les entites creees ensuite n'en ont pas de copie. On
+    // cherche donc celle de l'entite, puis celle de l'entite 0, puis n'importe
+    // laquelle — sans quoi la premiere facture d'une entite secondaire echoue.
     let termine: Option<Option<i64>> = conn.exec_first(
-        "SELECT MIN(rowid) FROM llx_c_payment_term \
-         WHERE active = 1 AND (entity = :entity OR entity = 0)",
+        "SELECT COALESCE( \
+            (SELECT MIN(rowid) FROM llx_c_payment_term \
+              WHERE active = 1 AND entity = :entity), \
+            (SELECT MIN(rowid) FROM llx_c_payment_term \
+              WHERE active = 1 AND entity = 0), \
+            (SELECT MIN(rowid) FROM llx_c_payment_term WHERE active = 1))",
         params! { "entity" => entity },
     )?;
     let cond: i64 = match new.fk_cond_reglement {
@@ -676,6 +684,23 @@ pub fn create_from_proposal(
 /// `EXTRACTIONS/commande.md`.
 ///
 /// Garde anti-doublon : la référence externe `AC-<ref commande>` est unique.
+/// Une facture d'acompte existe-t-elle deja pour cette commande ?
+///
+/// `web` n'a pas acces a MySQL directement : la verification se fait ici.
+pub fn acompte_existe(
+    pool: &Pool,
+    entity: i64,
+    ref_commande: &str,
+) -> Result<bool, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let marque = format!("AC-{ref_commande}");
+    let deja: Option<String> = conn.exec_first(
+        "SELECT ref_ext FROM llx_facture WHERE entity = :entity AND ref_ext = :marque LIMIT 1",
+        params! { "entity" => entity, "marque" => marque.as_str() },
+    )?;
+    Ok(deja.is_some())
+}
+
 pub fn create_deposit_from_commande(
     pool: &Pool,
     entity: i64,
