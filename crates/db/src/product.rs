@@ -185,9 +185,12 @@ pub fn create(pool: &Pool, entity: i64, new: &NewProduct) -> Result<i64, Box<dyn
             "ref" => new.ref_.trim(),
             "label" => new.label.trim(),
             "price" => new.price.map(|d| d.to_string()),
+            // Meme arrondi que update : deux fonctions d'arrondi pour la
+            // meme colonne donnaient deux prix TTC selon le chemin (releve
+            // dans EXTRACTIONS/produit.md).
             "price_ttc" => new.price.map(|d| {
                 let taux = new.tva_tx.unwrap_or_default() / Decimal::from(100);
-                (d * (Decimal::ONE + taux)).round_dp(8).to_string()
+                money::round_unit_price(d * (Decimal::ONE + taux)).to_string()
             }),
             "price_base_type" => new.price_base_type.as_str(),
             "tva_tx" => new.tva_tx.map(|d| d.to_string()),
