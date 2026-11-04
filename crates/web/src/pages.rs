@@ -442,7 +442,7 @@ pub async fn contrats(State(app): State<crate::App>) -> Res<Markup> {
                                 td .ref { (c.ref_) }
                                 td { (c.tiers.clone().unwrap_or_default()) }
                                 td .ref { (c.date.clone().unwrap_or_default()) }
-                                td { (match c.statut { 1 => "actif", 2 => "clos", _ => "brouillon" }) }
+                                td { (match c.statut { 1 => "valide", 2 => "clos", _ => "brouillon" }) }
                                 td .num { (crate::ui::euros(c.total_ttc.unwrap_or_default())) }
                             }
                         }
