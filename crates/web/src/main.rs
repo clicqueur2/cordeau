@@ -5,6 +5,7 @@
 
 mod api;
 mod campagnes;
+mod cloture_ecran;
 mod entite;
 mod extrafields_ecran;
 pub(crate) mod journal_erreurs;
@@ -315,6 +316,10 @@ async fn main() {
         .route("/comptabilite/grand-livre", get(grand_livre))
         .route("/comptabilite/livre-tenu", get(livre_tenu::page))
         .route("/comptabilite/fec", get(fec_page).post(fec_generer))
+        .route(
+            "/comptabilite/cloture",
+            get(cloture_ecran::page).post(cloture_ecran::cloturer),
+        )
         .route("/comptabilite/journal", get(pages::journal_comptable))
         .route(
             "/commandes-fournisseurs",
@@ -423,7 +428,7 @@ fn lire_cookie(headers: &axum::http::HeaderMap) -> Option<String> {
 /// `X-Forwarded-For` n'a de valeur que posee par un proxy de confiance : un
 /// client direct peut la forger. Quand elle est absente, on retombe sur la
 /// connexion locale, qui est la verite de ce processus.
-fn ip_client(headers: &axum::http::HeaderMap) -> String {
+pub(crate) fn ip_client(headers: &axum::http::HeaderMap) -> String {
     headers
         .get("x-forwarded-for")
         .and_then(|v| v.to_str().ok())
@@ -434,7 +439,7 @@ fn ip_client(headers: &axum::http::HeaderMap) -> String {
 }
 
 /// Le navigateur declare, tronque a la taille de la colonne.
-fn agent_client(headers: &axum::http::HeaderMap) -> Option<String> {
+pub(crate) fn agent_client(headers: &axum::http::HeaderMap) -> Option<String> {
     headers
         .get(axum::http::header::USER_AGENT)
         .and_then(|v| v.to_str().ok())
