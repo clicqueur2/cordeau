@@ -117,6 +117,10 @@ fn convertit_un_devis_en_facture_au_meme_montant() -> Result<(), Box<dyn Error>>
         NewProposalLine::new("Main d'oeuvre", dec("2"), dec("48"), dec("10")),
     ];
     let devis = db::proposal::create(&pool, ENTITY, &new)?;
+    // Un devis doit etre signe pour se facturer (regle Dolibarr, cf.
+    // EXTRACTIONS/devis.md) : on le valide puis on le cloture.
+    db::proposal::validate(&pool, ENTITY, devis)?;
+    db::proposal::cloturer(&pool, ENTITY, devis, 2)?;
     let devis_lu = db::proposal::get(&pool, ENTITY, devis)?.expect("devis");
 
     let facture = db::invoice::create_from_proposal(&pool, ENTITY, devis)?;

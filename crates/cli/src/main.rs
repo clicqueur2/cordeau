@@ -657,6 +657,27 @@ fn proposal_run(
     entity: i64,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        // Un devis doit etre valide puis cloture pour devenir facturable :
+        // Dolibarr n'ouvre les conversions qu'au statut signe (2).
+        "validate" => {
+            let id = flag(args, "--id")
+                .and_then(|v| v.parse::<i64>().ok())
+                .ok_or("--id requis")?;
+            db::proposal::validate(pool, entity, id)?;
+            println!("valide rowid={id}");
+            Ok(())
+        }
+        "close" => {
+            let id = flag(args, "--id")
+                .and_then(|v| v.parse::<i64>().ok())
+                .ok_or("--id requis")?;
+            let statut = flag(args, "--statut")
+                .and_then(|v| v.parse::<i16>().ok())
+                .unwrap_or(2);
+            db::proposal::cloturer(pool, entity, id, statut)?;
+            println!("cloture rowid={id} statut={statut}");
+            Ok(())
+        }
         "add" => {
             let fk_soc = flag(args, "--soc")
                 .and_then(|v| v.parse::<i64>().ok())

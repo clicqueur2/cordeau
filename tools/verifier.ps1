@@ -71,6 +71,10 @@ Etape "Chaîne métier (devis → facture → règlement → PDF)" {
     $soc = [regex]::Match($d, 'rowid=(\d+)').Groups[1].Value
     $p = cargo run -q -p dolibarr-rs -- proposal add --soc $soc --ligne "1|1000|20|Verification" 2>&1
     $dev = [regex]::Match($p, 'rowid=(\d+)').Groups[1].Value
+    # Un devis se valide puis se cloture (statut 2 = signe) avant facturation,
+    # comme dans Dolibarr : c'est la lecon des extractions du 4 novembre.
+    cargo run -q -p dolibarr-rs -- proposal validate --id $dev 2>&1 | Out-Null
+    cargo run -q -p dolibarr-rs -- proposal close --id $dev --statut 2 2>&1 | Out-Null
     $f = cargo run -q -p dolibarr-rs -- invoice from-proposal --devis $dev 2>&1
     $fac = [regex]::Match($f, 'rowid=(\d+)').Groups[1].Value
     Write-Host "    tiers=$soc devis=$dev facture=$fac"
