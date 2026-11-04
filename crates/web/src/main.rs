@@ -167,6 +167,8 @@ async fn main() {
         .route("/caisse/ajouter", post(pos_ecran::ajouter))
         .route("/caisse/vider", post(pos_ecran::vider))
         .route("/caisse/encaisser", post(pos_ecran::encaisser))
+        .route("/caisse/sceller", post(pos_ecran::sceller))
+        .route("/caisse/archive", get(pos_ecran::archive))
         .route("/produits/:id", get(produit_fiche))
         .route(
             "/produits/:id/modifier",

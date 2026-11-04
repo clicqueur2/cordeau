@@ -237,6 +237,26 @@ fn ventes_du_jour(pool: &Pool, entity: i64, date: &str) -> Result<Vec<Vente>, Bo
         .collect())
 }
 
+/// Date du jour au format `AAAA-MM-JJ`, sans dependance de calendrier.
+pub fn aujourd_hui_iso() -> String {
+    let secondes = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let jours = (secondes / 86_400) as i64;
+    let z = jours + 719_468;
+    let ere = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - ere * 146_097;
+    let annee_ere = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let annee = annee_ere + ere * 400;
+    let jour_annee = doe - (365 * annee_ere + annee_ere / 4 - annee_ere / 100);
+    let mp = (5 * jour_annee + 2) / 153;
+    let jour = jour_annee - (153 * mp + 2) / 5 + 1;
+    let mois = mp + if mp < 10 { 3 } else { -9 };
+    let annee = annee + i64::from(mois <= 2);
+    format!("{annee:04}-{mois:02}-{jour:02}")
+}
+
 /// Calcule le scellé d'une journée sans rien écrire.
 pub fn calculer(pool: &Pool, entity: i64, date: &str) -> Result<Scelle, Box<dyn Error>> {
     let ventes = ventes_du_jour(pool, entity, date)?;
