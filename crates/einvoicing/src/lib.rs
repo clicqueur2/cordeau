@@ -225,9 +225,9 @@ pub struct Accuse {
 
 /// Un statut de cycle de vie (Flux 6).
 ///
-/// Les codes exacts sont dans la norme ; on les transporte **tels quels** au
-/// lieu de les traduire en une énumération qui se périmerait à la prochaine
-/// version du document.
+/// Le code est transporte **tel quel** : une plateforme peut en inventer un,
+/// et le perdre serait pire que le garder. Quand il en est un des quatorze de
+/// la reforme, `vie()` le rend type ; sinon `None`, et rien n'est devine.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Statut {
     /// Code du statut, par exemple `RECU` ou `REJETE`.
@@ -246,6 +246,183 @@ impl Statut {
     pub fn est_un_echec(&self) -> bool {
         let c = self.code.to_uppercase();
         c.contains("REJET") || c.contains("REFUS") || c.contains("REJECT") || c.contains("ERROR")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Les 14 statuts du cycle de vie (Flux 6, XP Z12-014 annexe A)
+// ---------------------------------------------------------------------------
+
+/// Qui emet un statut.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Emetteur {
+    /// La plateforme du vendeur.
+    PlateformeVendeur,
+    /// La plateforme de l'acheteur.
+    PlateformeAcheteur,
+    /// Le vendeur lui-meme.
+    Vendeur,
+    /// L'acheteur lui-meme.
+    Acheteur,
+}
+
+/// Les 14 statuts de la reforme francaise.
+///
+/// **Quatre sont obligatoires** : 200 deposee, 210 refusee, 212 encaissee,
+/// 213 rejetee. Les dix autres sont des courtoisies : une plateforme peut ne
+/// pas les implementer, et leur absence ne prouve rien.
+///
+/// Le seul signal negatif fiable est le **213**, un rejet technique. Une
+/// facture sans 201 ni 202 n'est pas en echec, elle est simplement muette.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatutVie {
+    /// 200 — deposee chez la plateforme du vendeur. **Obligatoire.**
+    Deposee,
+    /// 201 — emise par la plateforme du vendeur.
+    EmisePlateforme,
+    /// 202 — recue par la plateforme de l'acheteur.
+    RecuePlateforme,
+    /// 203 — mise a disposition de l'acheteur.
+    MiseADisposition,
+    /// 204 — prise en charge par l'acheteur.
+    PriseEnCharge,
+    /// 205 — approuvee.
+    Approuvee,
+    /// 206 — approuvee partiellement.
+    ApprouveePartiellement,
+    /// 207 — en litige.
+    EnLitige,
+    /// 208 — suspendue.
+    Suspendue,
+    /// 209 — completee par le vendeur.
+    Completee,
+    /// 210 — refusee. **Obligatoire**, et terminal.
+    Refusee,
+    /// 211 — paiement transmis par l'acheteur.
+    PaiementTransmis,
+    /// 212 — encaissee. **Obligatoire** quand la TVA est due a l'encaissement.
+    Encaissee,
+    /// 213 — rejetee par une plateforme. **Obligatoire.**
+    Rejetee,
+}
+
+impl StatutVie {
+    /// Les 14 statuts, dans l'ordre des codes.
+    pub const TOUS: [StatutVie; 14] = [
+        StatutVie::Deposee,
+        StatutVie::EmisePlateforme,
+        StatutVie::RecuePlateforme,
+        StatutVie::MiseADisposition,
+        StatutVie::PriseEnCharge,
+        StatutVie::Approuvee,
+        StatutVie::ApprouveePartiellement,
+        StatutVie::EnLitige,
+        StatutVie::Suspendue,
+        StatutVie::Completee,
+        StatutVie::Refusee,
+        StatutVie::PaiementTransmis,
+        StatutVie::Encaissee,
+        StatutVie::Rejetee,
+    ];
+
+    /// Le code de la norme.
+    pub fn code(self) -> u16 {
+        match self {
+            StatutVie::Deposee => 200,
+            StatutVie::EmisePlateforme => 201,
+            StatutVie::RecuePlateforme => 202,
+            StatutVie::MiseADisposition => 203,
+            StatutVie::PriseEnCharge => 204,
+            StatutVie::Approuvee => 205,
+            StatutVie::ApprouveePartiellement => 206,
+            StatutVie::EnLitige => 207,
+            StatutVie::Suspendue => 208,
+            StatutVie::Completee => 209,
+            StatutVie::Refusee => 210,
+            StatutVie::PaiementTransmis => 211,
+            StatutVie::Encaissee => 212,
+            StatutVie::Rejetee => 213,
+        }
+    }
+
+    /// Le statut d'un code, quand il en est un.
+    pub fn depuis_code(code: u16) -> Option<StatutVie> {
+        StatutVie::TOUS.into_iter().find(|s| s.code() == code)
+    }
+
+    /// Le libelle francais officiel.
+    pub fn libelle(self) -> &'static str {
+        match self {
+            StatutVie::Deposee => "Déposée",
+            StatutVie::EmisePlateforme => "Émise par la plateforme",
+            StatutVie::RecuePlateforme => "Reçue par la plateforme",
+            StatutVie::MiseADisposition => "Mise à disposition",
+            StatutVie::PriseEnCharge => "Prise en charge",
+            StatutVie::Approuvee => "Approuvée",
+            StatutVie::ApprouveePartiellement => "Approuvée partiellement",
+            StatutVie::EnLitige => "En litige",
+            StatutVie::Suspendue => "Suspendue",
+            StatutVie::Completee => "Complétée",
+            StatutVie::Refusee => "Refusée",
+            StatutVie::PaiementTransmis => "Paiement transmis",
+            StatutVie::Encaissee => "Encaissée",
+            StatutVie::Rejetee => "Rejetée",
+        }
+    }
+
+    /// La norme impose-t-elle ce statut ?
+    pub fn obligatoire(self) -> bool {
+        matches!(
+            self,
+            StatutVie::Deposee | StatutVie::Refusee | StatutVie::Encaissee | StatutVie::Rejetee
+        )
+    }
+
+    /// Qui emet ce statut.
+    pub fn emetteur(self) -> Emetteur {
+        match self {
+            StatutVie::Deposee => Emetteur::PlateformeVendeur,
+            StatutVie::EmisePlateforme => Emetteur::PlateformeVendeur,
+            StatutVie::RecuePlateforme => Emetteur::PlateformeAcheteur,
+            StatutVie::MiseADisposition => Emetteur::PlateformeAcheteur,
+            StatutVie::PriseEnCharge => Emetteur::Acheteur,
+            StatutVie::Approuvee => Emetteur::Acheteur,
+            StatutVie::ApprouveePartiellement => Emetteur::Acheteur,
+            StatutVie::EnLitige => Emetteur::Acheteur,
+            StatutVie::Suspendue => Emetteur::Acheteur,
+            StatutVie::Completee => Emetteur::Vendeur,
+            StatutVie::Refusee => Emetteur::Acheteur,
+            StatutVie::PaiementTransmis => Emetteur::Acheteur,
+            StatutVie::Encaissee => Emetteur::Vendeur,
+            StatutVie::Rejetee => Emetteur::PlateformeVendeur,
+        }
+    }
+
+    /// Un statut que le logiciel **recoit**, sans pouvoir le produire.
+    pub fn entrant(self) -> bool {
+        matches!(
+            self.emetteur(),
+            Emetteur::PlateformeVendeur | Emetteur::PlateformeAcheteur
+        )
+    }
+
+    /// Ce statut ferme-t-il l'echange ?
+    pub fn terminal(self) -> bool {
+        matches!(self, StatutVie::Refusee | StatutVie::Rejetee)
+    }
+}
+
+impl Statut {
+    /// Le statut de la norme, quand le code en est un.
+    ///
+    /// Les plateformes renvoient parfois le libelle plutot que le code : on ne
+    /// devine pas, on rend `None`.
+    pub fn vie(&self) -> Option<StatutVie> {
+        self.code
+            .trim()
+            .parse::<u16>()
+            .ok()
+            .and_then(StatutVie::depuis_code)
     }
 }
 
