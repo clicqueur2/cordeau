@@ -382,6 +382,12 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
     }
 
     // Vendeur et acheteur.
+    // Une facture entierement hors champ : la categorie O impose de retirer
+    // les identifiants de TVA et de ne pas melanger les regimes.
+    let hors_champ = ventilations
+        .iter()
+        .any(|v| v.exoneration.as_ref().map(|e| e.categorie()) == Some("O"));
+
     let _ = write!(
         x,
         concat!(
@@ -401,7 +407,14 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
         ),
         vendeur = echappe(&facture.vendeur.nom),
         vendeur_siret = bloc_siret(&facture.vendeur, "SpecifiedLegalOrganization"),
-        vendeur_tva = bloc_tva(&facture.vendeur),
+        // Une operation hors champ de la TVA (categorie O) ne porte **aucun**
+        // identifiant de TVA : ni celui du vendeur, ni celui de l'acheteur. Le
+        // SIREN reste, c'est lui qui identifie la partie.
+        vendeur_tva = if hors_champ {
+            String::new()
+        } else {
+            bloc_tva(&facture.vendeur)
+        },
         vendeur_adresse = bloc_adresse(&facture.vendeur),
         acheteur = echappe(&facture.acheteur.nom),
         acheteur_siret = bloc_siret(&facture.acheteur, "SpecifiedLegalOrganization"),
@@ -707,7 +720,15 @@ const OBLIGATOIRES: &[(&str, &str, &str)] = &[
 /// vide si tout est la.
 pub fn verifier_norme(xml: &str) -> Vec<Manquement> {
     let mut manquants = Vec::new();
+    // Sur une operation hors champ (categorie O), l'identifiant de TVA du
+    // vendeur (BT-31) est **interdit**, pas seulement facultatif : l'exiger
+    // ferait refuser une facture conforme.
+    let hors_champ = xml.contains("<ram:CategoryCode>O</ram:CategoryCode>");
+
     for (reference, libelle, balise) in OBLIGATOIRES {
+        if hors_champ && *reference == "BT-31" {
+            continue;
+        }
         if !xml.contains(balise) {
             manquants.push(Manquement { reference, libelle });
         }
@@ -845,6 +866,20 @@ pub fn regles_metier(facture: &Facture) -> Vec<Violation> {
         v.push(Violation {
             reference: "VATEX",
             libelle: "une ligne exoneree porte un taux de TVA non nul",
+        });
+    }
+
+    // Une operation hors du champ de la TVA ne se melange pas : la norme veut
+    // une facture a part. Melanger obligerait a declarer un identifiant de TVA
+    // sur une piece qui ne peut pas en porter.
+    let categories: std::collections::BTreeSet<&'static str> = ventilations
+        .iter()
+        .map(|v| v.exoneration.as_ref().map(|e| e.categorie()).unwrap_or("S"))
+        .collect();
+    if categories.contains("O") && categories.len() > 1 {
+        v.push(Violation {
+            reference: "VATEX-O",
+            libelle: "une operation hors champ de la TVA ne se melange pas a une operation taxee ou exoneree",
         });
     }
 
@@ -1135,6 +1170,57 @@ mod tests {
         let violations = regles_metier(&f);
         assert!(
             violations.iter().any(|v| v.reference == "VATEX"),
+            "{violations:?}"
+        );
+    }
+
+    /// Une operation hors champ de la TVA ne porte aucun identifiant de TVA,
+    /// garde son SIREN, et reste conforme aux elements obligatoires.
+    #[test]
+    fn une_operation_hors_champ_ne_porte_aucun_identifiant_de_tva() {
+        let mut f = facture();
+        f.lignes = vec![Ligne {
+            designation: "Livraison hors de France".into(),
+            quantite: d("1"),
+            unite: Some("C62".into()),
+            prix_unitaire_ht: d("1000"),
+            taux_tva: d("0"),
+            montant_ht: d("1000"),
+            exoneration: Some(exonere("VATEX-EU-O")),
+        }];
+        f.total_ht = d("1000");
+        f.total_tva = d("0");
+        f.total_ttc = d("1000");
+
+        let x = xml(&f, Profil::En16931).expect("xml");
+        assert!(x.contains("<ram:CategoryCode>O</ram:CategoryCode>"), "{x}");
+        assert!(
+            !x.contains(r#"schemeID="VA""#),
+            "un identifiant de TVA est interdit ici : {x}"
+        );
+        // Le SIREN reste : c'est lui qui identifie la partie.
+        assert!(x.contains(r#"schemeID="0009""#), "{x}");
+        // BT-31 est ecarte du controle : il est interdit, pas manquant.
+        assert!(verifier_norme(&x).is_empty(), "{:?}", verifier_norme(&x));
+        assert!(regles_metier(&f).is_empty(), "{:?}", regles_metier(&f));
+    }
+
+    /// Hors champ et taxe sur la meme facture : refuse, la norme veut deux pieces.
+    #[test]
+    fn melanger_hors_champ_et_taxe_est_signale() {
+        let mut f = facture();
+        f.lignes.push(Ligne {
+            designation: "Prestation hors champ".into(),
+            quantite: d("1"),
+            unite: None,
+            prix_unitaire_ht: d("100"),
+            taux_tva: d("0"),
+            montant_ht: d("100"),
+            exoneration: Some(exonere("VATEX-EU-O")),
+        });
+        let violations = regles_metier(&f);
+        assert!(
+            violations.iter().any(|v| v.reference == "VATEX-O"),
             "{violations:?}"
         );
     }
