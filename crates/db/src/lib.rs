@@ -10,6 +10,7 @@ use std::error::Error;
 
 pub mod achat;
 pub mod achat_ecriture;
+pub mod achat_paiement;
 pub mod banque;
 pub mod commande;
 pub mod company;
@@ -46,6 +47,7 @@ pub mod situation;
 pub mod stock;
 pub mod tables;
 pub mod ticket;
+pub mod tva_npr;
 pub mod user;
 
 use mysql::prelude::*;
