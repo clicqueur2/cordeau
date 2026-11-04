@@ -42,6 +42,9 @@ fn facture() -> Facture {
         total_tva: d("200"),
         total_ttc: d("1200"),
         devise: "EUR".into(),
+        moyen_paiement: Some("30".into()),
+        iban: Some("FR7616807003483848689521643".into()),
+        processus: Some("A1".into()),
     }
 }
 
