@@ -73,6 +73,15 @@ fn charger() -> Table {
     if let Err(e) = i18n::dolibarr::charger_langues(&mut catalogue, &racine, &demandees) {
         eprintln!("langues non chargees ({e}) : interface en francais");
     }
+    // Nos propres libelles, par-dessus : la cle est le texte francais, donc ce
+    // fichier ne fait que declarer ce que Dolibarr ne connait pas. Un dossier
+    // absent n'est pas une erreur — on ne complete simplement rien.
+    let noyau = std::env::var("DOLIBARR_LANGS_NOYAU")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| Path::new("langs").join("noyau"));
+    if noyau.exists() {
+        let _ = i18n::dolibarr::charger_langues(&mut catalogue, &noyau, &demandees);
+    }
     let inverse = catalogue.index_inverse(LANGUE_NOYAU);
 
     Table {
@@ -220,6 +229,13 @@ mod tests {
         {
             eprintln!("catalogue illisible : mesure ignoree");
             return;
+        }
+        // Nos propres libelles comptent aussi : ce sont ceux que Dolibarr ne
+        // connait pas.
+        let noyau = racine.join("langs/noyau");
+        if noyau.exists() {
+            let _ =
+                i18n::dolibarr::charger_langues(&mut catalogue, &noyau, &[LANGUE_NOYAU, "en_US"]);
         }
         let table = Table {
             inverse: catalogue.index_inverse(LANGUE_NOYAU),

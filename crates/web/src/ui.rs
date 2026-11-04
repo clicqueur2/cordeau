@@ -172,7 +172,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                     }
                     form method="get" action="/recherche" {
                         input type="search" name="q" placeholder="Rechercher…" aria-label="Recherche";
-                        button type="submit" { "Chercher" }
+                        button type="submit" { (crate::langue::tr("Chercher")) }
                     }
                     @let entites = crate::entite::liste();
                     @if entites.len() > 1 {
@@ -188,12 +188,12 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                             (entites.first().map(|(_, n)| n.clone()).unwrap_or_default())
                         }
                     }
-                    a .bouton.secondaire href="/compte" style="margin-left:10px;padding:7px 12px" { "Mon compte" }
+                    a .bouton.secondaire href="/compte" style="margin-left:10px;padding:7px 12px" { (crate::langue::tr("Mon compte")) }
                     span style="margin-left:8px;color:#78736c;font-size:12.5px" title="Langue de l'interface" {
                         (crate::langue::langue())
                     }
                     form method="post" action="/deconnexion" style="margin-left:6px" {
-                        button type="submit" class="secondaire" title="Se déconnecter" { "Quitter" }
+                        button type="submit" class="secondaire" title="Se déconnecter" { (crate::langue::tr("Quitter")) }
                     }
                 }
                 div .corps {
@@ -204,7 +204,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                               href=(entree.lien) { (crate::langue::tr(entree.libelle)) }
                         }
                         hr;
-                        div .module-titre { "Tous les modules" }
+                        div .module-titre { (crate::langue::tr("Tous les modules")) }
                         @for m in crate::menu::modules().into_iter().filter(|m| crate::menu::depuis_base() || crate::menu_actif::est_actif(m.code) || crate::manifeste::est_declare(m.code)) {
                             a href=(lien_module(m)) { (crate::langue::tr(m.libelle)) }
                         }
