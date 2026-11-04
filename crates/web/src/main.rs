@@ -16,6 +16,7 @@ mod livre_tenu;
 mod manifeste;
 mod menu;
 mod menu_actif;
+mod mrp_ecran;
 mod pages;
 mod plugin;
 mod pos_ecran;
@@ -195,6 +196,7 @@ async fn main() {
         .route("/factures", get(factures))
         .route("/factures/actions", post(actions_masse::factures))
         .route("/devises", get(devises_ecran::page))
+        .route("/mrp", get(mrp_ecran::page))
         .route("/devises/figer", post(devises_ecran::figer))
         .route("/factures/:id", get(factures_fiche))
         .route("/factures/:id/pdf", get(factures_pdf))

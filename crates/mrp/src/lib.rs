@@ -139,6 +139,230 @@ pub fn exploser(
     Ok(besoins.into_values().collect())
 }
 
+// ---------------------------------------------------------------------------
+// Besoin net et ordre propose
+// ---------------------------------------------------------------------------
+
+/// Ce qu'on sait d'un article sur un horizon donne.
+///
+/// Les quantites sont decimales : un metre de cable, 0,5 kg de resine. Un
+/// arrondi au lot se fait **une fois**, a la fin, jamais en chemin.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Article {
+    pub reference: String,
+    /// Ce que la demande exige (commandes clients a livrer).
+    pub besoin_brut: Decimal,
+    /// Ce qui est en stock.
+    pub stock: Decimal,
+    /// Ce qui doit arriver (commandes fournisseurs, ordres de fabrication).
+    pub entrees: Decimal,
+    /// Multiple d'achat ou de fabrication. Zero = pas d'arrondi.
+    pub lot: Decimal,
+    /// Quantite minimale d'un ordre. Zero = pas de minimum.
+    pub minimum: Decimal,
+    /// Delai d'approvisionnement en jours.
+    pub delai_jours: i64,
+}
+
+/// Ce que le calcul propose.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Proposition {
+    pub reference: String,
+    pub besoin_brut: Decimal,
+    pub stock: Decimal,
+    pub entrees: Decimal,
+    /// Besoin brut moins stock et entrees, jamais negatif.
+    pub besoin_net: Decimal,
+    /// La quantite a commander, arrondie au lot et au minimum.
+    pub quantite: Decimal,
+    /// La date a laquelle lancer, compte tenu du delai.
+    pub date_lancement: String,
+    /// La date de lancement est-elle deja passee ?
+    pub en_retard: bool,
+}
+
+/// Arrondit une quantite au multiple et au minimum.
+///
+/// L'ordre compte : on arrondit **au lot**, puis on remonte au minimum, puis
+/// **on re-arrondit au lot** — sinon un minimum de 10 avec un lot de 12
+/// donnerait 10, qui n'est pas un multiple.
+pub fn arrondir(quantite: Decimal, lot: Decimal, minimum: Decimal) -> Decimal {
+    if quantite <= Decimal::ZERO {
+        return Decimal::ZERO;
+    }
+    let mut q = quantite;
+    if lot > Decimal::ZERO {
+        q = (q / lot).ceil() * lot;
+    }
+    if minimum > Decimal::ZERO && q < minimum {
+        q = minimum;
+        if lot > Decimal::ZERO {
+            q = (q / lot).ceil() * lot;
+        }
+    }
+    q
+}
+
+/// Calcule le besoin net et l'ordre propose d'un article.
+///
+/// `aujourd_hui` sert uniquement a dire si la date de lancement est deja
+/// passee. Une date de lancement dans le passe n'est pas une erreur de calcul :
+/// c'est un retard, et il faut le voir.
+pub fn proposer(article: &Article, date_besoin: &str, aujourd_hui: &str) -> Proposition {
+    let couverture = article.stock + article.entrees;
+    let besoin_net = (article.besoin_brut - couverture).max(Decimal::ZERO);
+    let quantite = arrondir(besoin_net, article.lot, article.minimum);
+    let date_lancement = recule(date_besoin, article.delai_jours);
+
+    Proposition {
+        reference: article.reference.clone(),
+        besoin_brut: article.besoin_brut,
+        stock: article.stock,
+        entrees: article.entrees,
+        besoin_net,
+        quantite,
+        en_retard: date_lancement.as_str() < aujourd_hui,
+        date_lancement,
+    }
+}
+
+/// Recule une date `AAAA-MM-JJ` d'un nombre de jours.
+///
+/// Les jours sont comptes en jours juliens : ni fuseau, ni heure d'ete, ni
+/// dependance de calendrier. Une date illisible est rendue telle quelle plutot
+/// que remplacee par une valeur inventee.
+pub fn recule(date: &str, jours: i64) -> String {
+    let Some(j) = jour_julien(date) else {
+        return date.to_string();
+    };
+    depuis_julien(j - jours)
+}
+
+/// Le jour julien d'une date `AAAA-MM-JJ`, ou `None` si elle est illisible.
+fn jour_julien(date: &str) -> Option<i64> {
+    let mut parties = date.split('-');
+    let annee: i64 = parties.next()?.parse().ok()?;
+    let mois: i64 = parties.next()?.parse().ok()?;
+    let jour: i64 = parties.next()?.parse().ok()?;
+    if !(1..=12).contains(&mois) || !(1..=31).contains(&jour) {
+        return None;
+    }
+    // Algorithme de Fliegel-Van Flandern.
+    let a = (14 - mois) / 12;
+    let y = annee + 4800 - a;
+    let m = mois + 12 * a - 3;
+    Some(jour + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045)
+}
+
+/// La date `AAAA-MM-JJ` d'un jour julien.
+fn depuis_julien(j: i64) -> String {
+    let a = j + 32044;
+    let b = (4 * a + 3) / 146_097;
+    let c = a - (146_097 * b) / 4;
+    let d = (4 * c + 3) / 1461;
+    let e = c - (1461 * d) / 4;
+    let m = (5 * e + 2) / 153;
+    let jour = e - (153 * m + 2) / 5 + 1;
+    let mois = m + 3 - 12 * (m / 10);
+    let annee = 100 * b + d - 4800 + m / 10;
+    format!("{annee:04}-{mois:02}-{jour:02}")
+}
+
+#[cfg(test)]
+mod tests_besoin {
+    use super::*;
+    use std::str::FromStr;
+
+    fn d(s: &str) -> Decimal {
+        Decimal::from_str(s).unwrap()
+    }
+
+    fn article(brut: &str, stock: &str, entrees: &str) -> Article {
+        Article {
+            reference: "REF".into(),
+            besoin_brut: d(brut),
+            stock: d(stock),
+            entrees: d(entrees),
+            lot: Decimal::ZERO,
+            minimum: Decimal::ZERO,
+            delai_jours: 0,
+        }
+    }
+
+    #[test]
+    fn le_stock_reduit_le_besoin() {
+        let p = proposer(&article("100", "30", "0"), "2026-12-31", "2026-11-04");
+        assert_eq!(p.besoin_net, d("70"));
+        assert_eq!(p.quantite, d("70"));
+    }
+
+    #[test]
+    fn les_entrees_attendues_reduisent_aussi() {
+        let p = proposer(&article("100", "30", "20"), "2026-12-31", "2026-11-04");
+        assert_eq!(p.besoin_net, d("50"));
+    }
+
+    #[test]
+    fn un_stock_suffisant_ne_propose_rien() {
+        let p = proposer(&article("10", "50", "0"), "2026-12-31", "2026-11-04");
+        assert_eq!(p.besoin_net, Decimal::ZERO);
+        assert_eq!(p.quantite, Decimal::ZERO);
+    }
+
+    #[test]
+    fn l_arrondi_au_lot_monte_et_ne_descend_jamais() {
+        assert_eq!(arrondir(d("70"), d("25"), Decimal::ZERO), d("75"));
+        assert_eq!(arrondir(d("50"), d("25"), Decimal::ZERO), d("50"));
+        assert_eq!(arrondir(d("1"), d("25"), Decimal::ZERO), d("25"));
+        // Pas de lot : la quantite reste telle quelle.
+        assert_eq!(arrondir(d("7.5"), Decimal::ZERO, Decimal::ZERO), d("7.5"));
+    }
+
+    #[test]
+    fn le_minimum_se_combine_avec_le_lot() {
+        // Minimum 10, lot 12 : 10 n'est pas un multiple, on monte a 12.
+        assert_eq!(arrondir(d("3"), d("12"), d("10")), d("12"));
+        // Minimum 10, lot 0 : on prend le minimum.
+        assert_eq!(arrondir(d("3"), Decimal::ZERO, d("10")), d("10"));
+        // Deja au-dessus du minimum : le minimum ne joue pas.
+        assert_eq!(arrondir(d("30"), d("12"), d("10")), d("36"));
+    }
+
+    #[test]
+    fn le_delai_recule_la_date_de_lancement() {
+        let mut a = article("10", "0", "0");
+        a.delai_jours = 15;
+        let p = proposer(&a, "2026-12-31", "2026-11-04");
+        assert_eq!(p.date_lancement, "2026-12-16");
+        assert!(!p.en_retard);
+    }
+
+    #[test]
+    fn une_date_de_lancement_passee_est_un_retard() {
+        let mut a = article("10", "0", "0");
+        a.delai_jours = 15;
+        let p = proposer(&a, "2026-11-10", "2026-11-04");
+        assert_eq!(p.date_lancement, "2026-10-26");
+        assert!(p.en_retard, "le 26 octobre est passe");
+    }
+
+    #[test]
+    fn les_dates_traversent_les_mois_et_les_annees() {
+        assert_eq!(recule("2026-03-01", 1), "2026-02-28");
+        assert_eq!(recule("2026-01-01", 1), "2025-12-31");
+        assert_eq!(recule("2026-11-04", 0), "2026-11-04");
+        assert_eq!(recule("2026-11-04", 365), "2025-11-04");
+        // Une annee bissextile compte 29 fevrier.
+        assert_eq!(recule("2024-03-01", 1), "2024-02-29");
+    }
+
+    #[test]
+    fn une_date_illisible_est_rendue_telle_quelle() {
+        assert_eq!(recule("pas une date", 5), "pas une date");
+        assert_eq!(recule("2026-13-01", 5), "2026-13-01");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
