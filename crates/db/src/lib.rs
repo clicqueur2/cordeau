@@ -191,10 +191,44 @@ pub struct Report {
     pub missing_columns: Vec<String>,
     pub extra_columns: Vec<String>,
     pub type_mismatches: Vec<String>,
+    /// Tables presentes en base et absentes du manifeste du coeur.
+    ///
+    /// Dolibarr ne tient pas ses modules dans le schema du coeur : le module
+    /// officiel de facturation electronique cree `llx_einvoicing_document` et
+    /// deux autres. Ces tables sont **legitimes** et ne rendent pas la base
+    /// incompatible — mais elles doivent se voir, pas se deviner.
+    pub extra_tables: Vec<String>,
+    /// Parmi elle, celles dont le prefixe est un module connu.
+    pub module_tables: Vec<String>,
+    /// Celles qu'on ne sait pas rattacher a un module : a examiner.
+    pub unknown_tables: Vec<String>,
+}
+
+/// Les prefixes de tables ajoutees par un module connu, et le module en clair.
+///
+/// Un module Dolibarr n'est pas contraint par le schema du coeur : il cree ses
+/// propres tables avec ses scripts `sql/`. C'est le cas du module officiel de
+/// facturation electronique. On les accueille, on les nomme, et on refuse de
+/// les confondre avec une table oubliee.
+pub const PREFIXES_MODULE: &[(&str, &str)] = &[
+    ("llx_einvoicing_", "facturation electronique"),
+    ("llx_accounting_", "comptabilite avancee"),
+    ("llx_abricot_", "abricot"),
+];
+
+/// Le module auquel appartient une table ajoutee, s'il est connu.
+pub fn module_de(table: &str) -> Option<&'static str> {
+    PREFIXES_MODULE
+        .iter()
+        .find(|(prefixe, _)| table.starts_with(prefixe))
+        .map(|(_, module)| *module)
 }
 
 impl Report {
     pub fn is_compatible(&self) -> bool {
+        // Les tables en plus ne rendent pas incompatible : elles sont le fait
+        // d'un module, et Dolibarr vit ainsi depuis toujours. Ce qui casse la
+        // compatibilite, c'est ce qui **manque** ou ce qui a change de type.
         self.missing_tables.is_empty()
             && self.missing_columns.is_empty()
             && self.type_mismatches.is_empty()
@@ -256,6 +290,23 @@ pub fn compare(manifest: &schema::Manifest, live: &[LiveColumn]) -> Report {
         }
     }
 
+    // Les tables en plus : celles qu'un module a creees. On les nomme quand on
+    // connait le module, et on signale les autres plutot que de les taire.
+    let attendues: std::collections::BTreeSet<String> = manifest
+        .tables
+        .keys()
+        .map(|t| t.to_ascii_lowercase())
+        .collect();
+    for table in &live_tables {
+        if !attendues.contains(table) {
+            rep.extra_tables.push(table.clone());
+            match module_de(table) {
+                Some(_) => rep.module_tables.push(table.clone()),
+                None => rep.unknown_tables.push(table.clone()),
+            }
+        }
+    }
+
     rep
 }
 
@@ -280,6 +331,96 @@ mod tests {
         assert_eq!(normalize_type("VARCHAR(30)"), "varchar(30)");
         assert_eq!(normalize_type("text"), "text");
         assert_eq!(normalize_type("datetime"), "datetime");
+    }
+
+    fn manifeste_une_table() -> schema::Manifest {
+        let mut m = schema::Manifest {
+            generator: String::new(),
+            dolibarr_version: String::new(),
+            source_commit: String::new(),
+            stats: schema::Stats {
+                files: 0,
+                statements: 0,
+                create_table: 0,
+                alter_table: 0,
+                other: 0,
+                unparsed: 0,
+                tables: 1,
+                columns: 1,
+                indexes: 0,
+                foreign_keys: 0,
+            },
+            fingerprint: String::new(),
+            tables: Default::default(),
+        };
+        let mut t = schema::Table::new("llx_coeur");
+        t.columns.push(schema::Column {
+            name: "rowid".into(),
+            sql_type: "integer".into(),
+            nullable: false,
+            default: None,
+            auto_increment: true,
+            primary_key: true,
+            unique: false,
+        });
+        m.tables.insert("llx_coeur".into(), t);
+        m
+    }
+
+    fn colonne(table: &str, nom: &str) -> LiveColumn {
+        LiveColumn {
+            table: table.into(),
+            column: nom.into(),
+            sql_type: "int".into(),
+        }
+    }
+
+    /// Un module ajoute ses tables : la base reste compatible, et on les nomme.
+    #[test]
+    fn les_tables_d_un_module_ne_rendent_pas_incompatible() {
+        let m = manifeste_une_table();
+        let live = vec![
+            colonne("llx_coeur", "rowid"),
+            colonne("llx_einvoicing_document", "rowid"),
+            colonne("llx_einvoicing_lifecycle_msg", "rowid"),
+        ];
+        let rep = compare(&m, &live);
+
+        assert!(rep.is_compatible(), "{rep:?}");
+        assert_eq!(rep.extra_tables.len(), 2);
+        assert_eq!(rep.module_tables.len(), 2);
+        assert!(rep.unknown_tables.is_empty());
+        assert_eq!(
+            module_de("llx_einvoicing_document"),
+            Some("facturation electronique")
+        );
+    }
+
+    /// Une table oubliee n'empeche pas de travailler, mais elle se voit.
+    #[test]
+    fn une_table_inconnue_est_signalee_sans_bloquer() {
+        let m = manifeste_une_table();
+        let live = vec![
+            colonne("llx_coeur", "rowid"),
+            colonne("tmp_sauvegarde_2024", "rowid"),
+        ];
+        let rep = compare(&m, &live);
+
+        assert!(rep.is_compatible());
+        assert_eq!(rep.extra_tables, vec!["tmp_sauvegarde_2024".to_string()]);
+        assert!(rep.module_tables.is_empty());
+        assert_eq!(rep.unknown_tables.len(), 1);
+        assert_eq!(module_de("tmp_sauvegarde_2024"), None);
+    }
+
+    /// Ce qui manque, en revanche, casse la compatibilite.
+    #[test]
+    fn une_table_du_coeur_absente_reste_incompatible() {
+        let m = manifeste_une_table();
+        let live = vec![colonne("llx_einvoicing_document", "rowid")];
+        let rep = compare(&m, &live);
+        assert!(!rep.is_compatible());
+        assert_eq!(rep.missing_tables, vec!["llx_coeur".to_string()]);
     }
 
     #[test]

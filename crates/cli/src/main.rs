@@ -211,6 +211,8 @@ fn schema_verify(args: &[String]) -> ExitCode {
     println!("colonnes absentes  {}", rep.missing_columns.len());
     println!("types differents   {}", rep.type_mismatches.len());
     println!("colonnes en plus   {} (modules)", rep.extra_columns.len());
+    println!("tables en plus     {} (modules)", rep.module_tables.len());
+    println!("tables inconnues   {}", rep.unknown_tables.len());
 
     for m in rep.missing_tables.iter().take(10) {
         println!("  table absente   {m}");
@@ -223,6 +225,15 @@ fn schema_verify(args: &[String]) -> ExitCode {
     }
     for m in rep.extra_columns.iter().take(10) {
         println!("  en plus         {m}");
+    }
+    for t in rep.module_tables.iter().take(10) {
+        println!(
+            "  table de module {t} ({})",
+            db::module_de(t).unwrap_or("?")
+        );
+    }
+    for t in rep.unknown_tables.iter().take(10) {
+        println!("  table inconnue  {t}");
     }
 
     if rep.is_compatible() {

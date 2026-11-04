@@ -44,9 +44,13 @@ Notre règle nous a fait ranger le journal de caisse et le scellé hors base
 (fichier + `llx_const`). C'était prudent, mais ce n'était pas obligatoire — et
 ça nous a coûté la possibilité de faire des jointures SQL sur ces données.
 
-**Décision à prendre** (pas tranchée ici) : autoriser des tables préfixées
-`llx_<module>_*` pour les objets qui n'existent pas dans le schéma du cœur, ou
-rester hors base. Dolibarr a tranché pour la première option.
+**Décision prise le 4 novembre** : **on autorise** les tables préfixées
+`llx_<module>_*`. Les 410 tables du cœur restent intangibles ; un module range
+ce qui n'existe pas chez le cœur dans ses propres tables, et la compatibilité se
+juge sur ce qui manque, pas sur ce qui s'ajoute. Voir `REGLE-SCHEMA.md`.
+
+Ce que cette décision change concrètement : `schema verify` nomme désormais les
+tables de module et signale les tables inconnues, au lieu de les ignorer.
 
 ## 3. La facturation électronique : nous sommes en avance sur un point, en retard sur trois
 
