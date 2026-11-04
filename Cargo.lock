@@ -4377,6 +4377,7 @@ dependencies = [
  "mail",
  "maud",
  "money",
+ "pos",
  "rust_decimal",
  "sepa",
  "serde",
