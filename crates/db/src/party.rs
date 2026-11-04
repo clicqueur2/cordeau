@@ -56,10 +56,15 @@ pub struct NewParty {
 }
 
 impl NewParty {
+    /// Un client cree ici vaut 3, comme dans Dolibarr.
+    ///
+    /// `htdocs/societe/card.php` ecrit `client = (customer>0?1:0) + (prospect>0?2:0)` :
+    /// un client est aussi un prospect, donc 3. Ecrire 1 ferait disparaitre la
+    /// fiche des listes qui filtrent sur `client = 3`.
     pub fn client(nom: &str) -> Self {
         Self {
             nom: nom.to_string(),
-            client: CLIENT_CLIENT,
+            client: 3,
             ..Default::default()
         }
     }

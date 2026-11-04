@@ -229,6 +229,45 @@ pub fn droits_du_chemin(chemin: &str) -> &'static [i64] {
         .unwrap_or(&[])
 }
 
+/// Les droits d'**ecriture** qui ouvrent un chemin.
+///
+/// Dolibarr separe lire / creer / valider / supprimer (une facture a 11 pour
+/// lire et 12 pour creer ou modifier). Notre noyau n'avait qu'un droit par
+/// ecran : qui pouvait lire pouvait donc valider et facturer. Ces identifiants
+/// sont les notres (9001 et suivants sont la lecture) et n'existent pas chez
+/// Dolibarr, ce qui est voulu : on n'invente pas la semantique de ses ids.
+pub fn droits_ecriture_du_chemin(chemin: &str) -> &'static [i64] {
+    let carte: &[(&str, &'static [i64])] = &[
+        ("/chantiers", &[9016]),
+        ("/achats", &[9015]),
+        ("/banques", &[9017]),
+        ("/factures", &[9014]),
+        ("/reglements", &[9014]),
+        ("/avoirs", &[9014]),
+        ("/devis", &[9012]),
+        ("/commandes", &[9013]),
+        ("/comptabilite", &[9018]),
+        ("/export", &[9018]),
+        ("/tiers", &[9011]),
+        ("/contacts", &[9011]),
+        ("/produits", &[9011]),
+        ("/stock", &[9011]),
+        ("/tickets", &[9013]),
+        ("/documents", &[9019]),
+        ("/agenda", &[9019]),
+        ("/campagnes", &[9014]),
+        ("/recurrences", &[9014]),
+        ("/liste", &[9019]),
+        ("/parametres", &[9019]),
+    ];
+    carte
+        .iter()
+        .filter(|(prefixe, _)| chemin.starts_with(prefixe))
+        .max_by_key(|(prefixe, _)| prefixe.len())
+        .map(|(_, droits)| *droits)
+        .unwrap_or(&[])
+}
+
 /// Premier droit exigible : pratique pour les tests et les affichages.
 pub fn droit_du_chemin(chemin: &str) -> Option<i64> {
     droits_du_chemin(chemin).first().copied()
