@@ -7,3 +7,4 @@ license.workspace = true
 
 [dependencies]
 rust_decimal = { workspace = true }
+lopdf = "0.35"

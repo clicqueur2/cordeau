@@ -108,6 +108,8 @@ pub enum Erreur {
     AucuneLigne,
     /// Les totaux annoncés ne correspondent pas aux lignes.
     TotauxIncoherents(String),
+    /// Le PDF n a pas pu etre lu ou reecrit.
+    Pdf(String),
 }
 
 impl std::fmt::Display for Erreur {
@@ -119,6 +121,7 @@ impl std::fmt::Display for Erreur {
             Erreur::AcheteurSansNom => write!(f, "l'acheteur doit être nommé"),
             Erreur::AucuneLigne => write!(f, "une facture sans ligne n'a rien à déclarer"),
             Erreur::TotauxIncoherents(m) => write!(f, "totaux incohérents : {m}"),
+            Erreur::Pdf(m) => write!(f, "PDF : {m}"),
         }
     }
 }
@@ -406,6 +409,108 @@ fn bloc_adresse(p: &Partie) -> String {
     let _ = write!(s, "<ram:CountryID>{}</ram:CountryID>", echappe(&pays));
     s.push_str("</ram:PostalTradeAddress>\n        ");
     s
+}
+
+// ---------------------------------------------------------------------------
+// Encapsulation : coller le XML dans le PDF.
+//
+// Un Factur-X, c'est un PDF qui **contient** ce XML comme fichier joint. On
+// utilise `lopdf` pour cela : ajout d'un flux `/EmbeddedFile`, d'un `/Filespec`,
+// d'un arbre `/Names/EmbeddedFiles` et de l'entree `/AF` au catalogue.
+//
+// Ce que cela donne : un PDF lisible par Acrobat, dont on peut extraire le XML,
+// et que les plateformes savent lire. Ce que cela ne donne pas : la conformite
+// **PDF/A-3** (polices normalisees, sortie d'intention, metadonnees XMP). Un
+// validateur PDF/A le refuserait encore.
+// ---------------------------------------------------------------------------
+
+use lopdf::{dictionary, Document, Object, Stream};
+
+/// Nom du fichier joint attendu par Factur-X.
+pub const NOM_FICHIER: &str = "factur-x.xml";
+
+/// Insere le XML dans un PDF existant et rend le nouveau PDF.
+///
+/// Le XML est joint sous `factur-x.xml`, declare en `/AFRelationship
+/// /Alternative` : c'est la convention Factur-X (le PDF est l'image, le XML est
+/// la piece de reference).
+pub fn attacher(pdf: &[u8], xml: &str) -> Result<Vec<u8>, Erreur> {
+    let mut doc =
+        Document::load_mem(pdf).map_err(|e| Erreur::Pdf(format!("PDF illisible : {e}")))?;
+
+    // 1. Le flux du fichier joint.
+    let flux = Stream::new(
+        dictionary! {
+            "Type" => "EmbeddedFile",
+            "Subtype" => Object::Name(b"text/xml".to_vec()),
+            "Params" => dictionary! {
+                "Size" => xml.len() as i64,
+            },
+        },
+        xml.as_bytes().to_vec(),
+    );
+    let id_flux = doc.add_object(flux);
+
+    // 2. La description du fichier (/Filespec).
+    let fiche = dictionary! {
+        "Type" => "Filespec",
+        "F" => Object::string_literal(NOM_FICHIER),
+        "UF" => Object::string_literal(NOM_FICHIER),
+        "Desc" => Object::string_literal("Factur-X XML"),
+        "AFRelationship" => "Alternative",
+        "EF" => dictionary! {
+            "F" => Object::Reference(id_flux),
+            "UF" => Object::Reference(id_flux),
+        },
+    };
+    let id_fiche = doc.add_object(fiche);
+
+    // 3. L'arbre des noms.
+    let arbre = dictionary! {
+        "Names" => vec![
+            Object::string_literal(NOM_FICHIER),
+            Object::Reference(id_fiche),
+        ],
+    };
+    let id_arbre = doc.add_object(arbre);
+
+    // 4. Le catalogue : /Names et /AF.
+    {
+        let catalogue = doc
+            .catalog_mut()
+            .map_err(|e| Erreur::Pdf(format!("catalogue absent : {e}")))?;
+        catalogue.set(
+            "Names",
+            Object::Dictionary(dictionary! {
+                "EmbeddedFiles" => Object::Reference(id_arbre),
+            }),
+        );
+        catalogue.set("AF", vec![Object::Reference(id_fiche)]);
+    }
+
+    let mut sortie = Vec::new();
+    doc.save_to(&mut sortie)
+        .map_err(|e| Erreur::Pdf(format!("reecriture impossible : {e}")))?;
+    Ok(sortie)
+}
+
+/// Extrait le XML d'un PDF (pour verifier ce qu'on a produit).
+pub fn extraire(pdf: &[u8]) -> Result<String, Erreur> {
+    let doc = Document::load_mem(pdf).map_err(|e| Erreur::Pdf(format!("PDF illisible : {e}")))?;
+    for objet in doc.objects.values() {
+        if let Object::Stream(flux) = objet {
+            let type_ = flux
+                .dict
+                .get(b"Type")
+                .and_then(|o| o.as_name())
+                .map(|n| n.to_vec())
+                .unwrap_or_default();
+            if type_ == b"EmbeddedFile" {
+                return Ok(String::from_utf8_lossy(&flux.content).to_string());
+            }
+        }
+    }
+    Err(Erreur::Pdf("aucun fichier joint dans ce PDF".into()))
 }
 
 #[cfg(test)]
