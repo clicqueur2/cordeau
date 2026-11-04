@@ -12,6 +12,7 @@ pub mod achat;
 pub mod achat_ecriture;
 pub mod achat_paiement;
 pub mod banque;
+pub mod caisse_journal;
 pub mod caisse_scelle;
 pub mod commande;
 pub mod company;
