@@ -115,15 +115,13 @@ fn ventes_du_jour(pool: &Pool, entity: i64, date: &str) -> Result<Vec<Vente>, Bo
             Some(Vente {
                 reference,
                 total_ttc: total
-                    .and_then(|t| Decimal::from_str_exact(&t).ok())
+                    .and_then(|t| t.parse::<Decimal>().ok())
                     .unwrap_or_default(),
                 date: jour.unwrap_or_else(|| date.to_string()),
             })
         })
         .collect())
 }
-
-use std::str::FromStr;
 
 /// Calcule le scellé d'une journée sans rien écrire.
 pub fn calculer(pool: &Pool, entity: i64, date: &str) -> Result<Scelle, Box<dyn Error>> {
@@ -182,6 +180,7 @@ pub fn lire_scelle(pool: &Pool, entity: i64, date: &str) -> Result<Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     fn vente(reference: &str, total: &str) -> Vente {
         Vente {
