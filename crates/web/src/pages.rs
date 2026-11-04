@@ -2692,6 +2692,77 @@ pub async fn fiche_saisie_supprimer(
     Ok(Redirect::to(&format!("/liste/{code}?ok=supprime")))
 }
 
+/// Le journal des evenements : qui s'est connecte, qui a change quoi.
+///
+/// La table `llx_events` existe dans Dolibarr mais son cceur ne la remplit
+/// presque pas : sans cet ecran, un incident de securite ne se raconte pas.
+pub async fn evenements_page(State(app): State<crate::App>) -> Res<Markup> {
+    let entity = crate::entite::courante();
+    let evenements = db::events::recents(&app.pool, entity, 200)?;
+    let types = db::events::par_type(&app.pool, entity)?;
+    let total = db::events::total(&app.pool, entity)?;
+
+    Ok(crate::ui::page(
+        "parametres",
+        "evenements",
+        "Journal des événements",
+        html! {
+            h1 { "Journal des événements" }
+            p .sous-titre {
+                (total.to_string()) " événement(s) sur cette entité. "
+                "Le c\u{153}ur de Dolibarr ne remplit presque pas cette table ; "
+                "ce noyau y consigne les connexions, les échecs et les changements de module."
+            }
+
+            @if types.is_empty() {
+                (crate::ui::vide("Aucun événement consigné sur cette entité.", None))
+            } @else {
+                h2 { "Par type" }
+                table {
+                    thead { tr { th { "Type" } th .num { "Nombre" } } }
+                    tbody {
+                        @for (type_, nombre) in &types {
+                            tr {
+                                td .ref { (type_) }
+                                td .num { (nombre.to_string()) }
+                            }
+                        }
+                    }
+                }
+
+                h2 { "Les 200 derniers" }
+                table {
+                    thead {
+                        tr {
+                            th { "Quand" }
+                            th { "Type" }
+                            th { "Compte" }
+                            th { "Détail" }
+                            th { "Adresse" }
+                        }
+                    }
+                    tbody {
+                        @for e in &evenements {
+                            tr {
+                                td .ref { (e.date.clone()) }
+                                td .ref { (e.type_.clone()) }
+                                td { (e.login.clone().unwrap_or_else(|| "—".into())) }
+                                td { (e.description.clone()) }
+                                td .ref { (e.ip.clone()) }
+                            }
+                        }
+                    }
+                }
+                p style="color:#78736c;font-size:13.5px;margin-top:14px" {
+                    "L'adresse est lue dans " code { "X-Forwarded-For" } " quand un proxy la pose, "
+                    "sinon la connexion locale. Derrière un proxy mal configuré, elle est "
+                    "indicative et non une preuve."
+                }
+            }
+        },
+    ))
+}
+
 /// Toutes les tables de la base, avec leur nombre de lignes.
 ///
 /// C'est le filet de securite du portage : aucune donnee de Dolibarr n'est
