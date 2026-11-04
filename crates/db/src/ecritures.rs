@@ -82,6 +82,9 @@ pub const COMPTE_TVA_COLLECTEE: &str = "445710";
 /// TVA deductible sur les achats.
 pub const COMPTE_TVA_DEDUCTIBLE: &str = "445660";
 
+/// Journal des a-nouveaux.
+pub const JOURNAL_AN: &str = "AN";
+
 /// Journal de banque.
 pub const JOURNAL_BANQUE: &str = "BQ";
 
@@ -657,6 +660,96 @@ pub fn reglement_client(
         lignes,
     };
     // On ne rend pas une ecriture que le moteur refuserait.
+    comptabilite::verifier(&ecriture)?;
+    Ok(ecriture)
+}
+
+/// Ecriture d'**a-nouveaux** : les soldes de l'exercice precedent, reportes.
+///
+/// Une comptabilite qui demarre a zero chaque annee n'est pas probante : le
+/// bilan d'ouverture doit reprendre les soldes de cloture. Cette fonction les
+/// calcule depuis `llx_accounting_bookkeeping` et les porte au journal `AN`.
+///
+/// # Ce qu'elle fait, et ce qu'elle ne fait pas
+///
+/// Elle reprend **tous** les comptes, y compris les comptes de charges et de
+/// produits : l'ecriture s'equilibre donc d'elle-meme (chaque ecriture
+/// d'origine etait equilibree). Le passage du resultat au compte 110
+/// (« report a nouveau ») releve de la **cloture**, qui n'est pas faite ici.
+/// C'est une simplification assumee : un exercice qui garde ses charges
+/// ouvertes n'est pas un exercice clos, mais le bilan d'ouverture, lui, est
+/// juste.
+pub fn a_nouveaux(
+    pool: &Pool,
+    entity: i64,
+    date_ouverture: &str,
+) -> Result<comptabilite::Ecriture, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let lignes: Vec<(String, String, String, String)> = conn.exec(
+        "SELECT numero_compte, COALESCE(label_compte, ''), CAST(debit AS CHAR), \
+                CAST(credit AS CHAR) \
+         FROM llx_accounting_bookkeeping \
+         WHERE entity = :entity AND doc_date < :ouverture \
+         ORDER BY numero_compte ASC",
+        params! { "entity" => entity, "ouverture" => date_ouverture },
+    )?;
+
+    // Solde par compte : debit - credit. Positif = debit.
+    let mut soldes: std::collections::BTreeMap<String, (String, Decimal)> =
+        std::collections::BTreeMap::new();
+    for (compte, libelle, debit, credit) in lignes {
+        let d: Decimal = debit.parse().unwrap_or_default();
+        let c: Decimal = credit.parse().unwrap_or_default();
+        let e = soldes
+            .entry(compte)
+            .or_insert_with(|| (libelle.clone(), Decimal::ZERO));
+        e.1 += d - c;
+    }
+
+    let mut sortie = Vec::new();
+    let mut total_debit = Decimal::ZERO;
+    let mut total_credit = Decimal::ZERO;
+    for (compte, (libelle, solde)) in soldes {
+        if solde == Decimal::ZERO {
+            continue;
+        }
+        let (debit, credit) = if solde > Decimal::ZERO {
+            (solde, Decimal::ZERO)
+        } else {
+            (Decimal::ZERO, -solde)
+        };
+        total_debit += debit;
+        total_credit += credit;
+        sortie.push(comptabilite::Ligne {
+            compte,
+            libelle: if libelle.is_empty() {
+                "A-nouveau".to_string()
+            } else {
+                libelle
+            },
+            debit,
+            credit,
+            journal: JOURNAL_AN.to_string(),
+            date: date_ouverture.to_string(),
+        });
+    }
+
+    if sortie.is_empty() {
+        return Err(format!("aucun solde a reporter a l'ouverture du {date_ouverture}").into());
+    }
+    if total_debit != total_credit {
+        return Err(format!(
+            "les soldes reportes ne s'equilibrent pas : {total_debit} au debit contre {total_credit} au credit"
+        )
+        .into());
+    }
+
+    let ecriture = comptabilite::Ecriture {
+        numero: format!("AN-{date_ouverture}"),
+        date: date_ouverture.to_string(),
+        libelle: format!("A-nouveaux du {date_ouverture}"),
+        lignes: sortie,
+    };
     comptabilite::verifier(&ecriture)?;
     Ok(ecriture)
 }
