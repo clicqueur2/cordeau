@@ -3,6 +3,7 @@
 //! Rendu cote serveur (maud), sans JavaScript. Les actions sont des `POST`
 //! suivis d'une redirection ; le message de confirmation passe par `?ok=`.
 
+mod analytique_ecran;
 mod api;
 mod campagnes;
 mod cloture_ecran;
@@ -316,6 +317,19 @@ async fn main() {
         .route("/comptabilite/grand-livre", get(grand_livre))
         .route("/comptabilite/livre-tenu", get(livre_tenu::page))
         .route("/comptabilite/fec", get(fec_page).post(fec_generer))
+        .route("/comptabilite/analytique", get(analytique_ecran::page))
+        .route(
+            "/comptabilite/analytique/axe",
+            post(analytique_ecran::creer_axe),
+        )
+        .route(
+            "/comptabilite/analytique/compte",
+            post(analytique_ecran::creer_compte),
+        )
+        .route(
+            "/comptabilite/analytique/affecter",
+            post(analytique_ecran::affecter),
+        )
         .route(
             "/comptabilite/cloture",
             get(cloture_ecran::page).post(cloture_ecran::cloturer),
