@@ -108,6 +108,7 @@ pub const MODULES: &[Module] = &[
         entrees: &[
             e("nouveau", "Facture directe", "/factures/nouveau"),
             e("liste", "Liste des factures", "/factures"),
+            e("devises", "Devises", "/devises"),
             e("relances", "Relances et impayés", "/relances"),
             e("paiements", "Saisie des règlements", "/reglements"),
             e("avoirs", "Avoirs", "/avoirs"),
