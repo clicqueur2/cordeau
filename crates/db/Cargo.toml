@@ -13,3 +13,4 @@ money = { path = "../money" }
 auth = { path = "../auth" }
 comptabilite = { path = "../comptabilite" }
 recurrence = { path = "../recurrence" }
+pos = { path = "../pos" }

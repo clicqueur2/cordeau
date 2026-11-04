@@ -32,6 +32,7 @@ pub mod module;
 pub mod party;
 pub mod payment;
 pub mod persist_ecritures;
+pub mod pos_ventes;
 pub mod product;
 pub mod projet;
 pub mod proposal;
