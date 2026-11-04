@@ -121,6 +121,19 @@ Dolibarr**, pas derrière.
 Les quatre premiers tiennent en trois jours et referment les trous les plus
 visibles.
 
+### Fait le 4 novembre
+
+| # | Chantier | Etat |
+|---|---|---|
+| 1 | **Champs libres** | fait — `db::extrafields` + écran `/parametres/extrafields`, lecture des définitions et saisie des `options_*`, garde d'entité, 16 tests, recette réelle |
+| 2 | **Journal des événements** | fait — `db::events` + écran `/parametres/evenements` ; connexion, échec, déconnexion, bascule de module consignés. Un événement sans compte va en entité 0, sinon il serait invisible |
+| 4 | **`einvoice_vatex`** | fait — `facturx::Exoneration`, catégorie déduite du code VATEX, ventilation par motif, règles BR-E-10 et VATEX, lecture de `llx_c_tva` |
+
+Le chantier 4 a corrigé un défaut du contrôleur EN 16931 écrit la veille :
+BT-118 était cherché sous la forme `>S<`, ce qui aurait fait refuser une facture
+entièrement exonérée. Un élément obligatoire se contrôle par sa présence, pas
+par sa valeur d'usage.
+
 ## 5. Ce qu'on ne fera pas
 
 Modules PHP tiers (aucun PHP exécuté, c'est une décision), constructeur de site,
