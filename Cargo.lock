@@ -718,6 +718,7 @@ dependencies = [
  "recurrence",
  "rust_decimal",
  "schema",
+ "sha2",
 ]
 
 [[package]]
