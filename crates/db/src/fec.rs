@@ -129,6 +129,12 @@ pub fn export(pool: &Pool, entity: i64, debut: &str, fin: &str) -> Result<String
         "JournalCode\tJournalLib\tEcritureNum\tEcritureDate\tCompteNum\tCompteLib\tCompAuxNum\tCompAuxLib\tPieceRef\tPieceDate\tEcritureLib\tDebit\tCredit\tEcritureLet\tDateLet\tValidDate\tMontantdevise\tIdevise\n",
     );
 
+    // `EcritureNum` identifie une **ecriture**, pas une ligne : toutes les
+    // lignes d'une meme piece portent le meme numero. Numeroter ligne a ligne
+    // produit un FEC ou chaque ecriture n'a qu'une ligne, donc desagrege :
+    // c'est un motif de rejet (art. L. 47 A-I du LPF, controle « equilibre par
+    // ecriture »). On regroupe donc par (journal, reference de piece, date).
+    let mut numeros: BTreeMap<(String, String, String), i64> = BTreeMap::new();
     let mut compteurs: BTreeMap<String, i64> = BTreeMap::new();
     for r in rows {
         let s = |i: usize| {
@@ -145,13 +151,21 @@ pub fn export(pool: &Pool, entity: i64, debut: &str, fin: &str) -> Result<String
         let debit = Decimal::from_str(s(6).trim()).unwrap_or_default();
         let credit = Decimal::from_str(s(7).trim()).unwrap_or_default();
 
-        let n = compteurs.entry(journal.clone()).or_insert(0);
-        *n += 1;
+        let cle = (journal.clone(), numero_piece.clone(), date.clone());
+        let numero_ecriture = match numeros.get(&cle) {
+            Some(n) => *n,
+            None => {
+                let n = compteurs.entry(journal.clone()).or_insert(0);
+                *n += 1;
+                numeros.insert(cle, *n);
+                *n
+            }
+        };
 
         let champs: Vec<String> = vec![
             journal.clone(),
             libelle_journal(&journal).to_string(),
-            n.to_string(),
+            numero_ecriture.to_string(),
             date.clone(),
             compte,
             libelle_compte,
