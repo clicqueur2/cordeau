@@ -474,8 +474,13 @@ async fn garde(
     if !courant.admin {
         // Un module declaratif peut porter son propre droit : il passe avant
         // la carte du noyau, plus precise sur le chemin.
+        // Lire et ecrire ne sont pas le meme droit : une methode qui modifie
+        // exige le droit d'ecriture du module, pas celui de lecture.
+        let ecriture =
+            req.method() != axum::http::Method::GET && req.method() != axum::http::Method::HEAD;
         let exiges: Vec<i64> = match manifeste::droit_du_chemin(&chemin) {
             Some(id) => vec![id],
+            None if ecriture => db::droit::droits_ecriture_du_chemin(&chemin).to_vec(),
             None => db::droit::droits_du_chemin(&chemin).to_vec(),
         };
         if !exiges.is_empty() {

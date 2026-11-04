@@ -55,7 +55,9 @@ fn cree_relit_liste_et_supprime_un_tiers() -> Result<(), Box<dyn Error>> {
     let lu = db::party::get(&pool, ENTITY, id)?.expect("tiers relu");
     assert_eq!(lu.nom, "SARL Test Dolibarr-RS");
     assert_eq!(lu.entity, ENTITY);
-    assert_eq!(lu.client, db::party::CLIENT_CLIENT);
+    // Un client Dolibarr vaut 3 (client + prospect) : card.php ecrit
+    // client = (customer?1:0) + (prospect?2:0). Verifie dans EXTRACTIONS/tiers.md.
+    assert_eq!(lu.client, 3);
     assert_eq!(lu.town.as_deref(), Some("Charly"));
     assert_eq!(lu.statut, 1);
 
