@@ -628,6 +628,122 @@ pub fn verifier_norme(xml: &str) -> Vec<Manquement> {
     manquants
 }
 
+// ---------------------------------------------------------------------------
+// Les regles metier EN 16931 (famille BR-*).
+//
+// La presence des elements ne suffit pas : les plateformes appliquent aussi
+// les regles de coherence. Ce sont elles qui font refuser une facture
+// « complete mais fausse ». On implemente les regles arithmetiques et de
+// nomenclature qui comptent, en les citant par leur numero.
+// ---------------------------------------------------------------------------
+
+/// Une regle metier violee.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Violation {
+    pub reference: &'static str,
+    pub libelle: &'static str,
+}
+
+/// Verifie les regles metier sur la **facture source** (pas sur le XML :
+/// reparser notre propre sortie pour verifier nos sommes serait un
+/// raisonnement circulaire).
+pub fn regles_metier(facture: &Facture) -> Vec<Violation> {
+    let mut v = Vec::new();
+
+    // BR-16 : au moins une ligne.
+    if facture.lignes.is_empty() {
+        v.push(Violation {
+            reference: "BR-16",
+            libelle: "une facture doit comporter au moins une ligne",
+        });
+    }
+
+    // BR-CO-10 : somme des montants de ligne = BT-106.
+    let somme_lignes: Decimal = facture.lignes.iter().map(|l| l.montant_ht).sum();
+    if somme_lignes.round_dp(2) != facture.total_ht.round_dp(2) {
+        v.push(Violation {
+            reference: "BR-CO-10",
+            libelle: "la somme des lignes ne vaut pas le total HT",
+        });
+    }
+
+    // BR-CO-14 : total TVA = somme des TVA par categorie.
+    let ventilations = ventiler(&facture.lignes);
+    let somme_tva: Decimal = ventilations.iter().map(|t| t.montant).sum();
+    if somme_tva.round_dp(2) != facture.total_tva.round_dp(2) {
+        v.push(Violation {
+            reference: "BR-CO-14",
+            libelle: "le total de TVA ne vaut pas la somme des ventilations",
+        });
+    }
+
+    // BR-CO-15 : TTC = HT + TVA.
+    if (facture.total_ht + facture.total_tva).round_dp(2) != facture.total_ttc.round_dp(2) {
+        v.push(Violation {
+            reference: "BR-CO-15",
+            libelle: "le total TTC ne vaut pas HT + TVA",
+        });
+    }
+
+    // BR-DEC-01 et suivantes : deux decimales au plus sur les montants.
+    let deux_decimales = |m: Decimal| m == m.round_dp(2);
+    if !deux_decimales(facture.total_ht)
+        || !deux_decimales(facture.total_tva)
+        || !deux_decimales(facture.total_ttc)
+    {
+        v.push(Violation {
+            reference: "BR-DEC",
+            libelle: "un montant porte plus de deux decimales",
+        });
+    }
+
+    // BR-CL-03 : la devise est un code ISO 4217 (trois lettres).
+    let devise = facture.devise.trim();
+    if !devise.is_empty() && !(devise.len() == 3 && devise.chars().all(|c| c.is_ascii_uppercase()))
+    {
+        v.push(Violation {
+            reference: "BR-CL-03",
+            libelle: "la devise doit etre un code ISO 4217",
+        });
+    }
+
+    // BR-S-08 : dans la categorie « S », une ventilation par taux, avec un
+    // taux positif. Un taux negatif n'a pas de sens.
+    for ligne in &facture.lignes {
+        if ligne.taux_tva < Decimal::ZERO {
+            v.push(Violation {
+                reference: "BR-S-08",
+                libelle: "un taux de TVA ne peut pas etre negatif",
+            });
+            break;
+        }
+    }
+
+    // Une quantite nulle n'a pas de sens dans une facture.
+    if facture.lignes.iter().any(|l| l.quantite <= Decimal::ZERO) {
+        v.push(Violation {
+            reference: "BR-21",
+            libelle: "une ligne porte une quantite nulle ou negative",
+        });
+    }
+
+    // BR-06 / BR-07 : les noms sont obligatoires.
+    if facture.vendeur.nom.trim().is_empty() {
+        v.push(Violation {
+            reference: "BR-06",
+            libelle: "le vendeur doit etre nomme",
+        });
+    }
+    if facture.acheteur.nom.trim().is_empty() {
+        v.push(Violation {
+            reference: "BR-07",
+            libelle: "l'acheteur doit etre nomme",
+        });
+    }
+
+    v
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -749,6 +865,38 @@ mod tests {
         let x = xml(&facture(), Profil::En16931).unwrap();
         let manquants = verifier_norme(&x);
         assert!(manquants.is_empty(), "elements manquants : {:?}", manquants);
+    }
+
+    #[test]
+    fn une_facture_juste_ne_viole_aucune_regle() {
+        let v = regles_metier(&facture());
+        assert!(v.is_empty(), "violations : {:?}", v);
+    }
+
+    #[test]
+    fn une_facture_fausse_est_rejetee_par_les_regles() {
+        // BR-CO-15 : TTC incoherent.
+        let mut f = facture();
+        f.total_ttc = d("1300");
+        assert!(regles_metier(&f).iter().any(|v| v.reference == "BR-CO-15"));
+
+        // BR-CO-10 : somme des lignes fausse.
+        let mut f2 = facture();
+        f2.total_ht = d("900");
+        let v2 = regles_metier(&f2);
+        assert!(v2.iter().any(|v| v.reference == "BR-CO-10"));
+        // et le TTC devient faux aussi, par ricochet : les deux sont signalees.
+        assert!(v2.iter().any(|v| v.reference == "BR-CO-15"));
+
+        // BR-CL-03 : devise qui n'est pas un code ISO.
+        let mut f3 = facture();
+        f3.devise = "euros".into();
+        assert!(regles_metier(&f3).iter().any(|v| v.reference == "BR-CL-03"));
+
+        // BR-DEC : trois decimales.
+        let mut f4 = facture();
+        f4.total_ht = d("1000.005");
+        assert!(regles_metier(&f4).iter().any(|v| v.reference == "BR-DEC"));
     }
 
     #[test]
