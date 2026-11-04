@@ -667,6 +667,95 @@ pub fn create_from_proposal(
 /// Le lien est pose dans `llx_element_element` (`commande` -> `facture`) et la
 /// commande n'est facturable qu'une fois : deux factures pour la meme commande,
 /// c'est une double facturation.
+/// Cree la facture d'acompte d'une commande, si elle en demande un.
+///
+/// Dolibarr le fait dans `Facture::createDepositFromOrigin` : une facture de
+/// type 3 (acompte), **une ligne par taux de TVA**, valant `deposit_percent` du
+/// TTC de chaque taux. Sans cela, `deposit_percent` s'imprime sur le PDF sans
+/// qu'aucune facture ne le réclame — c'est l'écart relevé dans
+/// `EXTRACTIONS/commande.md`.
+///
+/// Garde anti-doublon : la référence externe `AC-<ref commande>` est unique.
+pub fn create_deposit_from_commande(
+    pool: &Pool,
+    entity: i64,
+    fk_commande: i64,
+) -> Result<i64, Box<dyn Error>> {
+    use std::collections::BTreeMap;
+
+    let commande = crate::commande::get(pool, entity, fk_commande)?
+        .ok_or_else(|| format!("commande {fk_commande} introuvable dans l'entite {entity}"))?;
+    let pct = commande
+        .deposit_percent
+        .filter(|p| *p > Decimal::ZERO)
+        .ok_or("cette commande ne demande pas d'acompte")?;
+    let fk_soc = commande.fk_soc;
+
+    let marque = format!("AC-{}", commande.ref_);
+    let mut conn = pool.get_conn()?;
+    let deja: Option<i64> = conn.exec_first(
+        "SELECT rowid FROM llx_facture WHERE entity = :entity AND ref_ext = :marque LIMIT 1",
+        params! { "entity" => entity, "marque" => marque.as_str() },
+    )?;
+    if let Some(id) = deja {
+        return Err(format!("un acompte existe deja pour cette commande (facture {id})").into());
+    }
+
+    // On ventile le TTC par taux : l'acompte se demande sur chaque taux, pas
+    // sur un total unique (sinon la TVA de l'acompte serait fausse).
+    let lignes = crate::commande::lines(pool, entity, fk_commande)?;
+    let mut par_taux: BTreeMap<String, (Decimal, Decimal)> = BTreeMap::new();
+    for l in &lignes {
+        if l.product_type == 9 {
+            continue; // titre de section : sans montant
+        }
+        let ttc = l.total_ttc.unwrap_or_default();
+        let taux = l.tva_tx.unwrap_or_default();
+        let e = par_taux
+            .entry(taux.normalize().to_string())
+            .or_insert((taux, Decimal::ZERO));
+        e.1 += ttc;
+    }
+    if par_taux.is_empty() {
+        return Err("la commande n'a aucune ligne facturable".into());
+    }
+
+    let mut new = NewInvoice::new(fk_soc);
+    new.fk_cond_reglement = commande.fk_cond_reglement;
+    for (libelle_taux, (taux, ttc)) in &par_taux {
+        let montant = money::round_money(*ttc * pct / Decimal::from(100));
+        if montant <= Decimal::ZERO {
+            continue;
+        }
+        // Le prix unitaire est un HT : on retire la TVA du montant TTC calcule.
+        let ht = money::round_money(montant / (Decimal::ONE + *taux / Decimal::from(100)));
+        let mut ligne = NewInvoiceLine::new(
+            &format!("Acompte {} % - TVA {} %", pct.normalize(), libelle_taux),
+            Decimal::ONE,
+            ht,
+            *taux,
+        );
+        ligne.description = Some(format!("Commande {}", commande.ref_));
+        new.lines.push(ligne);
+    }
+    if new.lines.is_empty() {
+        return Err("l'acompte calcule est nul".into());
+    }
+
+    let id = create(pool, entity, &new)?;
+    conn.exec_drop(
+        "UPDATE llx_facture SET type = :type, ref_ext = :marque, tms = NOW() \
+         WHERE entity = :entity AND rowid = :id",
+        params! {
+            "type" => TYPE_ACOMPTE,
+            "marque" => marque.as_str(),
+            "entity" => entity,
+            "id" => id,
+        },
+    )?;
+    Ok(id)
+}
+
 pub fn create_from_commande(
     pool: &Pool,
     entity: i64,
