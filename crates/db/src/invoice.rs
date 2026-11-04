@@ -476,14 +476,18 @@ fn create_sous_verrou(
             .exec_first("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')", ())?
             .unwrap_or_default(),
     };
+    // `MIN(rowid)` rend NULL quand la table est vide : decoder en i64 ferait
+    // paniquer le pilote MySQL (`exec_first::<i64>` sur NULL). On lit donc un
+    // `Option<Option<i64>>` et on traite l'absence comme une erreur lisible.
+    let termine: Option<Option<i64>> = conn.exec_first(
+        "SELECT MIN(rowid) FROM llx_c_payment_term \
+         WHERE active = 1 AND (entity = :entity OR entity = 0)",
+        params! { "entity" => entity },
+    )?;
     let cond: i64 = match new.fk_cond_reglement {
         Some(c) => c,
-        None => conn
-            .exec_first(
-                "SELECT MIN(rowid) FROM llx_c_payment_term \
-                 WHERE active = 1 AND (entity = :entity OR entity = 0)",
-                params! { "entity" => entity },
-            )?
+        None => termine
+            .flatten()
             .ok_or("aucune condition de reglement dans llx_c_payment_term")?,
     };
     let echeance: String = match new.date_lim_reglement.as_deref() {
