@@ -779,6 +779,7 @@ dependencies = [
  "recurrence",
  "rust_decimal",
  "schema",
+ "serde_json",
  "sha2",
 ]
 

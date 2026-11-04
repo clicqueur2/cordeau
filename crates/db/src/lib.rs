@@ -24,6 +24,7 @@ pub mod divers;
 pub mod droit;
 pub mod ecritures;
 pub mod ecritures_tva;
+pub mod extrafields;
 pub mod fec;
 pub mod ged;
 pub mod grand_livre;
