@@ -14,5 +14,6 @@ auth = { path = "../auth" }
 comptabilite = { path = "../comptabilite" }
 recurrence = { path = "../recurrence" }
 pos = { path = "../pos" }
+mrp = { path = "../mrp" }
 sha2 = { workspace = true }
 serde_json = { workspace = true }
