@@ -120,9 +120,8 @@ fn le_scelle_rend_une_falsification_visible() -> Result<(), Box<dyn Error>> {
 
     // 5. Un scellé déjà posé n'est jamais écrasé : resceller ne répare pas.
     let rescelle = db::caisse_scelle::sceller(&pool, ENTITY, JOUR)?;
-    assert_eq!(
+    assert!(
         rescelle.empreinte_enregistree.is_some(),
-        true,
         "un scelle existant est relu, pas remplace"
     );
     assert_eq!(rescelle.intact(), Some(false));
