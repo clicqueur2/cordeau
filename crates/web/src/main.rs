@@ -3,6 +3,7 @@
 //! Rendu cote serveur (maud), sans JavaScript. Les actions sont des `POST`
 //! suivis d'une redirection ; le message de confirmation passe par `?ok=`.
 
+mod actions_masse;
 mod analytique_ecran;
 mod api;
 mod campagnes;
@@ -178,6 +179,7 @@ async fn main() {
             axum::routing::post(produit_enregistrer),
         )
         .route("/devis", get(devis))
+        .route("/devis/actions", post(actions_masse::devis))
         .route("/devis/:id", get(devis_fiche))
         .route("/devis/:id/pdf", get(devis_pdf))
         .route("/devis/:id/facturer", post(devis_facturer))
@@ -190,6 +192,7 @@ async fn main() {
         .route("/commandes/:id/acompte", post(commande_acompte))
         .route("/commandes/:id/pdf", get(commande_pdf))
         .route("/factures", get(factures))
+        .route("/factures/actions", post(actions_masse::factures))
         .route("/factures/:id", get(factures_fiche))
         .route("/factures/:id/pdf", get(factures_pdf))
         .route("/factures/:id/valider", post(factures_valider))
@@ -1185,6 +1188,16 @@ async fn devis(State(app): State<App>) -> Res<Markup> {
         html! {
             h1 { "Devis" }
             p .sous-titre { (listes.len()) " devis" }
+            // Le formulaire est declare a part et les cases s'y rattachent par
+            // leur attribut `form` : un formulaire ne peut pas entourer une
+            // partie de tableau, et on ne va pas imbriquer des tables.
+            form id="actions-devis" method="post" action="/devis/actions" {}
+            div .actions {
+                button type="submit" form="actions-devis" name="action" value="valider" { "Valider la sélection" }
+                span style="color:#78736c;font-size:13.5px" {
+                    "Seuls les devis en brouillon sont cochables."
+                }
+            }
             @if listes.is_empty() {
                 (ui::vide("Aucun devis.", None))
             } @else {
@@ -1193,7 +1206,15 @@ async fn devis(State(app): State<App>) -> Res<Markup> {
                     tbody {
                         @for d in &listes {
                             tr {
-                                td .ref { a href={ "/devis/" (d.rowid) } { (d.ref_) } }
+                                td .ref {
+                                    @if d.fk_statut == 0 {
+                                        input type="checkbox" name={"id_" (d.rowid)}
+                                              value="1" form="actions-devis"
+                                              aria-label="sélectionner ce devis";
+                                        " "
+                                    }
+                                    a href={ "/devis/" (d.rowid) } { (d.ref_) }
+                                }
                                 td { (nom_tiers(p, d.fk_soc)?) }
                                 td .num { (ui::euros(d.total_ht.unwrap_or_default())) }
                                 td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
@@ -1411,6 +1432,13 @@ async fn factures(State(app): State<App>) -> Res<Markup> {
         html! {
             h1 { "Factures" }
             p .sous-titre { (listes.len()) " facture(s)" }
+            form id="actions-factures" method="post" action="/factures/actions" {}
+            div .actions {
+                button type="submit" form="actions-factures" name="action" value="valider" { "Valider la sélection" }
+                span style="color:#78736c;font-size:13.5px" {
+                    "Seules les factures en brouillon sont cochables."
+                }
+            }
             @if listes.is_empty() {
                 (ui::vide("Aucune facture.", Some(("/devis", "Partir d'un devis"))))
             } @else {
@@ -1419,7 +1447,15 @@ async fn factures(State(app): State<App>) -> Res<Markup> {
                     tbody {
                         @for f in &listes {
                             tr {
-                                td .ref { a href={ "/factures/" (f.rowid) } { (f.ref_) } }
+                                td .ref {
+                                    @if f.fk_statut == 0 {
+                                        input type="checkbox" name={"id_" (f.rowid)}
+                                              value="1" form="actions-factures"
+                                              aria-label="sélectionner cette facture";
+                                        " "
+                                    }
+                                    a href={ "/factures/" (f.rowid) } { (f.ref_) }
+                                }
                                 td { (nom_tiers(p, f.fk_soc)?) }
                                 td { (f.date_lim_reglement.clone().unwrap_or_default()) }
                                 td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
