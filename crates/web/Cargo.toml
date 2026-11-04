@@ -17,6 +17,7 @@ app = { path = "../app" }
 db = { path = "../db" }
 mail = { path = "../mail" }
 sepa = { path = "../sepa" }
+pos = { path = "../pos" }
 greffons = { path = "../greffons" }
 money = { path = "../money" }
 legal = { path = "../legal" }

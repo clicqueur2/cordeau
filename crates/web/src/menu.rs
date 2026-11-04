@@ -60,6 +60,7 @@ pub const MODULES: &[Module] = &[
             e("nouveau", "Nouveau produit", "/produits/nouveau"),
             e("liste", "Catalogue", "/produits"),
             e("stock", "Stock", "/stock"),
+            e("caisse", "Caisse", "/caisse"),
             e("categories", "Catégories", "/liste/Categorie"),
             e("lots", "Lots et séries", "/liste/ProductBatch"),
             e("nouveau-lot", "Nouveau lot", "/liste/ProductBatch/nouveau"),

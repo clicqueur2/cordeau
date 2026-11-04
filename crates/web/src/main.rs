@@ -13,6 +13,7 @@ mod menu;
 mod menu_actif;
 mod pages;
 mod plugin;
+mod pos_ecran;
 mod recur_ecran;
 mod sepa_ecran;
 pub(crate) mod ui;
@@ -162,6 +163,10 @@ async fn main() {
         .route("/tiers", get(tiers))
         .route("/tiers/:id", get(tiers_fiche))
         .route("/produits", get(produits))
+        .route("/caisse", get(pos_ecran::page))
+        .route("/caisse/ajouter", post(pos_ecran::ajouter))
+        .route("/caisse/vider", post(pos_ecran::vider))
+        .route("/caisse/encaisser", post(pos_ecran::encaisser))
         .route("/produits/:id", get(produit_fiche))
         .route(
             "/produits/:id/modifier",
