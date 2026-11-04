@@ -79,10 +79,40 @@ plateforme, et le maintenir. Coût : une semaine par PA, sans fin.
 Certains acteurs (B2BRouter, Super PDP, Tiime) revendent l'accès à plusieurs
 plateformes derrière une API unique. Coût : un abonnement, une intégration.
 
-Mon avis, et il ne change pas depuis trois jours : **A d'abord**. Le jour où un
-utilisateur te dira « je suis chez Pennylane, peux-tu pousser directement ? »,
-alors B ou C se justifiera — avec son API sous les yeux. Écrire un connecteur
-pour une plateforme qu'on n'a pas encore vue, c'est travailler à l'aveugle.
+**D — la norme AFNOR XP Z12-013. C'est la bonne réponse, et elle rend C inutile.**
+
+La commission AFNOR Facture Électronique a publié une **API REST commune**
+entre les logiciels et les plateformes agréées : XP Z12-013, 43 pages,
+**consultation gratuite** chez AFNOR, contrats Swagger fournis en annexe.
+Elle couvre quatre familles de flux : émission et réception de factures
+(Flux 2), statuts de cycle de vie (Flux 6), e-reporting (Flux 10), annuaire
+(Flux 11 et 12). Authentification OAuth2, routes obligatoires définies.
+
+**84 % des plateformes agréées** déclarent l'implémenter (sondage DGFiP
+présenté à la Journée de la facture électronique du 5 mai 2026). Application
+volontaire — le préfixe XP désigne une norme expérimentale — mais adhesion
+massive : c'est un standard de fait.
+
+Conséquence directe : **un seul développement donne accès à toutes les
+plateformes qui l'exposent.** Pas d'agrégateur, pas d'abonnement, pas de
+verrou technique, pas de connecteur à maintenir par plateforme.
+
+C'est implémenté : `crates/einvoicing` fournit le client (authentification,
+émission, statut, annuaire), un **transport remplaçable** — donc testable sans
+réseau ni compte — et les routes **paramétrables**, parce que la norme en est
+à sa troisième version en neuf mois.
+
+Ce que la norme ne règle pas : l'interopérabilité **entre** plateformes passe
+par le réseau **Peppol** et les spécifications externes de l'AIFRE. C'est leur
+affaire, pas la nôtre.
+
+Les 16 % restants : la DGFiP recommande de demander **par écrit** à sa
+plateforme si l'API XP Z12-013 est implémentée, dans quelle version, et selon
+quel calendrier. Une réponse évasive signale un risque d'enfermement.
+
+Mon avis reste : **A pour démarrer tout de suite** (le fichier part à la main),
+**D dès qu'un compte existe** (l'API prend le relais). C n'apporte rien que D
+n'apporte gratuitement.
 
 ## Ce que ça change dans `CONFORMITE-LEGALE-ERP.md`
 
@@ -90,7 +120,8 @@ pour une plateforme qu'on n'a pas encore vue, c'est travailler à l'aveugle.
 |---|---|---|
 | Format Factur-X | absent | **CII produit, PDF porteur** |
 | Règles EN 16931 | non vérifiées | **vérifiées** |
-| Plateforme agréée | absente | **à choisir — c'est une décision, pas du code** |
+| Plateforme agréée | absente | **client XP Z12-013 écrit, compte à ouvrir** |
+| API standard AFNOR | absente | **XP Z12-013 implémentée** (`crates/einvoicing`) |
 | PDF/A-3 strict | absent | absent (voir note) |
 
 ## Le point sur PDF/A-3, dit simplement
