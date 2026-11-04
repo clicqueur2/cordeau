@@ -177,6 +177,7 @@ async fn main() {
         .route("/commandes/:id", get(commande_fiche))
         .route("/commandes/:id/valider", post(commande_valider))
         .route("/commandes/:id/facturer", post(commande_facturer))
+        .route("/commandes/:id/acompte", post(commande_acompte))
         .route("/commandes/:id/pdf", get(commande_pdf))
         .route("/factures", get(factures))
         .route("/factures/:id", get(factures_fiche))
@@ -2599,6 +2600,7 @@ async fn commande_fiche(
     let c = db::commande::get(p, entite::courante(), id)?
         .ok_or(Erreur("Commande introuvable".into()))?;
     let lignes = db::commande::lines(p, entite::courante(), id)?;
+    let acompte_existe = db::invoice::acompte_existe(&app.pool, entite::courante(), &c.ref_)?;
 
     Ok(ui::page(
         "commandes",
@@ -2637,6 +2639,13 @@ async fn commande_fiche(
                         button type="submit" { "Facturer la commande" }
                     }
                 }
+                @if c.deposit_percent.unwrap_or_default() > rust_decimal::Decimal::ZERO && !acompte_existe {
+                    form method="post" action={ "/commandes/" (id) "/acompte" } {
+                        button type="submit" {
+                            "Créer l'acompte (" (app::fmt_qte(c.deposit_percent)) " %)"
+                        }
+                    }
+                }
                 a .bouton.secondaire href={ "/commandes/" (id) "/pdf" } { "Télécharger le PDF" }
                 a .bouton.secondaire href="/commandes" { "Retour" }
             }
@@ -2652,6 +2661,12 @@ async fn commande_pdf(State(app): State<App>, Path(id): Path<i64>) -> Res<Respon
 async fn commande_facturer(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
     let facture = db::invoice::create_from_commande(&app.pool, entite::courante(), id)?;
     Ok(Redirect::to(&format!("/factures/{facture}?ok=facturee")))
+}
+
+/// Cree la facture d'acompte d'une commande (type 3, une ligne par taux).
+async fn commande_acompte(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
+    let facture = db::invoice::create_deposit_from_commande(&app.pool, entite::courante(), id)?;
+    Ok(Redirect::to(&format!("/factures/{facture}?ok=acompte")))
 }
 
 async fn commande_valider(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
