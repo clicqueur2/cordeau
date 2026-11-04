@@ -8,6 +8,7 @@ mod analytique_ecran;
 mod api;
 mod campagnes;
 mod cloture_ecran;
+mod devises_ecran;
 mod entite;
 mod extrafields_ecran;
 pub(crate) mod journal_erreurs;
@@ -193,6 +194,8 @@ async fn main() {
         .route("/commandes/:id/pdf", get(commande_pdf))
         .route("/factures", get(factures))
         .route("/factures/actions", post(actions_masse::factures))
+        .route("/devises", get(devises_ecran::page))
+        .route("/devises/figer", post(devises_ecran::figer))
         .route("/factures/:id", get(factures_fiche))
         .route("/factures/:id/pdf", get(factures_pdf))
         .route("/factures/:id/valider", post(factures_valider))
