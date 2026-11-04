@@ -370,22 +370,17 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
         paiement = {
             let mut s = String::new();
             if let Some(code) = &facture.moyen_paiement {
-                let _ = write!(
-                    s,
-                    "      <ram:SpecifiedTradeSettlementPaymentMeans>\
-                     <ram:TypeCode>{}</ram:TypeCode>\n",
-                    echappe(code)
-                );
+                s.push_str("      <ram:SpecifiedTradeSettlementPaymentMeans>");
+                let _ = write!(s, "<ram:TypeCode>{}</ram:TypeCode>", echappe(code));
                 if let Some(iban) = &facture.iban {
                     let _ = write!(
                         s,
-                        "        <ram:PayeePartyCreditorFinancialAccount>\
-                         <ram:IBANID>{}</ram:IBANID>\
-                         </ram:PayeePartyCreditorFinancialAccount>\n",
+                        "<ram:PayeePartyCreditorFinancialAccount><ram:IBANID>{}</ram:IBANID>\
+                         </ram:PayeePartyCreditorFinancialAccount>",
                         echappe(iban)
                     );
                 }
-                s.push_str("      </ram:SpecifiedTradeSettlementPaymentMeans>\n");
+                let _ = writeln!(s, "</ram:SpecifiedTradeSettlementPaymentMeans>");
             }
             s
         },
