@@ -25,7 +25,6 @@
 //! - pas de PDF/A-3, donc pas de Factur-X complet au sens strict ;
 //! - pas de plateforme agréée : c'est un partenariat, pas du code.
 
-use std::error::Error;
 use std::fmt::Write as _;
 
 use rust_decimal::Decimal;
@@ -253,7 +252,7 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
         date102 = facture.date.replace('-', ""),
     );
 
-    let _ = write!(x, concat!("  <rsm:SupplyChainTradeTransaction>\n",),);
+    let _ = writeln!(x, "  <rsm:SupplyChainTradeTransaction>");
 
     // Lignes.
     for (i, l) in facture.lignes.iter().enumerate() {
@@ -367,7 +366,7 @@ pub fn xml(facture: &Facture, profil: Profil) -> Result<String, Erreur> {
     // Le profil figure dans le nom du fichier et dans le PDF ; le XML garde la
     // meme racine. On le note pourtant en commentaire : une facture MINIMUM
     // n'a pas la meme exigence qu'une EN 16931.
-    let _ = write!(x, "<!-- profil {} -->\n", profil.code());
+    let _ = writeln!(x, "<!-- profil {} -->", profil.code());
     Ok(x)
 }
 
