@@ -60,6 +60,7 @@ pub mod recurrence;
 pub mod reglement;
 pub mod relance;
 pub mod sauvegarde;
+pub mod securite;
 pub mod sepa;
 pub mod situation;
 pub mod stats;
