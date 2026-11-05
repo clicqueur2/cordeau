@@ -678,6 +678,14 @@ pub fn create_from_proposal(
     Ok(id)
 }
 
+/// L'acompte facture d'une commande : son numero, sa reference, et le montant
+/// hors taxes **par taux de TVA**.
+///
+/// `(numero, reference, [(taux, (hors taxes, remise))])`. L'alias n'est pas
+/// cosmetique : `clippy` refuse un type compose dans une signature, et cette
+/// forme se relit mal.
+type AcompteDeCommande = (i64, String, Vec<(Decimal, (Decimal, Decimal))>);
+
 /// Cree une facture a partir d'une commande validee.
 ///
 /// Le lien est pose dans `llx_element_element` (`commande` -> `facture`) et la
@@ -695,6 +703,53 @@ pub fn create_from_proposal(
 /// Une facture d'acompte existe-t-elle deja pour cette commande ?
 ///
 /// `web` n'a pas acces a MySQL directement : la verification se fait ici.
+/// L'acompte facture d'une commande : son numero, sa reference, et le montant
+/// hors taxes **par taux de TVA**.
+///
+/// Le montant par taux, et non un total : deduire un total unique obligerait a
+/// le ventiler a la main sur les lignes de la facture finale, et la TVA de la
+/// deduction serait fausse des qu'une affaire melange deux taux.
+///
+/// Rend `None` quand aucun acompte n'existe — ce n'est pas une erreur, c'est le
+/// cas ordinaire d'une commande facturee en une fois.
+fn acompte_de_commande(
+    pool: &Pool,
+    entity: i64,
+    ref_commande: &str,
+) -> Result<Option<AcompteDeCommande>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let marque = format!("AC-{ref_commande}");
+    let trouve: Option<(i64, String)> = conn.exec_first(
+        "SELECT rowid, ref FROM llx_facture \
+         WHERE entity = :entity AND ref_ext = :marque LIMIT 1",
+        params! { "entity" => entity, "marque" => marque.as_str() },
+    )?;
+    let Some((id, reference)) = trouve else {
+        return Ok(None);
+    };
+    drop(conn);
+
+    // On relit les lignes de l'acompte plutot que de recalculer le pourcentage :
+    // si l'acompte a ete modifie a la main, c'est ce qui a ete facture qui se
+    // deduit, pas ce qu'on croit avoir facture.
+    let lignes = lines(pool, entity, id)?;
+    let mut par_taux: std::collections::BTreeMap<String, (Decimal, (Decimal, Decimal))> =
+        std::collections::BTreeMap::new();
+    for l in &lignes {
+        if l.product_type == 9 {
+            continue;
+        }
+        let taux = l.tva_tx.unwrap_or_default();
+        let ht = l.total_ht.unwrap_or_default();
+        let e = par_taux
+            .entry(taux.normalize().to_string())
+            .or_insert((taux, (Decimal::ZERO, Decimal::ZERO)));
+        e.1 .0 += ht;
+        e.1 .1 += l.remise_percent.unwrap_or_default();
+    }
+    Ok(Some((id, reference, par_taux.into_values().collect())))
+}
+
 pub fn acompte_existe(
     pool: &Pool,
     entity: i64,
@@ -823,6 +878,7 @@ pub fn create_from_commande(
     new.note_private = commande.note_private.clone();
     new.note_public = commande.note_public.clone();
     new.fk_cond_reglement = commande.fk_cond_reglement;
+
     new.lines = lignes
         .iter()
         .filter(|l| !l.is_section())
@@ -837,6 +893,30 @@ pub fn create_from_commande(
             section: None,
         })
         .collect();
+
+    // L'acompte deja facture se deduit de la facture finale. Sans cette
+    // deduction, le client paie deux fois la part de l'acompte : le total de la
+    // facture finale est le prix plein, alors qu'il a deja regle un tiers.
+    {
+        let acompte = acompte_de_commande(pool, entity, &commande.ref_)?;
+        if let Some((acompte_id, acompte_ref, parts)) = acompte {
+            for (taux, (ht, _remise)) in parts {
+                new.lines.push(NewInvoiceLine {
+                    fk_product: None,
+                    label: format!("Acompte déjà facturé ({acompte_ref})"),
+                    description: Some(format!("Déduction de la facture d'acompte n° {acompte_id}")),
+                    qty: Decimal::ONE,
+                    // La dedution est negative : c'est une ligne de facture, pas
+                    // un avoir. Un avoir changerait le chiffre d'affaires, une
+                    // deduction le ramene au juste montant.
+                    unit_price: -ht,
+                    tva_tx: taux,
+                    remise_percent: Decimal::ZERO,
+                    section: None,
+                });
+            }
+        }
+    }
 
     let id = create(pool, entity, &new)?;
 
