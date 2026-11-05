@@ -48,6 +48,7 @@ pub mod party;
 pub mod payment;
 pub mod pdf_modele;
 pub mod persist_ecritures;
+pub mod planification;
 pub mod pos_ventes;
 pub mod product;
 pub mod projet;

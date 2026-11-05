@@ -26,6 +26,7 @@ mod modeles_ecran;
 mod mrp_ecran;
 mod pages;
 mod pdf_modele_ecran;
+mod planification_ecran;
 mod plugin;
 mod pos_ecran;
 mod rapprochement_ecran;
@@ -338,6 +339,14 @@ async fn main() {
         .route("/recurrences", get(recur_ecran::page))
         .route("/recurrences/generer", post(recur_ecran::generer))
         .route("/parametres/greffons", get(pages::greffons_page))
+        .route(
+            "/parametres/planification",
+            get(planification_ecran::page).post(planification_ecran::programmer),
+        )
+        .route(
+            "/parametres/planification/desactiver",
+            post(planification_ecran::desactiver),
+        )
         .route(
             "/parametres/modeles-pdf",
             get(pdf_modele_ecran::page).post(pdf_modele_ecran::enregistrer),
