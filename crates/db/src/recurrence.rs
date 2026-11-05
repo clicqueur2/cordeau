@@ -438,8 +438,283 @@ pub fn marquer_emise(
     Ok(())
 }
 
+/// L'en-tete d'une facture, tel qu'on le recopie dans la serie :
+/// `(tiers, ht, tva, ttc, condition, compte, auteur)`.
+type EnteteFacture = (
+    i64,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<i64>,
+    Option<i64>,
+    i64,
+);
+
+/// Cree une serie de factures recurrentes a partir d'une facture existante.
+///
+/// Dolibarr garde le modele dans `llx_facture_rec` (en-tete) et
+/// `llx_facturedet_rec` (lignes) : c'est une **copie** de la facture, pas un
+/// lien vers elle. Modifier la facture d'origine ne change donc rien a la serie,
+/// et c'est voulu — une mensualite ne doit pas bouger parce qu'on a corrige la
+/// premiere.
+///
+/// `unite` : `d` jour, `w` semaine, `m` mois, `y` annee. `frequence` est le
+/// nombre d'unites entre deux emissions (1 = tous les mois, 3 = tous les
+/// trimestres). `maximum` a 0 = sans fin.
+pub fn depuis_facture(
+    pool: &Pool,
+    entity: i64,
+    fk_facture: i64,
+    titre: &str,
+    prochaine: &str,
+    periodicite: (i32, &str),
+    maximum: i32,
+) -> Result<i64, Box<dyn Error>> {
+    let (frequence, unite) = periodicite;
+    if frequence <= 0 {
+        return Err("la frequence doit etre superieure a zero".into());
+    }
+    if !matches!(unite, "d" | "w" | "m" | "y") {
+        return Err(format!("unite de frequence inconnue : {unite}").into());
+    }
+    if prochaine.len() != 10 {
+        return Err("la prochaine echeance doit etre au format AAAA-MM-JJ".into());
+    }
+    let titre = if titre.trim().is_empty() {
+        "Serie de factures".to_string()
+    } else {
+        titre.trim().to_string()
+    };
+
+    let mut conn = pool.get_conn()?;
+    let entete: Option<EnteteFacture> = conn.exec_first(
+        "SELECT fk_soc, CAST(total_ht AS CHAR), CAST(total_tva AS CHAR), \
+                CAST(total_ttc AS CHAR), fk_cond_reglement, fk_account, fk_user_author \
+         FROM llx_facture WHERE entity = :entity AND rowid = :id",
+        params! { "entity" => entity, "id" => fk_facture },
+    )?;
+    let Some((fk_soc, ht, tva, ttc, cond, compte, auteur)) = entete else {
+        return Err(format!("facture {fk_facture} introuvable").into());
+    };
+
+    let mut tx = conn.start_transaction(mysql::TxOpts::default())?;
+    tx.exec_drop(
+        "INSERT INTO llx_facture_rec \
+           (titre, entity, fk_soc, datec, amount, total_ht, total_tva, total_ttc, \
+            fk_cond_reglement, fk_account, date_when, frequency, unit_frequency, \
+            nb_gen_done, nb_gen_max, fk_user_author) \
+         VALUES (:titre, :entity, :soc, NOW(), :ttc, :ht, :tva, :ttc, \
+                 :cond, :compte, :prochaine, :freq, :unite, 0, :max, :auteur)",
+        params! {
+            "titre" => titre,
+            "entity" => entity,
+            "soc" => fk_soc,
+            "ht" => ht.unwrap_or_else(|| "0".into()),
+            "tva" => tva.unwrap_or_else(|| "0".into()),
+            "ttc" => ttc.unwrap_or_else(|| "0".into()),
+            // `fk_cond_reglement` est NOT NULL sans defaut : 0 veut dire
+            // « non precise », ce qui vaut mieux qu'une valeur inventee.
+            "cond" => cond.unwrap_or(0),
+            "compte" => compte,
+            "prochaine" => format!("{prochaine} 00:00:00"),
+            "freq" => frequence,
+            "unite" => unite,
+            "max" => maximum.max(0),
+            // L'auteur de la serie est celui de la facture : la colonne porte une
+            // cle etrangere, et 0 y est refuse.
+            "auteur" => auteur,
+        },
+    )?;
+    let id = tx.last_insert_id().unwrap_or(0) as i64;
+
+    // Les lignes, telles quelles. Le modele est une copie figee.
+    tx.exec_drop(
+        "INSERT INTO llx_facturedet_rec \
+           (fk_facture, fk_product, product_type, description, subprice, tva_tx, \
+            qty, total_ht, total_tva, total_ttc, fk_unit) \
+         SELECT :id, fk_product, product_type, description, subprice, tva_tx, \
+                qty, total_ht, total_tva, total_ttc, fk_unit \
+         FROM llx_facturedet WHERE fk_facture = :source",
+        params! { "id" => id, "source" => fk_facture },
+    )?;
+
+    // Une facture sans ligne ne ferait pas une serie utile.
+    let n: Option<i64> = tx.exec_first(
+        "SELECT COUNT(*) FROM llx_facturedet_rec WHERE fk_facture = :id",
+        params! { "id" => id },
+    )?;
+    if n.unwrap_or(0) == 0 {
+        return Err("la facture n'a aucune ligne : rien a recopier".into());
+    }
+
+    tx.commit()?;
+    Ok(id)
+}
+
+#[cfg(test)]
+mod tests_serie {
+    use super::*;
+
+    const ENTITE: i64 = 999;
+
+    fn pool() -> Option<Pool> {
+        let dsn = std::env::var("DOLIBARR_DSN").ok()?;
+        match crate::pool(&dsn) {
+            Ok(p) => Some(p),
+            Err(e) => {
+                eprintln!("connexion impossible ({e}) : test ignore");
+                None
+            }
+        }
+    }
+
+    fn nettoyer(pool: &Pool) {
+        let mut conn = pool.get_conn().expect("connexion");
+        let _ = conn.exec_drop(
+            "DELETE FROM llx_facturedet_rec WHERE fk_facture IN \
+               (SELECT rowid FROM (SELECT rowid FROM llx_facture_rec WHERE entity = :e) x)",
+            params! { "e" => ENTITE },
+        );
+        let _ = conn.exec_drop(
+            "DELETE FROM llx_facture_rec WHERE entity = :e",
+            params! { "e" => ENTITE },
+        );
+        let _ = conn.exec_drop(
+            "DELETE FROM llx_facturedet WHERE fk_facture IN \
+               (SELECT rowid FROM (SELECT rowid FROM llx_facture WHERE entity = :e) y)",
+            params! { "e" => ENTITE },
+        );
+        let _ = conn.exec_drop(
+            "DELETE FROM llx_facture WHERE entity = :e",
+            params! { "e" => ENTITE },
+        );
+    }
+
+    fn facture(pool: &Pool) -> i64 {
+        let mut conn = pool.get_conn().expect("connexion");
+        let soc: i64 = conn
+            .query_first("SELECT rowid FROM llx_societe ORDER BY rowid LIMIT 1")
+            .expect("requete tiers")
+            .expect("aucun tiers");
+        let usr: i64 = conn
+            .query_first("SELECT rowid FROM llx_user ORDER BY rowid LIMIT 1")
+            .expect("requete utilisateur")
+            .expect("aucun utilisateur");
+        conn.exec_drop(
+            "INSERT INTO llx_facture (ref, entity, fk_soc, fk_user_author, datec, datef, \
+                total_ht, total_tva, total_ttc, fk_statut, paye) \
+             VALUES ('RECETTE-REC-1', :e, :soc, :usr, NOW(), NOW(), 100, 20, 120, 1, 0)",
+            params! { "e" => ENTITE, "soc" => soc, "usr" => usr },
+        )
+        .expect("facture");
+        let id = conn.last_insert_id() as i64;
+        conn.exec_drop(
+            "INSERT INTO llx_facturedet (fk_facture, product_type, description, subprice, \
+                subprice_ttc, tva_tx, qty, total_ht, total_tva, total_ttc) \
+             VALUES (:id, 0, 'Entretien mensuel', 100, 120, 20, 1, 100, 20, 120)",
+            params! { "id" => id },
+        )
+        .expect("ligne");
+        id
+    }
+
+    #[test]
+    fn une_serie_recopie_l_entete_et_les_lignes() {
+        let Some(p) = pool() else { return };
+        nettoyer(&p);
+        let source = facture(&p);
+
+        let id = depuis_facture(&p, ENTITE, source, "Entretien", "2026-12-01", (1, "m"), 12)
+            .expect("creation de la serie");
+
+        let mut conn = p.get_conn().expect("connexion");
+        let tete: (String, String, i32, i32, String) = conn
+            .exec_first(
+                "SELECT titre, CAST(total_ttc AS CHAR), frequency, nb_gen_max, unit_frequency \
+                 FROM llx_facture_rec WHERE rowid = :id",
+                params! { "id" => id },
+            )
+            .unwrap()
+            .expect("la serie");
+        assert_eq!(tete.0, "Entretien");
+        assert_eq!(tete.1.parse::<f64>().unwrap(), 120.0);
+        assert_eq!(tete.2, 1);
+        assert_eq!(tete.3, 12);
+        assert_eq!(tete.4, "m");
+
+        let lignes: i64 = conn
+            .exec_first(
+                "SELECT COUNT(*) FROM llx_facturedet_rec WHERE fk_facture = :id",
+                params! { "id" => id },
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(lignes, 1, "la ligne est recopiee");
+
+        // Modifier la facture d'origine ne touche pas la serie : c'est une copie.
+        conn.exec_drop(
+            "UPDATE llx_facture SET total_ttc = 999 WHERE rowid = :id",
+            params! { "id" => source },
+        )
+        .unwrap();
+        let apres: String = conn
+            .exec_first(
+                "SELECT CAST(total_ttc AS CHAR) FROM llx_facture_rec WHERE rowid = :id",
+                params! { "id" => id },
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            apres.parse::<f64>().unwrap(),
+            120.0,
+            "la serie garde le montant d'origine"
+        );
+
+        nettoyer(&p);
+    }
+
+    #[test]
+    fn une_facture_sans_ligne_est_refusee() {
+        let Some(p) = pool() else { return };
+        nettoyer(&p);
+        let mut conn = p.get_conn().expect("connexion");
+        let soc: i64 = conn
+            .query_first("SELECT rowid FROM llx_societe ORDER BY rowid LIMIT 1")
+            .unwrap()
+            .unwrap();
+        let usr: i64 = conn
+            .query_first("SELECT rowid FROM llx_user ORDER BY rowid LIMIT 1")
+            .unwrap()
+            .unwrap();
+        conn.exec_drop(
+            "INSERT INTO llx_facture (ref, entity, fk_soc, fk_user_author, datec, datef, \
+                total_ht, total_tva, total_ttc, fk_statut, paye) \
+             VALUES ('RECETTE-REC-VIDE', :e, :soc, :usr, NOW(), NOW(), 0, 0, 0, 1, 0)",
+            params! { "e" => ENTITE, "soc" => soc, "usr" => usr },
+        )
+        .unwrap();
+        let id = conn.last_insert_id() as i64;
+
+        assert!(depuis_facture(&p, ENTITE, id, "", "2026-12-01", (1, "m"), 0).is_err());
+        nettoyer(&p);
+    }
+
+    #[test]
+    fn une_frequence_absurde_est_refusee() {
+        let Some(p) = pool() else { return };
+        nettoyer(&p);
+        let source = facture(&p);
+        assert!(depuis_facture(&p, ENTITE, source, "", "2026-12-01", (0, "m"), 0).is_err());
+        assert!(depuis_facture(&p, ENTITE, source, "", "2026-12-01", (1, "x"), 0).is_err());
+        assert!(depuis_facture(&p, ENTITE, source, "", "2026-12", (1, "m"), 0).is_err());
+        assert!(depuis_facture(&p, ENTITE, 999_999, "", "2026-12-01", (1, "m"), 0).is_err());
+        nettoyer(&p);
+    }
+}
+
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
