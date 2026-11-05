@@ -889,42 +889,8 @@ pub async fn stock_entrepot(
     Ok(Redirect::to("/stock?ok=entrepot"))
 }
 
-/// Expeditions clients.
-pub async fn expeditions(State(app): State<crate::App>) -> Res<Markup> {
-    let liste = db::divers::expeditions(&app.pool, crate::entite::courante(), 200)?;
-    Ok(crate::ui::page(
-        "devis",
-        "expeditions",
-        "Expeditions",
-        html! {
-            h1 {(crate::langue::tr("Expeditions")) }
-            p .sous-titre {(crate::langue::tr("Bons de livraison enregistres dans Dolibarr (llx_expedition).")) }
-            @if liste.is_empty() {
-                (crate::ui::vide("Aucune expedition.", None))
-            } @else {
-                table {
-                    thead { tr { th {(crate::langue::tr("Ref.")) } th {(crate::langue::tr("Tiers")) } th {(crate::langue::tr("Creation")) } th {(crate::langue::tr("Livraison")) } th {(crate::langue::tr("Statut")) } } }
-                    tbody {
-                        @for e in &liste {
-                            tr {
-                                td .ref { (e.ref_) }
-                                td { (e.tiers.clone().unwrap_or_default()) }
-                                td .ref { (app::fmt_date_fr(e.date.as_deref())) }
-                                td .ref { (app::fmt_date_fr(e.livraison.as_deref())) }
-                                td {
-                                    @if e.statut >= 2 { span .pastille.p-payee { "livree" } }
-                                    @else if e.statut == 1 { span .pastille.p-validee { "validee" } }
-                                    @else { span .pastille.p-brouillon { "brouillon" } }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-    ))
-}
-
+/// Les expeditions ont leur propre ecran : elles se creent depuis une commande
+/// validee, se valident puis s'expedient. Voir `expedition_ecran`.
 /// Options d'un module : les constantes qu'il declare, lues et ecrites dans
 /// `llx_const`. C'est la page que Dolibarr affiche derriere la roue crantee.
 pub async fn options_module(

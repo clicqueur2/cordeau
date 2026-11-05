@@ -13,6 +13,7 @@ mod constantes_ecran;
 mod courriel;
 mod devises_ecran;
 mod entite;
+mod expedition_ecran;
 mod extrafields_ecran;
 pub(crate) mod icones;
 mod journal_erreurs;
@@ -36,6 +37,7 @@ mod recur_ecran;
 mod securite_ecran;
 mod sepa_ecran;
 mod stats_ecran;
+mod traduction_ecran;
 pub(crate) mod ui;
 
 use std::collections::HashMap;
@@ -297,7 +299,21 @@ async fn main() {
             axum::routing::post(pages::ticket_statut),
         )
         .route("/stock", get(pages::stock))
-        .route("/expeditions", get(pages::expeditions))
+        .route("/expeditions", get(expedition_ecran::page))
+        .route(
+            "/expeditions/depuis-commande",
+            post(expedition_ecran::depuis_commande),
+        )
+        .route("/expeditions/:id", get(expedition_ecran::detail))
+        .route("/expeditions/:id/valider", post(expedition_ecran::valider))
+        .route(
+            "/expeditions/:id/expedier",
+            post(expedition_ecran::expedier),
+        )
+        .route(
+            "/expeditions/:id/supprimer",
+            post(expedition_ecran::supprimer),
+        )
         .route(
             "/stock/mouvement",
             axum::routing::post(pages::stock_mouvement),
@@ -342,6 +358,7 @@ async fn main() {
         .route("/recurrences", get(recur_ecran::page))
         .route("/recurrences/generer", post(recur_ecran::generer))
         .route("/parametres/greffons", get(pages::greffons_page))
+        .route("/parametres/traduction", get(traduction_ecran::page))
         .route(
             "/parametres/securite",
             get(securite_ecran::page).post(securite_ecran::enregistrer),

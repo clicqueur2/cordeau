@@ -46,9 +46,43 @@ fn table() -> &'static Table {
 /// demarrage). Un dossier absent n'est pas une panne : on rend un catalogue
 /// vide, et l'interface reste en francais.
 fn racine() -> PathBuf {
-    std::env::var("DOLIBARR_LANGS")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    if let Ok(v) = std::env::var("DOLIBARR_LANGS") {
+        let p = PathBuf::from(v);
+        if p.exists() {
+            return p;
+        }
+        // Une variable posee mais fausse ne doit pas rendre l'interface muette
+        // en silence : on le dit, puis on cherche ailleurs.
+        eprintln!(
+            "DOLIBARR_LANGS pointe sur {} qui n'existe pas : catalogue cherche ailleurs",
+            p.display()
+        );
+    }
+
+    // Parmi les copies presentes, on prend celle qui porte le plus de langues.
+    // Le dossier « src » livre avec les sources est tronque a trois langues
+    // (fr, en, es) ; la reference complete en porte cent dix-neuf. Choisir par
+    // defaut la copie tronquee faisait croire que Dolibarr ne fournit que trois
+    // langues, alors que tout l'interet du catalogue est d'en avoir davantage.
+    let candidats = [
+        Path::new("_vendor")
+            .join("dolibarr-ref")
+            .join("htdocs")
+            .join("langs"),
+        Path::new("_vendor")
+            .join("dolibarr-src")
+            .join("htdocs")
+            .join("langs"),
+    ];
+    candidats
+        .into_iter()
+        .filter(|c| c.exists())
+        .max_by_key(|c| {
+            i18n::dolibarr::langues_disponibles(c)
+                .map(|l| l.len())
+                .unwrap_or(0)
+        })
+        .unwrap_or_else(|| {
             Path::new("_vendor")
                 .join("dolibarr-src")
                 .join("htdocs")
@@ -56,13 +90,25 @@ fn racine() -> PathBuf {
         })
 }
 
-fn charger() -> Table {
-    let langue = std::env::var("DOLIBARR_LANGUE")
+/// La langue demandee par l'environnement, `fr_FR` par defaut.
+fn langue_demandee() -> String {
+    std::env::var("DOLIBARR_LANGUE")
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| LANGUE_NOYAU.to_string());
+        .unwrap_or_else(|| LANGUE_NOYAU.to_string())
+}
 
+fn charger() -> Table {
+    charger_pour(&langue_demandee())
+}
+
+/// Charge un catalogue pour une langue donnee.
+///
+/// Prend la langue en parametre et non de l'environnement : l'ecran de
+/// traduction mesure des langues qu'on n'utilise pas.
+fn charger_pour(langue: &str) -> Table {
+    let langue = langue.to_string();
     let mut catalogue = Catalogue::nouveau(LANGUE_NOYAU);
     let racine = racine();
     // On charge le francais (pour l'index inverse) puis la langue demandee.
@@ -91,9 +137,86 @@ fn charger() -> Table {
     }
 }
 
+/// Le dossier des catalogues reellement utilise.
+///
+/// L'ecran de traduction l'affiche : sans ce chemin, « 3 langues disponibles »
+/// ressemble a un bug alors que c'est le contenu du dossier livre.
+pub fn racine_catalogue() -> PathBuf {
+    racine()
+}
+
 /// La langue active.
 pub fn langue() -> String {
     table().langue.clone()
+}
+
+/// Les langues proposees : celles de Dolibarr, plus les notres.
+///
+/// Fusionnees et triees : une langue presente des deux cotes ne doit pas
+/// apparaitre deux fois dans une liste deroulante.
+pub fn langues_disponibles() -> Vec<String> {
+    let mut out: Vec<String> = i18n::dolibarr::langues_disponibles(&racine()).unwrap_or_default();
+    let noyau = std::env::var("DOLIBARR_LANGS_NOYAU")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| Path::new("langs").join("noyau"));
+    if noyau.exists() {
+        if let Ok(autres) = i18n::dolibarr::langues_disponibles(&noyau) {
+            out.extend(autres);
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Ce qu'une langue sait faire d'un jeu de textes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Bilan {
+    /// Nombre de textes examines.
+    pub total: usize,
+    /// Nombre de textes qui changeraient en passant dans cette langue.
+    pub traduits: usize,
+}
+
+impl Bilan {
+    /// La part traduite, en pourcentage arrondi.
+    pub fn pourcentage(&self) -> u32 {
+        if self.total == 0 {
+            return 0;
+        }
+        ((self.traduits * 100) / self.total) as u32
+    }
+}
+
+/// Mesure une langue sur une liste de textes francais.
+///
+/// Le critere est celui de [`tr`] : un texte est « traduit » si la langue
+/// rend autre chose que le texte d'origine. Une cle presente mais vide ne
+/// compte donc pas — c'est exactement ce que verrait l'utilisateur.
+pub fn couverture(langue: &str, textes: &[String]) -> Bilan {
+    let table = charger_pour(langue);
+    Bilan {
+        total: textes.len(),
+        traduits: textes
+            .iter()
+            .filter(|texte| traduire_avec(&table, langue, texte) != **texte)
+            .count(),
+    }
+}
+
+/// Les textes qui resteraient en francais dans cette langue, bornes a `max`.
+///
+/// Rendus tries : c'est une liste de travail, pas un echantillon.
+pub fn manquants(langue: &str, textes: &[String], max: usize) -> Vec<String> {
+    let table = charger_pour(langue);
+    let mut out: Vec<String> = textes
+        .iter()
+        .filter(|texte| traduire_avec(&table, langue, texte) == **texte)
+        .cloned()
+        .collect();
+    out.sort();
+    out.truncate(max);
+    out
 }
 
 /// La traduction d'un texte, avec un tableau fourni (testable sans fichier).
@@ -187,6 +310,34 @@ mod tests {
         let t = table_de_test();
         assert_eq!(traduire_avec(&t, "en_US", ""), "");
         assert_eq!(traduire_avec(&t, "en_US", "   "), "   ");
+    }
+
+    #[test]
+    fn le_pourcentage_ne_divise_jamais_par_zero() {
+        assert_eq!(
+            Bilan {
+                total: 0,
+                traduits: 0
+            }
+            .pourcentage(),
+            0
+        );
+        assert_eq!(
+            Bilan {
+                total: 4,
+                traduits: 1
+            }
+            .pourcentage(),
+            25
+        );
+        assert_eq!(
+            Bilan {
+                total: 3,
+                traduits: 3
+            }
+            .pourcentage(),
+            100
+        );
     }
 
     #[test]
