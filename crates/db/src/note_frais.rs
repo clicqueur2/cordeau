@@ -186,6 +186,21 @@ fn map_line(row: &Row) -> LigneFrais {
 }
 
 /// Notes de frais d'une entité, de la plus récente à la plus ancienne.
+/// Les types de frais proposes a la saisie.
+///
+/// Seuls les types **actifs** sortent : un type desactive reste dans le
+/// dictionnaire pour ne pas casser les notes deja saisies, mais il ne doit plus
+/// apparaitre dans un formulaire.
+pub fn types_frais(pool: &Pool) -> Result<Vec<(i64, String)>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let rows: Vec<(i64, String)> = conn.exec(
+        "SELECT id, COALESCE(label, code) FROM llx_c_type_fees \
+         WHERE active = 1 ORDER BY position ASC, id ASC",
+        (),
+    )?;
+    Ok(rows)
+}
+
 pub fn list(
     pool: &Pool,
     entity: i64,

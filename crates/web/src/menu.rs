@@ -88,13 +88,9 @@ pub const MODULES: &[Module] = &[
                 "/commandes-fournisseurs",
             ),
             e("contrats", "Contrats", "/contrats"),
-            e("receptions", "Réceptions", "/liste/Reception"),
+            e("receptions", "Réceptions", "/receptions"),
             e("expeditions", "Expéditions", "/expeditions"),
-            e(
-                "interventions",
-                "Fiches d'intervention",
-                "/liste/Ficheinter",
-            ),
+            e("interventions", "Interventions", "/interventions"),
         ],
     },
     Module {
@@ -208,7 +204,7 @@ pub const MODULES: &[Module] = &[
         code: "HRM",
         libelle: "RH",
         entrees: &[
-            e("frais", "Notes de frais", "/liste/ExpenseReport"),
+            e("frais", "Notes de frais", "/notes-frais"),
             e("conges", "Congés", "/liste/Holiday"),
             e("salaires", "Salaires", "/liste/Salaries"),
             e("ressources", "Ressources", "/liste/Resource"),
