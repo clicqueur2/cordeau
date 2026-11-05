@@ -205,6 +205,8 @@ pub const MODULES: &[Module] = &[
         libelle: "RH",
         entrees: &[
             e("frais", "Notes de frais", "/notes-frais"),
+            e("conges", "Congés", "/conges"),
+            e("prets", "Prêts", "/prets"),
             e("conges", "Congés", "/liste/Holiday"),
             e("salaires", "Salaires", "/liste/Salaries"),
             e("ressources", "Ressources", "/liste/Resource"),
