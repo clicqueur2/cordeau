@@ -209,6 +209,7 @@ pub const MODULES: &[Module] = &[
             e("conges", "Congés", "/conges"),
             e("mailings", "Mailings", "/mailings"),
             e("connaissances", "Base de connaissances", "/connaissances"),
+            e("sites", "Site web", "/sites"),
             e("prets", "Prêts", "/prets"),
             e("inventaires", "Inventaires", "/inventaires"),
             e("dons", "Dons", "/dons"),
