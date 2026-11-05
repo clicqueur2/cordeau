@@ -241,6 +241,11 @@ pub const MODULES: &[Module] = &[
             ),
             e("extrafields", "Champs libres", "/parametres/extrafields"),
             e("categories", "Catégories", "/categories"),
+            e(
+                "modeles-emails",
+                "Modèles d'e-mail",
+                "/parametres/modeles-emails",
+            ),
             e("greffons", "Greffons", "/parametres/greffons"),
             e("modules", "Modules / Applications", "/parametres/modules"),
             e("affichage", "Affichage", "/parametres/reglage/affichage"),

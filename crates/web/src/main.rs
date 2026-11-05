@@ -21,6 +21,7 @@ mod livre_tenu;
 mod manifeste;
 mod menu;
 mod menu_actif;
+mod modeles_ecran;
 mod mrp_ecran;
 mod pages;
 mod plugin;
@@ -203,6 +204,15 @@ async fn main() {
         .route("/factures/actions", post(actions_masse::factures))
         .route("/devises", get(devises_ecran::page))
         .route("/mrp", get(mrp_ecran::page))
+        .route("/parametres/modeles-emails", get(modeles_ecran::page))
+        .route(
+            "/parametres/modeles-emails/creer",
+            post(modeles_ecran::creer),
+        )
+        .route(
+            "/parametres/modeles-emails/basculer",
+            post(modeles_ecran::basculer),
+        )
         .route("/categories", get(categories_ecran::page))
         .route("/categories/creer", post(categories_ecran::creer))
         .route("/categories/affecter", post(categories_ecran::affecter))
@@ -1920,13 +1930,44 @@ async fn factures_fiche(
             .unwrap_or_default(),
         None => String::new(),
     };
-    let courriel_sujet = format!("Votre facture {} — Pierre Angulaire", f.ref_);
-    let courriel_corps = format!(
-        "Bonjour,\n\nVeuillez trouver ci-joint la facture {} d'un montant de {} €.\n\n\
-         Bien cordialement,\n",
-        f.ref_,
-        f.total_ttc.unwrap_or_default().round_dp(2)
-    );
+    // Les modeles de la famille « envoi de facture » : si l'utilisateur en a
+    // choisi un, il remplace le message par defaut, variables substituees.
+    let entity = entite::courante();
+    let modeles = db::modeles::pour(p, entity, "invoice_send")?;
+    let choisi = q
+        .get("modele")
+        .and_then(|s| s.trim().parse::<i64>().ok())
+        .and_then(|id| modeles.iter().find(|m| m.rowid == id));
+    let client_nom = nom_tiers(p, f.fk_soc)?;
+
+    let (courriel_sujet, courriel_corps) = match choisi {
+        Some(m) => {
+            let variables = [
+                ("REF", f.ref_.clone()),
+                ("CLIENT", client_nom.clone()),
+                ("TOTAL_TTC", ui::euros(f.total_ttc.unwrap_or_default())),
+                (
+                    "TOTAL_HT",
+                    f.total_ht.unwrap_or_default().round_dp(2).to_string(),
+                ),
+                ("ECHEANCE", f.date_lim_reglement.clone().unwrap_or_default()),
+                ("SOCIETE", db::company::get(p, entity)?.nom),
+            ];
+            (
+                db::modeles::substituer(&m.sujet, &variables, &|cle| crate::langue::tr(cle)),
+                db::modeles::substituer(&m.corps, &variables, &|cle| crate::langue::tr(cle)),
+            )
+        }
+        None => (
+            format!("Votre facture {} — Pierre Angulaire", f.ref_),
+            format!(
+                "Bonjour,\n\nVeuillez trouver ci-joint la facture {} d'un montant de {} €.\n\n\
+                 Bien cordialement,\n",
+                f.ref_,
+                f.total_ttc.unwrap_or_default().round_dp(2)
+            ),
+        ),
+    };
 
     Ok(ui::page(
         "factures",
@@ -1970,6 +2011,24 @@ async fn factures_fiche(
 
             @if !f.est_brouillon() {
                 h2 {(crate::langue::tr("Envoyer par e-mail")) }
+                @if !modeles.is_empty() {
+                    form method="get" action={ "/factures/" (id) } {
+                        div .actions {
+                            select name="modele" aria-label=(crate::langue::tr("Modèle d'e-mail")) {
+                                option value="" { (crate::langue::tr("Message par défaut")) }
+                                @for m in &modeles {
+                                    option value=(m.rowid)
+                                           selected[choisi.map(|c| c.rowid) == Some(m.rowid)] {
+                                        (m.libelle.clone())
+                                    }
+                                }
+                            }
+                            button type="submit" class="petit secondaire" {
+                                (crate::langue::tr("Appliquer le modèle"))
+                            }
+                        }
+                    }
+                }
                 form method="post" action={ "/factures/" (id) "/envoyer" } {
                     table {
                         tbody {

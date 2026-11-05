@@ -39,6 +39,7 @@ pub mod invoice;
 pub mod journal;
 pub mod lettrage;
 pub mod menu;
+pub mod modeles;
 pub mod module;
 pub mod mrp;
 pub mod multidevise;
