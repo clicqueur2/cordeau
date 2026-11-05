@@ -92,14 +92,15 @@
 //!
 //! # La référence
 //!
-//! Elle est **fournie par l'appelant**, pas calculée ici. Dolibarr la produit
-//! avec son module de numérotation (`PARTNERSHIP_ADDON`, par défaut
-//! `mod_partnership_standard`) au moment de la validation ; ce module n'ouvre
-//! pas de brouillon sans référence, parce que `llx_partnership.ref` est
-//! `NOT NULL` et unique par entité. [`creer`] refuse donc une référence vide,
-//! et refuse aussi plus de 128 octets — la colonne est un `varchar(128)`, et
-//! contrôler en octets est plus strict qu'en caractères : aucune écriture ne
-//! dépend alors du jeu de caractères de la connexion.
+//! Elle est **fournie par l'appelant**, pas calculée ici. En PHP, `create()`
+//! laisse la colonne prendre son défaut `(PROV)`, puis `validate()` appelle
+//! `getNextNumRef()` (module `PARTNERSHIP_ADDON`, `mod_partnership_standard` par
+//! défaut) pour poser le vrai numéro. Ce module n'ouvre pas de brouillon sans
+//! référence : `llx_partnership.ref` est `NOT NULL` et unique par entité, et un
+//! `(PROV)` recopié à la main ne serait pas un numéro. [`creer`] refuse donc une
+//! référence vide, et refuse aussi plus de 128 octets — la colonne est un
+//! `varchar(128)`, et contrôler en octets est plus strict qu'en caractères :
+//! aucune écriture ne dépend alors du jeu de caractères de la connexion.
 //!
 //! # Le dictionnaire des types est vide sur l'instance de référence
 //!
@@ -115,9 +116,10 @@
 //! # Ce que ce module ne fait pas
 //!
 //! - **Aucun lien retour n'est testé.** `url_to_check` et
-//!   `count_last_url_check_error` sont lus et écrits, mais ce module n'ouvre
-//!   aucune connexion HTTP : la vérification du lien est le travail de la tâche
-//!   planifiée de Dolibarr, pas celui d'une couche base de données.
+//!   `count_last_url_check_error` sont lus à la relecture, mais ce module n'ouvre
+//!   aucune connexion HTTP et ne touche pas au compteur : la vérification du lien
+//!   est le travail de la tâche planifiée de Dolibarr, pas celui d'une couche base
+//!   de données.
 //! - **Aucune pièce jointe, aucune ligne de détail.** `llx_partnership` n'a pas
 //!   de table de lignes (`fetchLines()` reste vide) ; il n'y a rien à porter.
 //! - **Aucun déclencheur Dolibarr n'est exécuté.** Les triggers PHP
@@ -246,7 +248,14 @@ impl Partenariat {
     /// [`crate::adherent::cotiser`]. Deux dates `AAAA-MM-JJ` se comparent comme
     /// du texte : l'ordre alphabétique est l'ordre chronologique.
     pub fn court_encore(&self, aujourdhui: &str) -> bool {
-        self.statut == STATUT_ACCEPTE && self.date_fin.as_deref().is_none_or(|fin| fin >= aujourdhui)
+        if self.statut != STATUT_ACCEPTE {
+            return false;
+        }
+        match self.date_fin.as_deref() {
+            // Pas de terme : le partenariat court toujours.
+            None => true,
+            Some(fin) => fin >= aujourdhui,
+        }
     }
 }
 
@@ -335,10 +344,7 @@ fn libelles(statuts: &[i16]) -> String {
 /// NULL dit vraiment qu'on n'a rien saisi, et évite qu'une comparaison sur
 /// `email_partnership = ''` ne ramène des fiches vides.
 fn texte(valeur: &Option<String>) -> Option<&str> {
-    valeur
-        .as_deref()
-        .map(str::trim)
-        .filter(|v| !v.is_empty())
+    valeur.as_deref().map(str::trim).filter(|v| !v.is_empty())
 }
 
 /// Une date `AAAA-MM-JJ` réelle : `2027-02-31` a le bon format mais n'existe pas
@@ -422,6 +428,8 @@ fn cite_index(e: &mysql::Error, index: &str) -> bool {
 /// mono-entité, qui est le cas de Dolibarr par défaut.
 fn verifier_type(pool: &Pool, fk_type: i64) -> Result<(), Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
+    // Le paramètre lié s'appelle `modele_type`, jamais `type` : `params!` refuse
+    // cette clé.
     let actif: Option<i64> = conn.exec_first(
         "SELECT active FROM llx_c_partnership_type WHERE rowid = :modele_type",
         params! { "modele_type" => fk_type },
@@ -473,7 +481,9 @@ fn rattachement(valeur: Option<i64>, champ: &str) -> Result<Option<i64>, Box<dyn
 pub fn creer(pool: &Pool, entity: i64, new: &NouveauPartenariat) -> Result<i64, Box<dyn Error>> {
     let reference = new.ref_.trim();
     if reference.is_empty() {
-        return Err("la référence du partenariat est obligatoire : c'est elle qui l'identifie".into());
+        return Err(
+            "la référence du partenariat est obligatoire : c'est elle qui l'identifie".into(),
+        );
     }
     if reference.len() > REF_MAX {
         return Err(format!(
@@ -623,10 +633,10 @@ pub fn list(
 /// Un partenariat précis, ou `None` s'il n'existe pas dans cette entité.
 pub fn get(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Partenariat>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
-    let sql = format!(
-        "SELECT {SELECT_COLS} {DEPUIS} WHERE p.entity = :entity AND p.rowid = :rowid"
-    );
-    let row: Option<Row> = conn.exec_first(sql, params! { "entity" => entity, "rowid" => rowid })?;
+    let sql =
+        format!("SELECT {SELECT_COLS} {DEPUIS} WHERE p.entity = :entity AND p.rowid = :rowid");
+    let row: Option<Row> =
+        conn.exec_first(sql, params! { "entity" => entity, "rowid" => rowid })?;
     Ok(row.as_ref().map(map_row))
 }
 
@@ -827,7 +837,7 @@ pub fn en_cours(pool: &Pool, entity: i64) -> Result<usize, Box<dyn Error>> {
 /// ne faut pas confondre avec une panne.
 ///
 /// Pas de filtre sur l'entité : la signature n'en porte pas, et [`verifier_type`]
-/// ne filtre pas non plus. Voir la note de cette fonction.
+/// ne filtre pas non plus. Voir la note de [`verifier_type`].
 pub fn types(pool: &Pool) -> Result<Vec<(i64, String)>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let rows: Vec<(i64, String)> = conn.exec(
