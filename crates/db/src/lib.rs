@@ -44,6 +44,7 @@ pub mod modeles;
 pub mod module;
 pub mod mrp;
 pub mod multidevise;
+pub mod notifications;
 pub mod party;
 pub mod payment;
 pub mod pdf_modele;

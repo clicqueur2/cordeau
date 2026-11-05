@@ -14,51 +14,8 @@ use db::Pool;
 
 /// La configuration SMTP de l'entite, ou le motif du refus.
 pub fn config(pool: &Pool) -> Result<mail::Config, String> {
-    let const_ou = |cle: &str| {
-        db::company::get_const(pool, cle)
-            .ok()
-            .flatten()
-            .unwrap_or_default()
-    };
-
-    let hote = const_ou("DOLIBARR_RS_SMTP_HOST");
-    if hote.trim().is_empty() {
-        return Err("serveur SMTP non renseigné (Paramètres > Réglage des e-mails)".into());
-    }
-    let port = const_ou("DOLIBARR_RS_SMTP_PORT")
-        .parse::<u16>()
-        .unwrap_or(587);
-
-    let mut mot_de_passe = const_ou("DOLIBARR_RS_SMTP_MOTDEPASSE");
-    if let Ok(v) = std::env::var("DOLIBARR_SMTP_PASSWORD") {
-        if !v.is_empty() {
-            mot_de_passe = v;
-        }
-    }
-
-    let config = mail::Config {
-        hote: hote.trim().to_string(),
-        port,
-        utilisateur: const_ou("DOLIBARR_RS_SMTP_UTILISATEUR").trim().to_string(),
-        mot_de_passe,
-        expediteur: const_ou("DOLIBARR_RS_EMAIL_EXPEDITEUR").trim().to_string(),
-        nom_expediteur: const_ou("MAIN_INFO_SOCIETE_NOM").trim().to_string(),
-        securite: match const_ou("DOLIBARR_RS_SMTP_SECURITE").trim() {
-            "aucune" => mail::Securite::Aucune,
-            "directe" => mail::Securite::Directe,
-            "starttls" => mail::Securite::Starttls,
-            // Par defaut : 465 direct, tout le reste en STARTTLS.
-            _ => mail::Config::securite_pour(port),
-        },
-        delai: 20,
-    };
-
-    if config.expediteur.is_empty() {
-        return Err(
-            "adresse d'expédition non renseignée (Paramètres > Réglage des e-mails)".into(),
-        );
-    }
-    Ok(config)
+    // Le reglage vit dans `app` : le courriel part aussi d'une tache planifiee.
+    app::smtp_config(pool)
 }
 
 /// Une adresse qui ressemble a une adresse : une arobase, du texte des deux

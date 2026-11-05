@@ -58,6 +58,7 @@ version = "0.1.0"
 dependencies = [
  "db",
  "legal",
+ "mail",
  "money",
  "pdf",
  "rust_decimal",
@@ -627,11 +628,13 @@ dependencies = [
  "app",
  "db",
  "legal",
+ "mail",
  "money",
  "pdf",
  "rust_decimal",
  "schema",
  "serde_json",
+ "ureq",
 ]
 
 [[package]]

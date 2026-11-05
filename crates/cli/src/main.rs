@@ -297,6 +297,71 @@ fn tache_cmd(cmd: &str, args: &[String]) -> ExitCode {
             }
             Ok(())
         }
+        "notifier" => {
+            // Les alertes du moment, puis leur envoi. Aucun intermediaire :
+            // le courriel passe par le SMTP configure, le webhook par ureq.
+            let jour = db::aujourdhui(&pool)?;
+            let alertes = db::notifications::alertes(&pool, entity, &jour)?;
+            let config_notif = db::notifications::config(&pool, entity)?;
+
+            if alertes.is_empty() {
+                println!("Rien a signaler : aucune notification envoyee.");
+                return Ok(());
+            }
+            println!("{} point(s) a traiter", alertes.len());
+
+            let mut envoyes = 0usize;
+
+            // 1. Le courriel.
+            if !config_notif.email.trim().is_empty() {
+                match app::smtp_config(&pool) {
+                    Ok(smtp) => {
+                        let corps = db::notifications::resume(&alertes);
+                        let message = mail::Message::texte(
+                            &smtp.expediteur,
+                            &[config_notif.email.trim()],
+                            &format!("Cordeau : {} point(s) a traiter", alertes.len()),
+                            &corps,
+                        );
+                        match mail::envoyer(&smtp, &message) {
+                            Ok(()) => {
+                                envoyes += 1;
+                                println!("  courriel envoye a {}", config_notif.email.trim());
+                            }
+                            Err(e) => println!("  courriel refuse : {e}"),
+                        }
+                    }
+                    Err(motif) => println!("  courriel impossible : {motif}"),
+                }
+            }
+
+            // 2. Le webhook : on poste du JSON, on ne suppose rien du service
+            //    qui le recoit.
+            if !config_notif.webhook.trim().is_empty() {
+                let charge = db::notifications::charge_webhook(&alertes);
+                match ureq::post(config_notif.webhook.trim())
+                    .set("Content-Type", "application/json")
+                    .timeout(std::time::Duration::from_secs(15))
+                    .send_string(&charge)
+                {
+                    Ok(r) => {
+                        envoyes += 1;
+                        println!("  webhook : HTTP {}", r.status());
+                    }
+                    Err(e) => println!("  webhook refuse : {e}"),
+                }
+            }
+
+            if envoyes == 0 {
+                println!("  aucun canal configurable : rien n'est parti.");
+                println!(
+                    "  Parametres > Notifications, ou {} / {}",
+                    db::notifications::CLE_EMAIL,
+                    db::notifications::CLE_WEBHOOK
+                );
+            }
+            Ok(())
+        }
         "sauvegarde" => {
             let racine =
                 std::env::var("DOLIBARR_SAUVEGARDES").unwrap_or_else(|_| "sauvegardes".to_string());

@@ -23,6 +23,59 @@ pub const PRODUIT: &str = "Cordeau";
 /// La mention affichee sous le nom : ce que le produit est, en trois mots.
 pub const SOUS_TITRE: &str = "gestion et facturation";
 
+/// La configuration SMTP, lue dans `llx_const`.
+///
+/// Elle vit ici et non dans la couche web : le courriel part aussi bien d'un
+/// ecran que d'une tache planifiee, et deux copies d'un reglage finissent
+/// toujours par diverger. La variable `DOLIBARR_SMTP_PASSWORD` l'emporte sur la
+/// base : un secret n'a pas a trainer dans une table.
+pub fn smtp_config(pool: &db::Pool) -> Result<mail::Config, String> {
+    let const_ou = |cle: &str| {
+        db::company::get_const(pool, cle)
+            .ok()
+            .flatten()
+            .unwrap_or_default()
+    };
+
+    let hote = const_ou("DOLIBARR_RS_SMTP_HOST");
+    if hote.trim().is_empty() {
+        return Err(
+            "serveur SMTP non renseigné (Paramètres > Constantes : DOLIBARR_RS_SMTP_HOST)".into(),
+        );
+    }
+    let port = const_ou("DOLIBARR_RS_SMTP_PORT")
+        .parse::<u16>()
+        .unwrap_or(587);
+
+    let mut mot_de_passe = const_ou("DOLIBARR_RS_SMTP_MOTDEPASSE");
+    if let Ok(v) = std::env::var("DOLIBARR_SMTP_PASSWORD") {
+        if !v.is_empty() {
+            mot_de_passe = v;
+        }
+    }
+
+    let config = mail::Config {
+        hote: hote.trim().to_string(),
+        port,
+        utilisateur: const_ou("DOLIBARR_RS_SMTP_UTILISATEUR").trim().to_string(),
+        mot_de_passe,
+        expediteur: const_ou("DOLIBARR_RS_EMAIL_EXPEDITEUR").trim().to_string(),
+        nom_expediteur: const_ou("MAIN_INFO_SOCIETE_NOM").trim().to_string(),
+        securite: match const_ou("DOLIBARR_RS_SMTP_SECURITE").trim() {
+            "aucune" => mail::Securite::Aucune,
+            "directe" => mail::Securite::Directe,
+            "starttls" => mail::Securite::Starttls,
+            _ => mail::Config::securite_pour(port),
+        },
+        delai: 20,
+    };
+
+    if config.expediteur.is_empty() {
+        return Err("adresse d'expédition non renseignée (Paramètres > Constantes : DOLIBARR_RS_EMAIL_EXPEDITEUR)".into());
+    }
+    Ok(config)
+}
+
 /// Le modele de PDF d'un type de piece.
 ///
 /// La couche donnees dit **quel code** est enregistre ; c'est ici qu'on le
