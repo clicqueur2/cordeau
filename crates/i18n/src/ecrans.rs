@@ -515,27 +515,42 @@ mod tests {
         );
     }
 
+    /// L'inventaire doit couvrir **tous** les fichiers d'ecran, pas seulement
+    /// les deux plus gros.
+    ///
+    /// Ce test verifiait autrefois que `pages.rs` etait sur le podium. C'etait
+    /// vrai tant que tout vivait dans deux fichiers ; depuis le decoupage, un
+    /// ecran peut se trouver dans n'importe quel module. Ce qui compte n'est
+    /// donc pas la densite d'un fichier, mais que **l'ensemble** des ecrans
+    /// soit lu : un fichier oublie, et ses chaines resteraient en francais sans
+    /// que rien ne le signale.
     #[test]
-    fn pages_est_parmi_les_plus_denses() {
+    fn l_inventaire_couvre_les_modules_d_ecran() {
         let chaines = inventaire(&racine_depot()).expect("inventaire");
         let r = resume(&chaines);
-        let position = r
-            .iter()
-            .position(|(f, _)| f == "pages.rs")
-            .expect("pages.rs doit figurer dans le resume");
-        // `main.rs` est plus gros en octets, donc il peut passer devant ;
-        // `pages.rs` doit au moins etre sur le podium.
+        let fichiers: Vec<&str> = r.iter().map(|(f, _)| f.as_str()).collect();
+
+        // Quelques modules qui portent des chaines en dur, pris dans des
+        // familles differentes : si l'un manque, l'inventaire est incomplet.
+        for attendu in [
+            "accueil_ecran.rs",
+            "ventes_ecran.rs",
+            "facturation_ecran.rs",
+        ] {
+            assert!(
+                fichiers.contains(&attendu),
+                "l'inventaire ignore {attendu} : {fichiers:?}"
+            );
+        }
         assert!(
-            position <= 1,
-            "pages.rs doit etre en tete ou presque, il est en position {} : {:?}",
-            position + 1,
-            &r[..3.min(r.len())]
+            fichiers.len() >= 10,
+            "l'inventaire ne parcourt que {} fichier(s)",
+            fichiers.len()
         );
-        let n = r[position].1;
-        assert!(
-            n > 200,
-            "pages.rs doit porter l'essentiel des chaines, trouve {n}"
-        );
+        // Le total reste dans les bornes : l'inventaire ne doit ni tout perdre
+        // ni exploser.
+        let total: usize = r.iter().map(|(_, n)| *n).sum();
+        assert!(total > 200, "inventaire trop pauvre : {total} chaines");
     }
 
     #[test]
