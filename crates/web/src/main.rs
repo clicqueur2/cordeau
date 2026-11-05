@@ -3905,6 +3905,8 @@ async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
     let clients = db::party::list(&app.pool, entite::courante(), 500, 0)?;
     let tva = db::dict::taux_tva(&app.pool, entite::courante(), 1)?;
     let conditions = db::reglement::conditions(&app.pool, entite::courante())?;
+    // Le chantier est facultatif, mais c'est lui qui rend la marge calculable.
+    let chantiers = db::projet::list(&app.pool, entite::courante(), 200, 0)?;
     Ok(ui::page(
         "devis",
         "nouveau",
@@ -3920,6 +3922,17 @@ async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
                                 select name="soc" required style="width:100%" {
                                     @for c in &clients {
                                         option value=(c.rowid) { (c.nom) }
+                                    }
+                                }
+                            }
+                        }
+                        tr {
+                            th {(crate::langue::tr("Chantier")) }
+                            td {
+                                select name="projet" style="width:100%" {
+                                    option value="" { (crate::langue::tr("— aucun —")) }
+                                    @for c in &chantiers {
+                                        option value=(c.rowid) { (c.ref_.clone()) " " (c.title.clone()) }
                                     }
                                 }
                             }
@@ -4007,10 +4020,28 @@ async fn devis_creer(
     if lignes.is_empty() {
         return Err(Erreur("au moins une ligne est necessaire".into()));
     }
+    // Une ligne a 0 % de TVA doit dire pourquoi (EN 16931, BT-120). Le controle
+    // est ici, pas dans la couche donnees : c'est a l'ecran qu'on peut aller
+    // corriger le dictionnaire, et c'est ici que le message sert.
+    db::dict::exiger_motif_tva_zero(
+        &app.pool,
+        entite::courante(),
+        &lignes
+            .iter()
+            .map(|l: &db::proposal::NewProposalLine| l.tva_tx)
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|e| Erreur(e.to_string()))?;
 
     let mut nouveau = db::proposal::NewProposal::new(fk_soc);
     nouveau.note_private = f.get("note").filter(|s| !s.trim().is_empty()).cloned();
     nouveau.fk_cond_reglement = f.get("cond").and_then(|v| v.parse().ok());
+    // Le chantier : sans lui, aucune marge analytique et aucune statistique par
+    // chantier ne peut exister.
+    nouveau.fk_projet = f
+        .get("projet")
+        .and_then(|v| v.trim().parse::<i64>().ok())
+        .filter(|v| *v > 0);
     nouveau.fin_validite = f
         .get("validite")
         .map(|s| s.trim().to_string())
