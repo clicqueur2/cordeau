@@ -206,6 +206,7 @@ async fn main() {
         .route("/factures/:id/pdf", get(factures_pdf))
         .route("/factures/:id/valider", post(factures_valider))
         .route("/factures/:id/envoyer", post(courriel::facture))
+        .route("/factures/:id/recurrence", post(factures_recurrence))
         .route("/factures/:id/reglement", post(factures_reglement))
         .route("/factures/:id/avoir", post(factures_avoir))
         .route(
@@ -834,6 +835,7 @@ pub fn message(ok: Option<&String>) -> Markup {
         Some("reglement") => ui::flash("Règlement enregistré."),
         Some("validee") => ui::flash("Facture validée."),
         Some("envoyee") => ui::flash("Facture envoyée par e-mail, PDF joint."),
+        Some("serie") => ui::flash("Série de factures créée : elle sera émise à l'échéance."),
         Some("echec-adresse") => ui::echec("Adresse e-mail invalide : rien n'a été envoyé."),
         Some("echec-pdf") => {
             ui::echec("Aucun PDF dans la GED pour cette facture : validez-la d'abord.")
@@ -1826,6 +1828,40 @@ async fn factures_fiche(
                         button type="submit" { "Envoyer la facture" }
                         span style="color:#78736c;font-size:13.5px" {
                             "Le PDF archivé part en pièce jointe. L'envoi est tracé."
+                        }
+                    }
+                }
+            }
+
+            @if !f.est_brouillon() {
+                h2 { "Facture récurrente" }
+                form method="post" action={ "/factures/" (id) "/recurrence" } {
+                    table {
+                        tbody {
+                            tr {
+                                th { "Périodicité" }
+                                td {
+                                    select name="periode" aria-label="Périodicité" {
+                                        option value="mois" { "Tous les mois" }
+                                        option value="trimestre" { "Tous les trimestres" }
+                                        option value="semaine" { "Toutes les semaines" }
+                                        option value="an" { "Tous les ans" }
+                                    }
+                                }
+                                th { "Prochaine échéance" }
+                                td { input type="date" name="prochaine" required; }
+                                th { "Nombre" }
+                                td {
+                                    input type="number" name="maximum" min="0" value="0"
+                                          title="0 = sans fin";
+                                }
+                            }
+                        }
+                    }
+                    div .actions {
+                        button type="submit" { "Créer la série" }
+                        span style="color:#78736c;font-size:13.5px" {
+                            "La série est une copie figée : modifier cette facture ne la change pas."
                         }
                     }
                 }
@@ -4032,6 +4068,49 @@ async fn devis_valider(State(app): State<App>, Path(id): Path<i64>) -> Res<Redir
         let _ = app::archiver_devis(&app.pool, entite::courante(), id);
     }
     Ok(Redirect::to(&format!("/devis/{id}?ok=valide")))
+}
+
+/// Cree une serie de factures recurrentes depuis une facture validee.
+async fn factures_recurrence(
+    State(app): State<App>,
+    Path(id): Path<i64>,
+    Form(f): Form<HashMap<String, String>>,
+) -> Res<Redirect> {
+    let entity = entite::courante();
+    let champ = |cle: &str| f.get(cle).map(|s| s.trim().to_string()).unwrap_or_default();
+
+    let prochaine = champ("prochaine");
+    let frequence: i32 = champ("frequence").parse().unwrap_or(1);
+    let maximum: i32 = champ("maximum").parse().unwrap_or(0);
+    // La periodicite vient d'une liste fermee : on choisit l'unite ici, on ne la
+    // compose jamais a partir du texte saisi.
+    let (freq, unite) = match champ("periode").as_str() {
+        "semaine" => (1, "w"),
+        "mois" => (frequence.max(1), "m"),
+        "trimestre" => (3, "m"),
+        "an" => (1, "y"),
+        autre => return Err(Erreur(format!("periodicite inconnue : « {autre} »"))),
+    };
+
+    let id_serie = db::recurrence::depuis_facture(
+        &app.pool,
+        entity,
+        id,
+        "",
+        &prochaine,
+        (freq, unite),
+        maximum,
+    )?;
+
+    tracer(
+        &app,
+        None,
+        "facture_rec",
+        id_serie,
+        &format!("Série de factures créée depuis la facture {id}"),
+    );
+
+    Ok(Redirect::to(&format!("/factures/{id}?ok=serie")))
 }
 
 fn elementtype_devis() -> &'static str {
