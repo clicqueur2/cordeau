@@ -117,6 +117,25 @@ input[type=text], input[type=number], input[type=email], select {
 .fiche dd { margin:2px 0 12px; }
 .total-fort { font-size:21px; font-weight:600; font-variant-numeric:tabular-nums; }
 
+/* --- tableau de bord ---------------------------------------------------- */
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:1px;
+        background:var(--line); border:1px solid var(--line); margin:0 0 8px; }
+.kpi { background:var(--blanc); padding:15px 17px; }
+.kpi .titre { font-size:10.5px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); }
+.kpi .valeur { font-size:23px; font-weight:600; font-variant-numeric:tabular-nums;
+               letter-spacing:-.02em; margin-top:5px; line-height:1.15; }
+.kpi .note { font-size:12px; color:var(--muted); margin-top:3px; }
+.kpi.fort .valeur { color:var(--accent); }
+.kpi.bon .valeur { color:var(--vert); }
+.kpi.alerte .valeur { color:var(--rouge); }
+
+.curve { background:var(--blanc); border:1px solid var(--line); padding:16px 18px 10px; }
+.curve table { border:none; }
+.curve th, .curve td { border:none; padding:4px 6px; font-size:12.5px; }
+.curve .piste { background:#f2f0ec; height:9px; width:100%; }
+.curve .vente { background:var(--accent); height:9px; }
+.curve .achat { background:#c3bdb4; height:9px; }
+
 @media (max-width:900px) {
   header { padding:0 12px; gap:10px; flex-wrap:wrap; }
   header nav { order:3; width:100%; }

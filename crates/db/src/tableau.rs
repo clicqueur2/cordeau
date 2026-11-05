@@ -231,7 +231,81 @@ pub fn stock_bas(pool: &Pool, entity: i64) -> Result<Vec<StockBas>, Box<dyn Erro
         .collect())
 }
 
-/// Le montant total en retard, pour la carte d'alerte.
+/// Ce que representent les devis : ce qui est en jeu, et ce qui se transforme.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Devis {
+    /// Montant des devis encore en attente de reponse.
+    pub en_cours: Decimal,
+    pub nb_en_cours: i64,
+    /// Montant des devis signes sur la periode.
+    pub signes: Decimal,
+    pub nb_signes: i64,
+    /// Montant des devis perdus.
+    pub perdus: Decimal,
+    /// Taux de transformation en pourcentage, arrondi a l'unite.
+    ///
+    /// Calcule sur les **montants**, pas sur les nombres : un devis de 50 000 €
+    /// signe ne vaut pas un devis de 300 € perdu. Rend 0 quand rien n'a ete
+    /// emis, plutot qu'une division par zero.
+    pub taux: i64,
+}
+
+impl Devis {
+    /// Le total emis : signe + perdu + en attente.
+    pub fn emis(&self) -> Decimal {
+        self.signes + self.perdus + self.en_cours
+    }
+}
+
+/// Les devis : en attente, signes, perdus, et le taux de transformation.
+///
+/// `depuis` borne les devis **signes ou perdus** : le taux porte sur une
+/// periode, sinon il ne veut rien dire. L'en-cours, lui, est toujours complet :
+/// c'est ce qui reste a gagner aujourd'hui.
+pub fn devis(pool: &Pool, entity: i64, depuis: &str) -> Result<Devis, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+
+    let en_cours: Option<(i64, Option<String>)> = conn.exec_first(
+        "SELECT COUNT(*), CAST(COALESCE(SUM(total_ttc), 0) AS CHAR) \
+         FROM llx_propal WHERE entity = :entity AND fk_statut = 0",
+        params! { "entity" => entity },
+    )?;
+    let (nb_en_cours, montant_en_cours) = en_cours.unwrap_or((0, None));
+
+    let signes: Option<(i64, Option<String>)> = conn.exec_first(
+        "SELECT COUNT(*), CAST(COALESCE(SUM(total_ttc), 0) AS CHAR) \
+         FROM llx_propal \
+         WHERE entity = :entity AND fk_statut = 2 AND COALESCE(date_signature, datep, datec) >= :depuis",
+        params! { "entity" => entity, "depuis" => depuis },
+    )?;
+    let (nb_signes, montant_signes) = signes.unwrap_or((0, None));
+
+    let perdus: Option<String> = conn.exec_first(
+        "SELECT CAST(COALESCE(SUM(total_ttc), 0) AS CHAR) \
+         FROM llx_propal \
+         WHERE entity = :entity AND fk_statut = 3 AND COALESCE(date_cloture, datep, datec) >= :depuis",
+        params! { "entity" => entity, "depuis" => depuis },
+    )?;
+
+    let mut d = Devis {
+        en_cours: dec(montant_en_cours),
+        nb_en_cours,
+        signes: dec(montant_signes),
+        nb_signes,
+        perdus: dec(perdus),
+        taux: 0,
+    };
+
+    let emis_periode = d.signes + d.perdus;
+    if emis_periode > Decimal::ZERO {
+        d.taux = ((d.signes / emis_periode) * Decimal::from(100))
+            .round_dp(0)
+            .try_into()
+            .unwrap_or(0);
+    }
+    Ok(d)
+}
+
 pub fn total_retard(rows: &[EnRetard]) -> Decimal {
     rows.iter().map(|f| f.reste).sum()
 }
