@@ -7,6 +7,7 @@ mod actions_masse;
 mod analytique_ecran;
 mod api;
 mod campagnes;
+mod categories_ecran;
 mod cloture_ecran;
 mod courriel;
 mod devises_ecran;
@@ -202,6 +203,10 @@ async fn main() {
         .route("/factures/actions", post(actions_masse::factures))
         .route("/devises", get(devises_ecran::page))
         .route("/mrp", get(mrp_ecran::page))
+        .route("/categories", get(categories_ecran::page))
+        .route("/categories/creer", post(categories_ecran::creer))
+        .route("/categories/affecter", post(categories_ecran::affecter))
+        .route("/categories/retirer", post(categories_ecran::retirer))
         .route("/statistiques", get(stats_ecran::statistiques))
         .route("/echeancier", get(stats_ecran::echeancier))
         .route("/devises/figer", post(devises_ecran::figer))

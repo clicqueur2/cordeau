@@ -15,6 +15,7 @@ pub mod analytique;
 pub mod banque;
 pub mod caisse_journal;
 pub mod caisse_scelle;
+pub mod categorie;
 pub mod cloture;
 pub mod commande;
 pub mod company;
