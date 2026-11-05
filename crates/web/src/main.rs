@@ -229,6 +229,14 @@ async fn main() {
         eprintln!("definitions de droits impossibles : {e}");
     }
 
+    // Les tables du module Marges : Dolibarr n'en a aucune, il recalcule a la
+    // volee. La creation est idempotente, et une base qui refuse de les creer
+    // n'empeche pas le reste du noyau de demarrer — seules les marges seront
+    // indisponibles, et le message le dit.
+    if let Err(e) = db::marge::preparer(&pool) {
+        eprintln!("tables de marge indisponibles : {e}");
+    }
+
     // Cle d'API : l'environnement prime, sinon on lit la constante Dolibarr.
     if std::env::var("DOLIBARR_API_KEY").is_err() {
         if let Ok(Some(cle)) = db::company::get_const(&pool, "DOLIBARR_API_KEY") {

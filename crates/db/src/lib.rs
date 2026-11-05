@@ -50,11 +50,13 @@ pub mod journal;
 pub mod lettrage;
 pub mod livraison;
 pub mod mailing;
+pub mod marge;
 pub mod menu;
 pub mod modeles;
 pub mod module;
 pub mod mrp;
 pub mod multidevise;
+pub mod nomenclature;
 pub mod note_frais;
 pub mod notifications;
 pub mod partenariat;
@@ -247,6 +249,10 @@ pub const PREFIXES_MODULE: &[(&str, &str)] = &[
     ("llx_einvoicing_", "facturation electronique"),
     ("llx_accounting_", "comptabilite avancee"),
     ("llx_abricot_", "abricot"),
+    // Marges : Dolibarr n'a AUCUNE table pour ce module (verifie en base),
+    // il recalcule a la volee. On range donc nos deux tables sous notre
+    // prefixe, comme la regle de schema l'autorise.
+    ("llx_marge_", "marges"),
 ];
 
 /// Le module auquel appartient une table ajoutee, s'il est connu.
