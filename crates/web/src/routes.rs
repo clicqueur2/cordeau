@@ -209,6 +209,23 @@ pub fn routes(app: App) -> Router {
             "/connaissances/:id/depublier",
             post(connaissances_ecran::depublier),
         )
+        .route(
+            "/inventaires",
+            get(inventaire_ecran::page).post(inventaire_ecran::creer),
+        )
+        .route("/inventaires/:id", get(inventaire_ecran::detail))
+        .route("/inventaires/:id/valider", post(inventaire_ecran::valider))
+        .route("/dons", get(dons_ecran::page).post(dons_ecran::creer))
+        .route("/dons/:id", get(dons_ecran::detail))
+        .route("/dons/:id/valider", post(dons_ecran::valider))
+        .route("/dons/:id/encaisser", post(dons_ecran::encaisser))
+        .route(
+            "/transferts",
+            get(transfert_ecran::page).post(transfert_ecran::creer),
+        )
+        .route("/transferts/:id", get(transfert_ecran::detail))
+        .route("/transferts/:id/expedier", post(transfert_ecran::expedier))
+        .route("/transferts/:id/recevoir", post(transfert_ecran::recevoir))
         .route("/conges", get(conges_ecran::page).post(conges_ecran::creer))
         .route("/conges/:id/valider", post(conges_ecran::valider))
         .route("/conges/:id/approuver", post(conges_ecran::approuver))
