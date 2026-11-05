@@ -23,6 +23,22 @@ pub const PRODUIT: &str = "Cordeau";
 /// La mention affichee sous le nom : ce que le produit est, en trois mots.
 pub const SOUS_TITRE: &str = "gestion et facturation";
 
+/// Le modele de PDF d'un type de piece.
+///
+/// La couche donnees dit **quel code** est enregistre ; c'est ici qu'on le
+/// traduit en modele de rendu. Un code inconnu retombe sur le standard plutot
+/// que d'echouer : un document doit pouvoir sortir meme si un reglage a ete
+/// saisi de travers.
+fn modele_pdf(
+    pool: &db::Pool,
+    entity: i64,
+    objet: db::pdf_modele::Objet,
+) -> Result<pdf::Modele, Box<dyn Error>> {
+    Ok(db::pdf_modele::modele(pool, entity, objet)?
+        .and_then(|c| pdf::Modele::depuis_code(&c))
+        .unwrap_or(pdf::Modele::Standard))
+}
+
 pub fn fmt_dec(d: Option<Decimal>) -> String {
     d.map(|x| x.normalize().to_string()).unwrap_or_default()
 }
@@ -378,11 +394,7 @@ pub fn devis_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dyn 
         notes: p.note_public.clone().filter(|n| !n.trim().is_empty()),
     };
 
-    let modele = db::company::get_const(pool, "DOLIBARR_RS_PDF_MODELE")
-        .ok()
-        .flatten()
-        .and_then(|c| pdf::Modele::depuis_code(&c))
-        .unwrap_or(pdf::Modele::Standard);
+    let modele = modele_pdf(pool, entity, db::pdf_modele::Objet::Devis)?;
     let r = pdf::render_avec_modele(&doc, modele)?;
     Ok(RenduPdf {
         bytes: r.bytes,
@@ -501,11 +513,7 @@ pub fn commande_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<d
         notes: c.note_public.clone().filter(|n| !n.trim().is_empty()),
     };
 
-    let modele = db::company::get_const(pool, "DOLIBARR_RS_PDF_MODELE")
-        .ok()
-        .flatten()
-        .and_then(|c| pdf::Modele::depuis_code(&c))
-        .unwrap_or(pdf::Modele::Standard);
+    let modele = modele_pdf(pool, entity, db::pdf_modele::Objet::Commande)?;
     let r = pdf::render_avec_modele(&doc, modele)?;
     Ok(RenduPdf {
         bytes: r.bytes,
@@ -602,11 +610,7 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
         notes: f.note_public.clone().filter(|n| !n.trim().is_empty()),
     };
 
-    let modele = db::company::get_const(pool, "DOLIBARR_RS_PDF_MODELE")
-        .ok()
-        .flatten()
-        .and_then(|c| pdf::Modele::depuis_code(&c))
-        .unwrap_or(pdf::Modele::Standard);
+    let modele = modele_pdf(pool, entity, db::pdf_modele::Objet::Facture)?;
     let r = pdf::render_avec_modele(&doc, modele)?;
     Ok(RenduPdf {
         bytes: r.bytes,
