@@ -18,4 +18,6 @@ pdf = { path = "../pdf" }
 app = { path = "../app" }
 legal = { path = "../legal" }
 annuaire = { path = "../annuaire" }
+mail = { path = "../mail" }
+ureq = { workspace = true }
 rust_decimal = { workspace = true }

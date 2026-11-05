@@ -54,6 +54,13 @@ pub const TACHES: &[Tache] = &[
         frequence: 86_400,
     },
     Tache {
+        code: "notifier",
+        libelle: "Notifications : ce qui réclame une décision",
+        description: "Envoie par courriel et par webhook les alertes du moment, sans passer par aucun intermédiaire.",
+        commande: "cordeau tache notifier",
+        frequence: 86_400,
+    },
+    Tache {
         code: "purge",
         libelle: "Purge des sessions et du journal",
         description: "Retire les lignes perimees des tables techniques.",
@@ -191,7 +198,7 @@ mod tests {
 
     #[test]
     fn les_trois_taches_sont_decrites() {
-        assert_eq!(TACHES.len(), 3);
+        assert_eq!(TACHES.len(), 4);
         for t in TACHES {
             assert!(!t.libelle.trim().is_empty(), "{}", t.code);
             assert!(!t.description.trim().is_empty(), "{}", t.code);
