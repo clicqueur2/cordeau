@@ -16,6 +16,7 @@ mod entite;
 mod extrafields_ecran;
 pub(crate) mod icones;
 mod journal_erreurs;
+mod journaux_ecran;
 mod langue;
 mod lettrage_ecran;
 mod livre_tenu;
@@ -340,6 +341,7 @@ async fn main() {
         .route("/recurrences", get(recur_ecran::page))
         .route("/recurrences/generer", post(recur_ecran::generer))
         .route("/parametres/greffons", get(pages::greffons_page))
+        .route("/parametres/journaux", get(journaux_ecran::page))
         .route(
             "/parametres/notifications",
             get(notifications_ecran::page).post(notifications_ecran::enregistrer),
