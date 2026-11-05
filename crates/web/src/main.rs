@@ -95,6 +95,7 @@ mod mrp_ecran;
 mod note_frais_ecran;
 mod notifications_ecran;
 mod pages;
+mod partenariat_ecran;
 mod pdf_modele_ecran;
 mod planification_ecran;
 mod plugin;

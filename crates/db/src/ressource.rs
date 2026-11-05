@@ -15,8 +15,8 @@
 //! un numéro d'inventaire (`INV-2026-014`), une immatriculation, un nom de
 //! machine (`Fourgon 1`). C'est une saisie, pas un calcul : la numéroter
 //! automatiquement effacerait le seul identifiant que le magasinier reconnaît.
-//! Dolibarr ne la numérote pas non plus (le module Ressources n'a pas de
-//! `documents` de numérotation) et la colonne est même *nullable*.
+//! Dolibarr ne la numérote pas non plus : le module Ressources n'a aucun module
+//! de numérotation, et la colonne est même *nullable*.
 //!
 //! Conséquence directe : c'est la **clé unique** `uk_resource_ref (ref, entity)`
 //! qui tient l'unicité, et non un compteur. Deux ressources du même nom sont
@@ -36,8 +36,8 @@
 //! r.rowid = er.resource_id ... WHERE r.entity = :entity`), une ressource d'une
 //! autre société sortirait avec le bon identifiant, et l'écran d'une société
 //! afficherait les liens d'une autre. C'est le sens du paramètre `entity` de
-//! `attacher`, `detacher`, `ressources_de` et `combien_de_lies` : il ne filtre
-//! pas la jonction — il la rend possible.
+//! `attacher`, `detacher`, `ressources_de` et `combien_de_lies` : la jonction n'a
+//! aucune colonne à filtrer, c'est lui qui rend le cloisonnement possible.
 //!
 //! Corollaire : `attacher` refuse une ressource absente de l'entité demandée,
 //! même si son `rowid` existe ailleurs. Attacher depuis la société 1 une
@@ -242,13 +242,6 @@ const SELECT_COLS: &str = "r.rowid, r.entity, r.ref, r.asset_number, r.descripti
      r.email, r.url, r.max_users, r.fk_statut, \
      DATE_FORMAT(r.datec, '%Y-%m-%d %H:%i:%s'), r.fk_user_author";
 
-/// Colonnes de `SELECT_COLS` plus celles de la jonction, pour `ressources_de`.
-const SELECT_COLS_LIES: &str = "r.rowid, r.entity, r.ref, r.asset_number, r.description, \
-     r.fk_code_type_resource, t.label, r.address, r.zip, r.town, r.phone, \
-     r.email, r.url, r.max_users, r.fk_statut, \
-     DATE_FORMAT(r.datec, '%Y-%m-%d %H:%i:%s'), r.fk_user_author, \
-     CAST(er.duree AS CHAR), er.busy";
-
 fn opt_s(row: &Row, i: usize) -> Option<String> {
     row.get_opt::<String, _>(i).and_then(|r| r.ok())
 }
@@ -285,8 +278,8 @@ fn map_row(row: &Row) -> Ressource {
     }
 }
 
-/// Une ressource lue avec son lien : les deux dernières colonnes de
-/// `SELECT_COLS_LIES` sont `duree` et `busy`.
+/// Une ressource lue avec son lien : les deux dernières colonnes de la requête
+/// de `ressources_de` sont `duree` et `busy`.
 fn map_row_lie(row: &Row) -> Ressource {
     let mut res = map_row(row);
     res.duree = opt_dec(row, 17);
@@ -311,7 +304,7 @@ fn type_element(saisie: &str) -> Option<&'static str> {
     let saisi = saisie.trim().to_ascii_lowercase();
     ELEMENTS
         .iter()
-        .find(|(nom, _)| *nom == saisi)
+        .find(|(nom, _)| *nom == saisi.as_str())
         .map(|(_, ecrit)| *ecrit)
 }
 
@@ -344,38 +337,32 @@ fn type_ressource(
 }
 
 fn verifier_email(email: Option<&str>) -> Result<(), Box<dyn Error>> {
-    if let Some(e) = email {
-        if !e.contains('@') {
-            return Err(format!(
-                "l'adresse « {e} » n'est pas une adresse électronique : il manque l'arobase"
-            )
-            .into());
-        }
+    match email {
+        Some(e) if !e.contains('@') => Err(format!(
+            "l'adresse « {e} » n'est pas une adresse électronique : il manque l'arobase"
+        )
+        .into()),
+        _ => Ok(()),
     }
-    Ok(())
 }
 
 fn verifier_url(url: Option<&str>) -> Result<(), Box<dyn Error>> {
-    if let Some(u) = url {
-        if !u.to_ascii_lowercase().starts_with("http") {
-            return Err(format!(
-                "l'adresse web « {u} » doit commencer par http (http:// ou https://)"
-            )
-            .into());
-        }
+    match url {
+        Some(u) if !u.to_ascii_lowercase().starts_with("http") => Err(format!(
+            "l'adresse web « {u} » doit commencer par http (http:// ou https://)"
+        )
+        .into()),
+        _ => Ok(()),
     }
-    Ok(())
 }
 
 fn verifier_max_users(max_users: Option<i32>) -> Result<(), Box<dyn Error>> {
-    if let Some(n) = max_users {
-        if n < 0 {
-            return Err(
-                format!("le nombre maximal d'utilisateurs ({n}) ne peut pas être négatif").into(),
-            );
+    match max_users {
+        Some(n) if n < 0 => {
+            Err(format!("le nombre maximal d'utilisateurs ({n}) ne peut pas être négatif").into())
         }
+        _ => Ok(()),
     }
-    Ok(())
 }
 
 fn ressource_existe(
@@ -422,7 +409,8 @@ pub fn get(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Ressource>, Bo
          LEFT JOIN llx_c_type_resource t ON t.code = r.fk_code_type_resource \
          WHERE r.entity = :entity AND r.rowid = :rowid"
     );
-    let row: Option<Row> = conn.exec_first(sql, params! { "entity" => entity, "rowid" => rowid })?;
+    let row: Option<Row> =
+        conn.exec_first(sql, params! { "entity" => entity, "rowid" => rowid })?;
     Ok(row.as_ref().map(map_row))
 }
 
@@ -571,7 +559,7 @@ pub fn attacher(
     element_type: &str,
     duree: Option<Decimal>,
 ) -> Result<i64, Box<dyn Error>> {
-    let Some(type_element) = type_element(element_type) else {
+    let Some(type_cible) = type_element(element_type) else {
         return Err(format!(
             "le type d'élément « {element_type} » n'est pas géré : {}",
             TYPES_ELEMENT.join(", ")
@@ -581,21 +569,15 @@ pub fn attacher(
     if element_id <= 0 {
         return Err(format!("l'élément à attacher ({element_id}) est invalide").into());
     }
-    if let Some(d) = duree {
-        if d < Decimal::ZERO {
-            return Err(format!(
-                "la durée d'attachement ({d}) ne peut pas être négative"
-            )
-            .into());
-        }
+    if let Some(d) = duree.filter(|d| *d < Decimal::ZERO) {
+        return Err(format!("la durée d'attachement ({d}) ne peut pas être négative").into());
     }
 
     let mut conn = pool.get_conn()?;
     if !ressource_existe(&mut conn, entity, fk_ressource)? {
-        return Err(format!(
-            "la ressource {fk_ressource} n'existe pas dans l'entité {entity}"
-        )
-        .into());
+        return Err(
+            format!("la ressource {fk_ressource} n'existe pas dans l'entité {entity}").into(),
+        );
     }
 
     let deja: Option<i64> = conn.exec_first(
@@ -606,13 +588,13 @@ pub fn attacher(
             "ressource" => fk_ressource,
             "type_ressource" => TYPE_RESSOURCE,
             "element" => element_id,
-            "type_element" => type_element,
+            "type_element" => type_cible,
         },
     )?;
     if deja.is_some() {
         return Err(format!(
             "la ressource {fk_ressource} est déjà attachée à l'élément \
-             {type_element} {element_id}"
+             {type_cible} {element_id}"
         )
         .into());
     }
@@ -625,7 +607,7 @@ pub fn attacher(
             "ressource" => fk_ressource,
             "type_ressource" => TYPE_RESSOURCE,
             "element" => element_id,
-            "type_element" => type_element,
+            "type_element" => type_cible,
             "duree" => duree.map(|d| d.to_string()),
         },
     );
@@ -634,7 +616,7 @@ pub fn attacher(
         Ok(()) => Ok(conn.last_insert_id() as i64),
         Err(e) if is_duplicate(&e) => Err(format!(
             "la ressource {fk_ressource} est déjà attachée à l'élément \
-             {type_element} {element_id}"
+             {type_cible} {element_id}"
         )
         .into()),
         Err(e) => Err(e.into()),
@@ -653,7 +635,7 @@ pub fn detacher(
     element_id: i64,
     element_type: &str,
 ) -> Result<(), Box<dyn Error>> {
-    let Some(type_element) = type_element(element_type) else {
+    let Some(type_cible) = type_element(element_type) else {
         return Err(format!(
             "le type d'élément « {element_type} » n'est pas géré : {}",
             TYPES_ELEMENT.join(", ")
@@ -673,13 +655,13 @@ pub fn detacher(
             "ressource" => fk_ressource,
             "type_ressource" => TYPE_RESSOURCE,
             "element" => element_id,
-            "type_element" => type_element,
+            "type_element" => type_cible,
         },
     )?;
     let Some(lien) = lien else {
         return Err(format!(
             "aucun lien entre la ressource {fk_ressource} et l'élément \
-             {type_element} {element_id} dans l'entité {entity}"
+             {type_cible} {element_id} dans l'entité {entity}"
         )
         .into());
     };
@@ -709,7 +691,7 @@ pub fn ressources_de(
     element_id: i64,
     element_type: &str,
 ) -> Result<Vec<Ressource>, Box<dyn Error>> {
-    let Some(type_element) = type_element(element_type) else {
+    let Some(type_cible) = type_element(element_type) else {
         return Err(format!(
             "le type d'élément « {element_type} » n'est pas géré : {}",
             TYPES_ELEMENT.join(", ")
@@ -718,7 +700,8 @@ pub fn ressources_de(
     };
     let mut conn = pool.get_conn()?;
     let sql = format!(
-        "SELECT {SELECT_COLS_LIES} FROM llx_element_resources er \
+        "SELECT {SELECT_COLS}, CAST(er.duree AS CHAR), er.busy \
+         FROM llx_element_resources er \
          INNER JOIN llx_resource r ON r.rowid = er.resource_id \
          LEFT JOIN llx_c_type_resource t ON t.code = r.fk_code_type_resource \
          WHERE r.entity = :entity AND er.resource_type = :type_ressource \
@@ -731,28 +714,27 @@ pub fn ressources_de(
             "entity" => entity,
             "type_ressource" => TYPE_RESSOURCE,
             "element" => element_id,
-            "type_element" => type_element,
+            "type_element" => type_cible,
         },
     )?;
     Ok(rows.iter().map(map_row_lie).collect())
 }
 
-/// Nombre de liens qui partent d'une ressource, toutes entités exclues : la
-/// ressource doit appartenir à l'entité demandée, sinon la question n'a pas de
-/// sens et la fonction le dit.
+/// Nombre de liens qui partent d'une ressource.
+///
+/// La ressource doit appartenir à l'entité demandée : compter les liens d'une
+/// ressource d'une autre société n'a pas de sens, et la fonction le dit au lieu
+/// de rendre zéro. Une fois cette appartenance vérifiée, le compte est exact —
+/// `resource_id` est unique toutes sociétés confondues, il n'y a rien à
+/// cloisonner de plus.
 ///
 /// Sert à refuser la suppression d'une ressource encore attachée.
-pub fn combien_de_lies(
-    pool: &Pool,
-    entity: i64,
-    fk_ressource: i64,
-) -> Result<i64, Box<dyn Error>> {
+pub fn combien_de_lies(pool: &Pool, entity: i64, fk_ressource: i64) -> Result<i64, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     if !ressource_existe(&mut conn, entity, fk_ressource)? {
-        return Err(format!(
-            "la ressource {fk_ressource} n'existe pas dans l'entité {entity}"
-        )
-        .into());
+        return Err(
+            format!("la ressource {fk_ressource} n'existe pas dans l'entité {entity}").into(),
+        );
     }
     let total: Option<i64> = conn.exec_first(
         "SELECT COUNT(*) FROM llx_element_resources \
