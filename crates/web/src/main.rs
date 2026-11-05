@@ -873,10 +873,22 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
     let jour = aujourdhui(p)?;
 
     let chiffres = db::tableau::chiffres(p, entity)?;
+    let devis = db::tableau::devis(p, entity, &format!("{}-01-01", &jour[..4]))?;
     let retard = db::tableau::en_retard(p, entity, &jour, 8)?;
     let sans_reponse = db::tableau::devis_sans_reponse(p, entity, &jour, 15, 6)?;
     let stock = db::tableau::stock_bas(p, entity)?;
     let total_retard = db::tableau::total_retard(&retard);
+
+    let serie = db::stats::par_mois(p, entity, &jour, 12)?;
+    let maxi = serie
+        .iter()
+        .map(|m| m.ventes.max(m.achats))
+        .fold(Decimal::ZERO, |a, b| if b > a { b } else { a });
+    let clients = db::stats::top_clients(p, entity, &format!("{}-01-01", &jour[..4]), 5)?;
+    let maxi_client = clients
+        .iter()
+        .map(|c| c.montant)
+        .fold(Decimal::ZERO, |a, b| if b > a { b } else { a });
 
     let factures = db::invoice::list(p, entity, 6, 0)?;
     let recentes: Vec<_> = factures
@@ -884,8 +896,6 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
         .filter(|f| f.fk_statut >= db::invoice::STATUT_VALIDEE)
         .collect();
 
-    // Le nombre d'alertes en tete : c'est ce qui dit s'il y a quelque chose a
-    // faire avant de regarder autre chose.
     let alertes = retard.len() + sans_reponse.len() + stock.len();
 
     Ok(ui::page(
@@ -896,47 +906,89 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
             h1 { (crate::langue::tr("Tableau de bord")) }
             p .sous-titre { (crate::langue::tr("Exercice en cours")) " — " (jour.clone()) }
 
+            div .kpis {
+                div .kpi.fort {
+                    div .titre { (crate::langue::tr("Facturé")) }
+                    div .valeur { (ui::euros(chiffres.facture)) }
+                    div .note { (chiffres.nb_factures.to_string()) " " (crate::langue::tr("factures validées")) }
+                }
+                div .kpi.bon {
+                    div .titre { (crate::langue::tr("Encaissé")) }
+                    div .valeur { (ui::euros(chiffres.encaisse)) }
+                    div .note { (crate::langue::tr("sur les factures validées")) }
+                }
+                div .kpi {
+                    div .titre { (crate::langue::tr("Reste à encaisser")) }
+                    div .valeur { (ui::euros(chiffres.reste)) }
+                    div .note { (crate::langue::tr("encours client")) }
+                }
+                div .kpi {
+                    div .titre { (crate::langue::tr("Devisé")) }
+                    div .valeur { (ui::euros(devis.en_cours)) }
+                    div .note { (devis.nb_en_cours.to_string()) " " (crate::langue::tr("devis en attente")) }
+                }
+                div .kpi {
+                    div .titre { (crate::langue::tr("Taux de signature")) }
+                    div .valeur { (devis.taux.to_string()) " %" }
+                    div .note {
+                        (ui::euros(devis.signes)) " / " (ui::euros(devis.emis()))
+                    }
+                }
+                div .kpi.alerte {
+                    div .titre { (crate::langue::tr("En retard")) }
+                    div .valeur { (ui::euros(total_retard)) }
+                    div .note { (retard.len().to_string()) " " (crate::langue::tr("factures à relancer")) }
+                }
+            }
+
             @if alertes > 0 {
-                h2 { (crate::langue::tr("À traiter aujourd'hui")) }
-                div .cartes {
-                    (ui::carte(
-                        "Factures en retard",
-                        &retard.len().to_string(),
-                        Some(&ui::euros(total_retard)),
-                        !retard.is_empty(),
-                    ))
-                    (ui::carte(
-                        "Devis sans réponse",
-                        &sans_reponse.len().to_string(),
-                        Some("depuis plus de 15 jours"),
-                        !sans_reponse.is_empty(),
-                    ))
-                    (ui::carte(
-                        "Stock sous le seuil",
-                        &stock.len().to_string(),
-                        Some("produits à réapprovisionner"),
-                        !stock.is_empty(),
-                    ))
+                p .sous-titre style="margin:18px 0 0" {
+                    (alertes.to_string()) " " (crate::langue::tr("point(s) à traiter — voir plus bas."))
                 }
             } @else {
                 (ui::flash("Rien en attente : aucune facture en retard, aucun devis oublié, aucun stock bas."))
             }
 
-            h2 { (crate::langue::tr("Chiffres")) }
-            div .cartes {
-                (ui::carte(
-                    "Facturé",
-                    &ui::euros(chiffres.facture),
-                    Some(&pluriel(chiffres.nb_factures as usize, "facture validée", "factures validées")),
-                    false,
-                ))
-                (ui::carte("Encaissé", &ui::euros(chiffres.encaisse), None, false))
-                (ui::carte(
-                    "Reste à encaisser",
-                    &ui::euros(chiffres.reste),
-                    Some("encours client"),
-                    chiffres.reste > Decimal::ZERO,
-                ))
+            h2 { (crate::langue::tr("Douze derniers mois")) }
+            div .curve {
+                table {
+                    tbody {
+                        @for m in &serie {
+                            tr {
+                                td .ref style="width:70px" { (m.mois.clone()) }
+                                td style="width:46%" {
+                                    div .piste {
+                                        div .vente style=(format!(
+                                            "width:{}%",
+                                            if maxi > Decimal::ZERO {
+                                                (m.ventes / maxi * Decimal::from(100)).round_dp(1).normalize()
+                                            } else { Decimal::ZERO }
+                                        )) {}
+                                    }
+                                }
+                                td .num style="width:110px" { (ui::euros(m.ventes)) }
+                                td style="width:30%" {
+                                    div .piste {
+                                        div .achat style=(format!(
+                                            "width:{}%",
+                                            if maxi > Decimal::ZERO {
+                                                (m.achats / maxi * Decimal::from(100)).round_dp(1).normalize()
+                                            } else { Decimal::ZERO }
+                                        )) {}
+                                    }
+                                }
+                                td .num style="width:100px;color:#78736c" { (ui::euros(m.achats)) }
+                            }
+                        }
+                    }
+                }
+                p style="color:#78736c;font-size:12.5px;margin:6px 0 0" {
+                    span style="display:inline-block;width:10px;height:10px;background:#8a5a2b;margin-right:5px" {}
+                    (crate::langue::tr("Ventes"))
+                    "   "
+                    span style="display:inline-block;width:10px;height:10px;background:#c3bdb4;margin-right:5px" {}
+                    (crate::langue::tr("Achats"))
+                }
             }
 
             @if !retard.is_empty() {
@@ -957,9 +1009,7 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
                                 td .ref { a href={ "/factures/" (f.rowid) } { (f.reference.clone()) } }
                                 td { (f.tiers.clone()) }
                                 td .ref { (f.echeance.clone()) }
-                                td .num {
-                                    span .pastille.p-retard { (f.jours.to_string()) " j" }
-                                }
+                                td .num { span .pastille.p-retard { (f.jours.to_string()) " j" } }
                                 td .num { (ui::euros(f.reste)) }
                             }
                         }
@@ -1011,6 +1061,41 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
                                 td { (s.libelle.clone()) }
                                 td .num { (s.stock.normalize().to_string()) }
                                 td .num { (s.seuil.normalize().to_string()) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            h2 { (crate::langue::tr("Meilleurs clients de l'année")) }
+            @if clients.is_empty() {
+                (ui::vide("Aucune facture validée cette année.", None))
+            } @else {
+                table {
+                    thead {
+                        tr {
+                            th { (crate::langue::tr("Client")) }
+                            th .num { (crate::langue::tr("Factures")) }
+                            th .num { (crate::langue::tr("Total TTC")) }
+                            th { "" }
+                        }
+                    }
+                    tbody {
+                        @for c in &clients {
+                            tr {
+                                td { (c.libelle.clone()) }
+                                td .num { (c.nombre.to_string()) }
+                                td .num { (ui::euros(c.montant)) }
+                                td style="width:26%" {
+                                    div .piste {
+                                        div .vente style=(format!(
+                                            "width:{}%",
+                                            if maxi_client > Decimal::ZERO {
+                                                (c.montant / maxi_client * Decimal::from(100)).round_dp(1).normalize()
+                                            } else { Decimal::ZERO }
+                                        )) {}
+                                    }
+                                }
                             }
                         }
                     }
