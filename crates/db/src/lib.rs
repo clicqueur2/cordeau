@@ -46,6 +46,7 @@ pub mod mrp;
 pub mod multidevise;
 pub mod party;
 pub mod payment;
+pub mod pdf_modele;
 pub mod persist_ecritures;
 pub mod pos_ventes;
 pub mod product;
