@@ -243,6 +243,11 @@ pub const MODULES: &[Module] = &[
             e("base", "Base de données", "/parametres/base"),
             e("constantes", "Constantes", "/parametres/constantes"),
             e("modeles-pdf", "Modèles de PDF", "/parametres/modeles-pdf"),
+            e(
+                "planification",
+                "Planification",
+                "/parametres/planification",
+            ),
             e("tables", "Tables de la base", "/parametres/tables"),
             e(
                 "evenements",
