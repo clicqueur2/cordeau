@@ -48,6 +48,7 @@ pub mod inventaire;
 pub mod invoice;
 pub mod journal;
 pub mod lettrage;
+pub mod livraison;
 pub mod mailing;
 pub mod menu;
 pub mod modeles;

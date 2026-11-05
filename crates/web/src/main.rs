@@ -32,6 +32,7 @@ pub(crate) use achats_ecran::{
     achats,
 };
 mod achats_ecran;
+mod achats_fournisseur_ecran;
 pub(crate) use chantiers_ecran::{chantier_creer, chantier_fiche, chantier_tache_creer, chantiers};
 mod chantiers_ecran;
 pub(crate) use commandes_ecran::{

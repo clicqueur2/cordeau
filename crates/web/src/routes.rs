@@ -215,6 +215,27 @@ pub fn routes(app: App) -> Router {
         )
         .route("/inventaires/:id", get(inventaire_ecran::detail))
         .route("/inventaires/:id/valider", post(inventaire_ecran::valider))
+        .route("/achats-fournisseur", get(achats_fournisseur_ecran::page))
+        .route(
+            "/achats-fournisseur/demande",
+            post(achats_fournisseur_ecran::demande),
+        )
+        .route(
+            "/achats-fournisseur/demande/:id/valider",
+            post(achats_fournisseur_ecran::demande_valider),
+        )
+        .route(
+            "/achats-fournisseur/demande/:id/cloturer",
+            post(achats_fournisseur_ecran::demande_cloturer),
+        )
+        .route(
+            "/achats-fournisseur/demande/:id/refuser",
+            post(achats_fournisseur_ecran::demande_refuser),
+        )
+        .route(
+            "/achats-fournisseur/commande",
+            post(achats_fournisseur_ecran::commande),
+        )
         .route("/dons", get(dons_ecran::page).post(dons_ecran::creer))
         .route("/dons/:id", get(dons_ecran::detail))
         .route("/dons/:id/valider", post(dons_ecran::valider))
