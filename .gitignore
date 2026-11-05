@@ -19,3 +19,8 @@ _vendor/
 # Divers système
 Thumbs.db
 desktop.ini
+
+# Binaires et traces locales : jamais publies.
+*.dll
+*.err
+*.exe

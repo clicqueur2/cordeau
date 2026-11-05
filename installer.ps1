@@ -86,6 +86,6 @@ Write-Host ""
 Write-Host "Pour lancer le noyau :" -ForegroundColor Cyan
 Write-Host "  `$env:DOLIBARR_DSN = `"mysql://$Utilisateur`:$MotDePasse@$Hote`:$Port/$Base`""
 Write-Host "  `$env:DOLIBARR_DOCUMENTS = `"$PWD\documents`""
-Write-Host "  cargo run -p dolibarr-rs --bin dolibarr-web"
+Write-Host "  cargo run -q -p web"
 Write-Host ""
 Write-Host "Puis ouvrir http://127.0.0.1:8090/installation"

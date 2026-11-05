@@ -400,23 +400,23 @@ mod tests {
 
     #[test]
     fn detecte_le_point_virgule() {
-        let t = analyser("nom;ville\nRoure;Charly\n").unwrap();
+        let t = analyser("nom;ville\nDupont;Charly\n").unwrap();
         assert_eq!(t.entetes, vec!["nom", "ville"]);
-        assert_eq!(t.lignes, vec![vec!["Roure", "Charly"]]);
+        assert_eq!(t.lignes, vec![vec!["Dupont", "Charly"]]);
     }
 
     #[test]
     fn detecte_la_virgule() {
-        let t = analyser("nom,ville\nRoure,Charly\n").unwrap();
+        let t = analyser("nom,ville\nDupont,Charly\n").unwrap();
         assert_eq!(t.entetes, vec!["nom", "ville"]);
         assert_eq!(t.lignes.len(), 1);
     }
 
     #[test]
     fn gere_les_guillemets_et_les_retours_a_la_ligne() {
-        let csv = "nom;adresse\n\"Roure; fils\";\"1 rue\ndu Lac\"\n";
+        let csv = "nom;adresse\n\"Dupont; fils\";\"1 rue\ndu Lac\"\n";
         let t = analyser(csv).unwrap();
-        assert_eq!(t.lignes[0][0], "Roure; fils");
+        assert_eq!(t.lignes[0][0], "Dupont; fils");
         assert_eq!(t.lignes[0][1], "1 rue\ndu Lac");
     }
 

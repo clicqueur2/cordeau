@@ -59,6 +59,7 @@ pub const MODULES: &[Module] = &[
         entrees: &[
             e("nouveau", "Nouveau produit", "/produits/nouveau"),
             e("liste", "Catalogue", "/produits"),
+            e("campagnes", "Campagnes d'e-mailing", "/campagnes"),
             e("mrp", "Besoins et ordres proposés", "/mrp"),
             e("stock", "Stock", "/stock"),
             e("caisse", "Caisse", "/caisse"),
@@ -109,6 +110,7 @@ pub const MODULES: &[Module] = &[
         entrees: &[
             e("nouveau", "Facture directe", "/factures/nouveau"),
             e("liste", "Liste des factures", "/factures"),
+            e("recurrences", "Récurrences", "/recurrences"),
             e("devises", "Devises", "/devises"),
             e("relances", "Relances et impayés", "/relances"),
             e("paiements", "Saisie des règlements", "/reglements"),
@@ -127,6 +129,7 @@ pub const MODULES: &[Module] = &[
         libelle: "Banques",
         entrees: &[
             e("comptes", "Liste des comptes", "/banques"),
+            e("sepa", "Virements SEPA", "/achats/sepa"),
             e(
                 "rapprochement",
                 "Rapprochement bancaire",

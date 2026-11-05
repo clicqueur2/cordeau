@@ -362,7 +362,7 @@ mod tests {
     fn emetteur() -> Emetteur {
         Emetteur {
             nom: "Pierre Angulaire".into(),
-            iban: "FR7616807003483848689521643".into(),
+            iban: "FR1420041010050500013M02606".into(),
             bic: "CCBPFRPPBDX".into(),
         }
     }
@@ -370,7 +370,7 @@ mod tests {
     #[test]
     fn les_ibans_reels_passent_et_les_faux_tombent() {
         // IBAN reels, dont celui du compte de l'entreprise.
-        assert!(iban_valide("FR7616807003483848689521643"));
+        assert!(iban_valide("FR1420041010050500013M02606"));
         assert!(iban_valide("FR76 1680 7003 4838 4868 9521 643"));
         assert!(iban_valide("DE89370400440532013000"));
         assert!(iban_valide("GB82WEST12345698765432"));
@@ -456,7 +456,7 @@ mod tests {
     #[test]
     fn le_prelevement_porte_le_mandat_et_le_creancier() {
         let lot = vec![Prelevement {
-            nom: "M. Charcosset".into(),
+            nom: "M. Martin".into(),
             iban: "FR1420041010050500013M02606".into(),
             bic: Some("CCBPFRPPBDX".into()),
             centimes: 50_000,

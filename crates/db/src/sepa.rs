@@ -265,8 +265,8 @@ mod tests {
         assert_eq!(non_vide(Some("   ".to_string())), None);
         assert_eq!(non_vide(None), None);
         assert_eq!(
-            non_vide(Some(" FR7616807003483848689521643 ".to_string())),
-            Some("FR7616807003483848689521643".to_string())
+            non_vide(Some(" FR1420041010050500013M02606 ".to_string())),
+            Some("FR1420041010050500013M02606".to_string())
         );
     }
 }

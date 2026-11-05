@@ -6,7 +6,7 @@ fn seller() -> PartyView {
     PartyView {
         legal_line: None,
         name: "Pierre Angulaire".into(),
-        address: Some("17 chemin du Grimpillon du Monteillier".into()),
+        address: Some("1 rue de l'Exemple".into()),
         zip: Some("69450".into()),
         town: Some("Saint-Cyr-au-Mont-d'Or".into()),
         siret: Some("123 456 789 00016".into()),
@@ -17,7 +17,7 @@ fn seller() -> PartyView {
 fn customer() -> PartyView {
     PartyView {
         legal_line: None,
-        name: "M. et Mme Roure".into(),
+        name: "M. et Mme Dupont".into(),
         address: Some("12 rue des Lilas".into()),
         zip: Some("69370".into()),
         town: Some("Saint-Didier-au-Mont-d'Or".into()),

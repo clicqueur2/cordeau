@@ -176,7 +176,7 @@ pub fn devis_sans_reponse(
                     CAST(p.total_ttc AS CHAR) \
              FROM llx_propal p \
              LEFT JOIN llx_societe s ON s.rowid = p.fk_soc \
-             WHERE p.entity = :entity AND p.fk_statut = 0 \
+             WHERE p.entity = :entity AND p.fk_statut = 1 \
                AND DATEDIFF(:jour, COALESCE(p.datep, p.datec)) >= :jours \
              ORDER BY COALESCE(p.datep, p.datec) ASC \
              LIMIT :limite",

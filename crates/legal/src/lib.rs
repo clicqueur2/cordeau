@@ -317,19 +317,19 @@ mod tests {
             forme_juridique: Some("SAS".into()),
             capital: Some("10 000 EUR".into()),
             rcs: Some("RCS Lyon 123 456 789".into()),
-            adresse: Some("17 chemin du Grimpillon du Monteillier".into()),
+            adresse: Some("1 rue de l'Exemple".into()),
             code_postal: Some("69410".into()),
             ville: Some("Saint-Cyr-au-Mont-d'Or".into()),
             siret: Some("12345678900012".into()),
             tva_intra: Some("FR12345678900".into()),
-            email: Some("contact@maconnerie-architecture.fr".into()),
+            email: Some("contact@exemple.fr".into()),
             ..Default::default()
         }
     }
 
     fn client_pro() -> Client {
         Client {
-            nom: "M&Mme Roure".into(),
+            nom: "M. et Mme Dupont".into(),
             siret: Some("98765432100019".into()),
             tva_intra: Some("FR98765432100".into()),
             est_professionnel: true,

@@ -90,7 +90,7 @@ montant de chaque cellule arrive **déjà formaté**, le crate `pdf` ne calcule 
 ## Vérifier
 
 ```powershell
-.\tools\verifier.ps1            # formatage, clippy, 107 tests, schéma, chaîne métier, 12 écrans
+.\tools\verifier.ps1            # formatage, clippy, 576 tests, schéma, chaîne métier, 12 écrans
 .\tools\verifier.ps1 -Reseau    # + les tests des API de l'État (BAN, INSEE)
 ```
 
