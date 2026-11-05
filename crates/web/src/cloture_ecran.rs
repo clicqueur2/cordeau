@@ -78,7 +78,7 @@ pub async fn page(
         "cloture",
         "Clôture d'exercice",
         html! {
-            h1 { "Clôture d'exercice" }
+            h1 {(crate::langue::tr("Clôture d'exercice")) }
             p .sous-titre {
                 "Les comptes de charges (classe 6) et de produits (classe 7) sont soldés, "
                 "et leur différence est portée au compte 12 « Résultat de l'exercice »."
@@ -92,23 +92,23 @@ pub async fn page(
                 table {
                     tbody {
                         tr {
-                            th { "Exercice" }
+                            th {(crate::langue::tr("Exercice")) }
                             td { input type="text" name="exercice" value=(b.exercice) size="6"; }
-                            th { "Du" }
+                            th {(crate::langue::tr("Du")) }
                             td { input type="text" name="debut" value=(b.debut) size="12"; }
-                            th { "Au" }
+                            th {(crate::langue::tr("Au")) }
                             td { input type="text" name="fin" value=(b.fin) size="12"; }
-                            th { "Date de clôture" }
+                            th {(crate::langue::tr("Date de clôture")) }
                             td { input type="text" name="date_cloture" value=(b.date_cloture) size="12"; }
                         }
                     }
                 }
                 div .actions {
-                    button type="submit" { "Recalculer" }
+                    button type="submit" {(crate::langue::tr("Recalculer")) }
                 }
             }
 
-            h2 { "Ce que la clôture ferait" }
+            h2 {(crate::langue::tr("Ce que la clôture ferait")) }
             div .cartes {
                 (ui::carte("Charges", &ui::euros(apercu.charges), Some("classe 6"), false))
                 (ui::carte("Produits", &ui::euros(apercu.produits), Some("classe 7"), false))
@@ -126,14 +126,14 @@ pub async fn page(
                     None,
                 ))
             } @else {
-                h2 { "Les lignes qui seraient écrites" }
+                h2 {(crate::langue::tr("Les lignes qui seraient écrites")) }
                 table {
                     thead {
                         tr {
-                            th { "Compte" }
-                            th { "Libellé" }
-                            th .num { "Débit" }
-                            th .num { "Crédit" }
+                            th {(crate::langue::tr("Compte")) }
+                            th {(crate::langue::tr("Libellé")) }
+                            th .num {(crate::langue::tr("Débit")) }
+                            th .num {(crate::langue::tr("Crédit")) }
                         }
                     }
                     tbody {
@@ -163,7 +163,7 @@ pub async fn page(
                     input type="hidden" name="date_cloture" value=(b.date_cloture);
                     div .actions {
                         @if deja {
-                            button type="submit" { "Rejouer la clôture" }
+                            button type="submit" {(crate::langue::tr("Rejouer la clôture")) }
                         } @else {
                             button type="submit" { "Clore l'exercice " (b.exercice) }
                         }
@@ -174,19 +174,19 @@ pub async fn page(
                 }
             }
 
-            h2 { "Instantanés déposés" }
+            h2 {(crate::langue::tr("Instantanés déposés")) }
             @if instantanes.is_empty() {
                 (ui::vide("Aucune clôture déposée sur cette entité.", None))
             } @else {
                 table {
                     thead {
                         tr {
-                            th { "Exercice" }
-                            th { "Période" }
-                            th .num { "Charges" }
-                            th .num { "Produits" }
-                            th .num { "Résultat" }
-                            th .num { "Comptes" }
+                            th {(crate::langue::tr("Exercice")) }
+                            th {(crate::langue::tr("Période")) }
+                            th .num {(crate::langue::tr("Charges")) }
+                            th .num {(crate::langue::tr("Produits")) }
+                            th .num {(crate::langue::tr("Résultat")) }
+                            th .num {(crate::langue::tr("Comptes")) }
                         }
                     }
                     tbody {

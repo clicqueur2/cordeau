@@ -34,7 +34,7 @@ pub async fn liste(State(app): State<App>) -> Res<maud::Markup> {
         "extrafields",
         "Champs libres",
         html! {
-            h1 { "Champs libres" }
+            h1 {(crate::langue::tr("Champs libres")) }
             p .sous-titre {
                 "Dolibarr ajoute une colonne a la table de l'objet pour chaque champ libre. "
                 "Ces valeurs etaient dans la base, aucun ecran ne les montrait."
@@ -51,7 +51,7 @@ pub async fn liste(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 table {
                     thead {
-                        tr { th { "Objet" } th { "Table" } th .num { "Champs" } }
+                        tr { th {(crate::langue::tr("Objet")) } th {(crate::langue::tr("Table")) } th .num {(crate::langue::tr("Champs")) } }
                     }
                     tbody {
                         @for (elementtype, nombre) in &cibles {
@@ -102,11 +102,11 @@ pub async fn cible(State(app): State<App>, Path(elementtype): Path<String>) -> R
                 table {
                     thead {
                         tr {
-                            th { "Nom" }
-                            th { "Libelle" }
-                            th { "Type" }
-                            th { "Colonne" }
-                            th { "Etat" }
+                            th {(crate::langue::tr("Nom")) }
+                            th {(crate::langue::tr("Libelle")) }
+                            th {(crate::langue::tr("Type")) }
+                            th {(crate::langue::tr("Colonne")) }
+                            th {(crate::langue::tr("Etat")) }
                         }
                     }
                     tbody {
@@ -125,7 +125,7 @@ pub async fn cible(State(app): State<App>, Path(elementtype): Path<String>) -> R
                                 td .ref {
                                     (d.colonne())
                                     @if !presentes.contains(&d.colonne()) {
-                                        span style="color:#a33a2a" { " — absente" }
+                                        span style="color:#a33a2a" {(crate::langue::tr(" — absente")) }
                                     }
                                 }
                                 td {
@@ -168,7 +168,7 @@ pub async fn objet(
         "extrafields",
         &format!("Champs libres : {elementtype} {id}"),
         html! {
-            h1 { "Champs libres" }
+            h1 {(crate::langue::tr("Champs libres")) }
             p .sous-titre { (elementtype) " n° " (id.to_string()) " · entite " (entity.to_string()) }
 
             @if ok {
@@ -184,7 +184,7 @@ pub async fn objet(
                 form method="post" action={ "/extrafields/" (elementtype) "/" (id.to_string()) } {
                     table {
                         thead {
-                            tr { th { "Champ" } th { "Valeur" } th { "Type" } }
+                            tr { th {(crate::langue::tr("Champ")) } th {(crate::langue::tr("Valeur")) } th {(crate::langue::tr("Type")) } }
                         }
                         tbody {
                             @for (d, valeur, existe) in &valeurs {
@@ -193,7 +193,7 @@ pub async fn objet(
                                         div { (d.libelle.clone()) }
                                         div .ref style="color:#78736c;font-size:12.5px" {
                                             (d.nom.clone())
-                                            @if d.requis { " · requis" }
+                                            @if d.requis {(crate::langue::tr(" · requis")) }
                                         }
                                     }
                                     td {
@@ -203,8 +203,7 @@ pub async fn objet(
                                             }
                                         } @else if d.calcule_par_expression() {
                                             (valeur.clone().unwrap_or_else(|| "—".into()))
-                                            div style="color:#78736c;font-size:12.5px" {
-                                                "calcule, non saisissable"
+                                            div style="color:#78736c;font-size:12.5px" {(crate::langue::tr("calcule, non saisissable"))
                                             }
                                         } @else {
                                             (champ(d, valeur.as_deref()))
@@ -216,9 +215,8 @@ pub async fn objet(
                         }
                     }
                     div .actions {
-                        button type="submit" { "Enregistrer" }
-                        a .bouton.secondaire href={ "/parametres/extrafields/" (elementtype) } {
-                            "Voir les definitions"
+                        button type="submit" {(crate::langue::tr("Enregistrer")) }
+                        a .bouton.secondaire href={ "/parametres/extrafields/" (elementtype) } {(crate::langue::tr("Voir les definitions"))
                         }
                     }
                 }

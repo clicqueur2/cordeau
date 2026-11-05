@@ -52,7 +52,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
         "livre-tenu",
         "Livre tenu",
         html! {
-            h1 { "Livre tenu" }
+            h1 {(crate::langue::tr("Livre tenu")) }
             p .sous-titre {
                 "Lignes réellement écrites dans "
                 code { "llx_accounting_bookkeeping" }
@@ -75,9 +75,9 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                         !equilibre,
                     ))
                 }
-                h2 { "Balance par compte" }
+                h2 {(crate::langue::tr("Balance par compte")) }
                 table {
-                    thead { tr { th { "Compte" } th .num { "Débit" } th .num { "Crédit" } th .num { "Solde" } } }
+                    thead { tr { th {(crate::langue::tr("Compte")) } th .num {(crate::langue::tr("Débit")) } th .num {(crate::langue::tr("Crédit")) } th .num {(crate::langue::tr("Solde")) } } }
                     tbody {
                         @for (compte, (d, c)) in &par_compte {
                             tr {
@@ -89,13 +89,13 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                         }
                     }
                 }
-                h2 { "Dernières lignes" }
+                h2 {(crate::langue::tr("Dernières lignes")) }
                 div style="overflow-x:auto" {
                     table {
                         thead {
                             tr {
-                                th { "Journal" } th { "Date" } th { "Pièce" }
-                                th { "Compte" } th { "Libellé" } th .num { "Débit" } th .num { "Crédit" }
+                                th {(crate::langue::tr("Journal")) } th {(crate::langue::tr("Date")) } th {(crate::langue::tr("Pièce")) }
+                                th {(crate::langue::tr("Compte")) } th {(crate::langue::tr("Libellé")) } th .num {(crate::langue::tr("Débit")) } th .num {(crate::langue::tr("Crédit")) }
                             }
                         }
                         tbody {

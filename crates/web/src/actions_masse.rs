@@ -112,7 +112,7 @@ fn resultat(quoi: &str, bilan: &Bilan, retour: &str) -> Markup {
         &format!("{quoi} — résultat"),
         html! {
             h1 { (quoi) " — résultat de l'action de masse" }
-            p .sous-titre { "Chaque ligne a été essayée. Un refus n'arrête pas les autres." }
+            p .sous-titre {(crate::langue::tr("Chaque ligne a été essayée. Un refus n'arrête pas les autres.")) }
 
             @if bilan.faits > 0 {
                 (ui::flash(&format!("{} validé(s).", bilan.faits)))
@@ -121,7 +121,7 @@ fn resultat(quoi: &str, bilan: &Bilan, retour: &str) -> Markup {
             @if !bilan.refuses.is_empty() {
                 h2 { (bilan.refuses.len().to_string()) " refus(s)" }
                 table {
-                    thead { tr { th { "N°" } th { "Motif" } } }
+                    thead { tr { th {(crate::langue::tr("N°")) } th {(crate::langue::tr("Motif")) } } }
                     tbody {
                         @for (id, motif) in &bilan.refuses {
                             tr {
@@ -134,7 +134,7 @@ fn resultat(quoi: &str, bilan: &Bilan, retour: &str) -> Markup {
             }
 
             div .actions {
-                a .bouton href=(retour) { "Retour à la liste" }
+                a .bouton href=(retour) {(crate::langue::tr("Retour à la liste")) }
             }
         },
     )

@@ -72,9 +72,8 @@ pub async fn page(
         "emailings",
         "Campagnes",
         html! {
-            h1 { "Campagnes d'e-mailing" }
-            p .sous-titre {
-                "Composition du message, choix de la cible, puis essai avant tout envoi."
+            h1 {(crate::langue::tr("Campagnes d'e-mailing")) }
+            p .sous-titre {(crate::langue::tr("Composition du message, choix de la cible, puis essai avant tout envoi."))
             }
 
             @if q.get("ok").map(String::as_str) == Some("essai") {
@@ -87,12 +86,12 @@ pub async fn page(
                 p .erreur { (e) }
             }
 
-            h2 { "Destinataires" }
+            h2 {(crate::langue::tr("Destinataires")) }
             table {
                 thead {
                     tr {
-                        th { "Cible" }
-                        th .num { "Adresses" }
+                        th {(crate::langue::tr("Cible")) }
+                        th .num {(crate::langue::tr("Adresses")) }
                         th { "" }
                     }
                 }
@@ -105,7 +104,7 @@ pub async fn page(
                                 @if cle == cible {
                                     span .pastille.p-validee { "choisie" }
                                 } @else {
-                                    a href=(format!("/campagnes?cible={cle}")) { "Choisir" }
+                                    a href=(format!("/campagnes?cible={cle}")) {(crate::langue::tr("Choisir")) }
                                 }
                             }
                         }
@@ -117,12 +116,12 @@ pub async fn page(
                  une fois par adresse."
             }
 
-            h2 { "Message" }
+            h2 {(crate::langue::tr("Message")) }
             form method="post" action="/campagnes/envoyer" {
                 table {
                     tbody {
                         tr {
-                            th { "Cible" }
+                            th {(crate::langue::tr("Cible")) }
                             td {
                                 select name="cible" {
                                     @for (cle, libelle) in CIBLES {
@@ -132,18 +131,18 @@ pub async fn page(
                             }
                         }
                         tr {
-                            th { "Sujet" }
+                            th {(crate::langue::tr("Sujet")) }
                             td { input type="text" name="sujet" required style="width:100%"; }
                         }
                         tr {
-                            th { "Message" }
+                            th {(crate::langue::tr("Message")) }
                             td {
                                 textarea name="corps" rows="12" required
                                     style="width:100%;font:inherit;padding:8px 10px;border:1px solid #e6e2dc" {}
                             }
                         }
                         tr {
-                            th { "Destinataire de test" }
+                            th {(crate::langue::tr("Destinataire de test")) }
                             td {
                                 input type="email" name="test" required value=(test)
                                       style="width:100%";
@@ -156,7 +155,7 @@ pub async fn page(
                     }
                 }
                 div .actions {
-                    button type="submit" { "Envoyer l'essai" }
+                    button type="submit" {(crate::langue::tr("Envoyer l'essai")) }
                     span style="color:#78736c;font-size:13px" {
                         (n_cible) " destinataire(s) dans la cible choisie"
                     }

@@ -163,7 +163,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
             }
             body {
                 header {
-                    span .marque { "Pierre " span { "Angulaire" } }
+                    span .marque { "Pierre " span {(crate::langue::tr("Angulaire")) } }
                     nav {
                         @for m in crate::menu::modules().into_iter().filter(|m| crate::menu::depuis_base() || crate::menu_actif::est_actif(m.code) || crate::manifeste::est_declare(m.code)) {
                             a class=(if m.cle == module.cle { "actif" } else { "" })
@@ -258,15 +258,15 @@ pub fn echec(message: &str) -> Markup {
 
 pub fn pastille(statut: i16, paye: i16, en_retard: bool) -> Markup {
     if en_retard {
-        html! { span .pastille.p-retard { "en retard" } }
+        html! { span .pastille.p-retard {(crate::langue::tr("en retard")) } }
     } else if paye == 1 || statut == 2 {
-        html! { span .pastille.p-payee { "payée" } }
+        html! { span .pastille.p-payee {(crate::langue::tr("payée")) } }
     } else if statut == 0 {
         html! { span .pastille.p-brouillon { "brouillon" } }
     } else if statut == 3 {
-        html! { span .pastille.p-brouillon { "abandonnée" } }
+        html! { span .pastille.p-brouillon {(crate::langue::tr("abandonnée")) } }
     } else {
-        html! { span .pastille.p-validee { "validée" } }
+        html! { span .pastille.p-validee {(crate::langue::tr("validée")) } }
     }
 }
 

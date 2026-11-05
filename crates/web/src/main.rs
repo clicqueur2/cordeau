@@ -82,9 +82,9 @@ impl IntoResponse for Erreur {
                 "",
                 "Erreur",
                 html! {
-                    h1 { "Cette action n'a pas abouti" }
+                    h1 {(crate::langue::tr("Cette action n'a pas abouti")) }
                     p .erreur { (self.0) }
-                    p { a href="/" { "Retour au tableau de bord" } }
+                    p { a href="/" {(crate::langue::tr("Retour au tableau de bord")) } }
                 },
             ),
         )
@@ -581,12 +581,12 @@ async fn garde(
                         "",
                         "Acces refuse",
                         maud::html! {
-                            h1 { "Accès refusé" }
+                            h1 {(crate::langue::tr("Accès refusé")) }
                             p .sous-titre {
                                 "Votre compte n'a pas le droit d'ouvrir cet écran. "
                                 "Un administrateur peut l'accorder dans Paramètres → Utilisateurs."
                             }
-                            a .bouton href="/" { "Retour au tableau de bord" }
+                            a .bouton href="/" {(crate::langue::tr("Retour au tableau de bord")) }
                         },
                     ),
                 )
@@ -631,9 +631,9 @@ async fn compte(
         "Mon compte",
         html! {
             @if q.contains_key("refus") {
-                p .erreur { "Cet écran est réservé aux administrateurs." }
+                p .erreur {(crate::langue::tr("Cet écran est réservé aux administrateurs.")) }
             }
-            h1 { "Mon compte" }
+            h1 {(crate::langue::tr("Mon compte")) }
             @match &u {
                 Some(u) => {
                     p .sous-titre {
@@ -642,17 +642,17 @@ async fn compte(
                     }
                     table {
                         tbody {
-                            tr { th { "Identifiant" } td .ref { (u.login) } }
-                            tr { th { "E-mail" } td { (u.email.clone().unwrap_or_default()) } }
-                            tr { th { "Langue" } td { (u.lang.clone().unwrap_or_default()) } }
-                            tr { th { "Dernière connexion" } td { (u.datelastlogin.clone().unwrap_or_default()) } }
-                            tr { th { "Groupes" } td {
+                            tr { th {(crate::langue::tr("Identifiant")) } td .ref { (u.login) } }
+                            tr { th {(crate::langue::tr("E-mail")) } td { (u.email.clone().unwrap_or_default()) } }
+                            tr { th {(crate::langue::tr("Langue")) } td { (u.lang.clone().unwrap_or_default()) } }
+                            tr { th {(crate::langue::tr("Dernière connexion")) } td { (u.datelastlogin.clone().unwrap_or_default()) } }
+                            tr { th {(crate::langue::tr("Groupes")) } td {
                                 @if noms_groupes.is_empty() { "aucun" } @else { (noms_groupes) }
                             } }
                         }
                     }
                 }
-                None => { p .erreur { "Compte introuvable en base." } }
+                None => { p .erreur {(crate::langue::tr("Compte introuvable en base.")) } }
             }
         },
     ))
@@ -664,19 +664,19 @@ async fn connexion_page(Query(q): Query<HashMap<String, String>>) -> Markup {
         "",
         "Connexion",
         html! {
-            h1 { "Connexion" }
+            h1 {(crate::langue::tr("Connexion")) }
             @if q.contains_key("erreur") {
-                p .erreur { "Identifiant ou mot de passe incorrect." }
+                p .erreur {(crate::langue::tr("Identifiant ou mot de passe incorrect.")) }
             }
-            p .sous-titre { "Comptes de la base Dolibarr." }
+            p .sous-titre {(crate::langue::tr("Comptes de la base Dolibarr.")) }
             form method="post" action="/connexion" {
                 table {
                     tbody {
-                        tr { th { "Identifiant" } td { input type="text" name="login" required autofocus style="width:240px"; } }
-                        tr { th { "Mot de passe" } td { input type="password" name="mdp" required style="width:240px"; } }
+                        tr { th {(crate::langue::tr("Identifiant")) } td { input type="text" name="login" required autofocus style="width:240px"; } }
+                        tr { th {(crate::langue::tr("Mot de passe")) } td { input type="password" name="mdp" required style="width:240px"; } }
                     }
                 }
-                div .actions { button type="submit" { "Se connecter" } }
+                div .actions { button type="submit" {(crate::langue::tr("Se connecter")) } }
             }
         },
     )
@@ -896,7 +896,7 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
         "",
         "Tableau de bord",
         html! {
-            h1 { "Tableau de bord" }
+            h1 {(crate::langue::tr("Tableau de bord")) }
             p .sous-titre { "Exercice en cours — " (jour) }
 
             div .cartes {
@@ -911,7 +911,7 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
                 ))
             }
 
-            h2 { "Accès rapides" }
+            h2 {(crate::langue::tr("Accès rapides")) }
             div .cartes {
                 @for m in crate::menu::modules() {
                     div .carte {
@@ -923,12 +923,12 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
                 }
             }
 
-            h2 { "Dernières factures" }
+            h2 {(crate::langue::tr("Dernières factures")) }
             @if recentes.is_empty() {
                 (ui::vide("Aucune facture pour l'instant.", Some(("/devis", "Partir d'un devis"))))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Client" } th { "Échéance" } th .num { "TTC" } th .num { "Reste dû" } th { "Statut" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th {(crate::langue::tr("Échéance")) } th .num {(crate::langue::tr("TTC")) } th .num {(crate::langue::tr("Reste dû")) } th {(crate::langue::tr("Statut")) } } }
                     tbody {
                         @for f in &recentes {
                             tr {
@@ -944,19 +944,19 @@ async fn accueil(State(app): State<App>) -> Res<Markup> {
                 }
             }
 
-            h2 { "Devis en attente" }
+            h2 {(crate::langue::tr("Devis en attente")) }
             @if devis_en_cours.is_empty() {
                 (ui::vide("Aucun devis en attente.", None))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Client" } th .num { "TTC" } th { "" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th .num {(crate::langue::tr("TTC")) } th { "" } } }
                     tbody {
                         @for d in &devis_en_cours {
                             tr {
                                 td { a .ref href={ "/devis/" (d.rowid) } { (d.ref_) } }
                                 td { (nom_tiers(p, d.fk_soc)?) }
                                 td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
-                                td { a .bouton.petit.secondaire href={ "/devis/" (d.rowid) } { "Ouvrir" } }
+                                td { a .bouton.petit.secondaire href={ "/devis/" (d.rowid) } {(crate::langue::tr("Ouvrir")) } }
                             }
                         }
                     }
@@ -1064,12 +1064,12 @@ async fn recherche(
         "",
         "Recherche",
         html! {
-            h1 { "Recherche" }
+            h1 {(crate::langue::tr("Recherche")) }
             form method="get" action="/recherche" {
                 div .actions {
                     input type="search" name="q" value=(terme) placeholder="Nom, référence, e-mail…"
                           style="width:320px" aria-label="Recherche" autofocus;
-                    button type="submit" { "Chercher" }
+                    button type="submit" {(crate::langue::tr("Chercher")) }
                 }
             }
             p .sous-titre {
@@ -1187,13 +1187,13 @@ async fn tiers(State(app): State<App>, Query(q): Query<HashMap<String, String>>)
                 @if !type_.is_empty() {
                     input type="hidden" name="type" value=(type_);
                 }
-                button type="submit" { "Chercher" }
+                button type="submit" {(crate::langue::tr("Chercher")) }
             }
             @if listes.is_empty() {
                 (ui::vide("Aucun tiers ne correspond.", Some(("/tiers", "Voir tous les tiers"))))
             } @else {
                 table {
-                    thead { tr { th { "Code" } th { "Nom" } th { "Ville" } th { "Type" } } }
+                    thead { tr { th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Nom")) } th {(crate::langue::tr("Ville")) } th {(crate::langue::tr("Type")) } } }
                     tbody {
                         @for p in &listes {
                             tr {
@@ -1232,36 +1232,36 @@ async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> Res<Markup>
             h1 { (t.nom) }
             p .sous-titre { "Code client " (t.code_client.clone().unwrap_or_default()) }
             div .actions {
-                a .bouton.secondaire href={ "/tiers/" (id) "/modifier" } { "Modifier la fiche" }
+                a .bouton.secondaire href={ "/tiers/" (id) "/modifier" } {(crate::langue::tr("Modifier la fiche")) }
             }
 
             div .fiche {
                 div {
-                    h2 style="margin-top:0" { "Coordonnées" }
+                    h2 style="margin-top:0" {(crate::langue::tr("Coordonnées")) }
                     dl {
-                        dt { "Adresse" }
+                        dt {(crate::langue::tr("Adresse")) }
                         dd { (t.address.clone().unwrap_or_default()) }
-                        dt { "Ville" }
+                        dt {(crate::langue::tr("Ville")) }
                         dd { (format!("{} {}", t.zip.clone().unwrap_or_default(), t.town.clone().unwrap_or_default()).trim()) }
-                        dt { "Email" }
+                        dt {(crate::langue::tr("Email")) }
                         dd { (t.email.clone().unwrap_or_default()) }
-                        dt { "Téléphone" }
+                        dt {(crate::langue::tr("Téléphone")) }
                         dd { (t.phone.clone().unwrap_or_default()) }
                     }
                 }
                 div {
-                    h2 style="margin-top:0" { "Identification" }
+                    h2 style="margin-top:0" {(crate::langue::tr("Identification")) }
                     dl {
-                        dt { "SIRET" }
+                        dt {(crate::langue::tr("SIRET")) }
                         dd { (t.siret.clone().unwrap_or_default()) }
-                        dt { "TVA intracommunautaire" }
+                        dt {(crate::langue::tr("TVA intracommunautaire")) }
                         dd { (t.tva_intra.clone().unwrap_or_default()) }
                     }
                 }
             }
 
             @if !evts_tiers.is_empty() {
-                h2 { "Historique" }
+                h2 {(crate::langue::tr("Historique")) }
                 table {
                     tbody {
                         @for e in &evts_tiers {
@@ -1274,7 +1274,7 @@ async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> Res<Markup>
                 }
             }
 
-            h2 { "Devis" }
+            h2 {(crate::langue::tr("Devis")) }
             @if devis.is_empty() {
                 (ui::vide("Aucun devis pour ce client.", None))
             } @else {
@@ -1291,7 +1291,7 @@ async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> Res<Markup>
                 }
             }
 
-            h2 { "Factures" }
+            h2 {(crate::langue::tr("Factures")) }
             @if factures.is_empty() {
                 (ui::vide("Aucune facture pour ce client.", None))
             } @else {
@@ -1321,13 +1321,13 @@ async fn produits(State(app): State<App>) -> Res<Markup> {
         "liste",
         "Produits",
         html! {
-            h1 { "Produits et services" }
+            h1 {(crate::langue::tr("Produits et services")) }
             p .sous-titre { (listes.len()) " référence(s)" }
             @if listes.is_empty() {
                 (ui::vide("Aucun produit.", None))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Libellé" } th .num { "PU HT" } th { "Type" } th { "Unité" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Libellé")) } th .num {(crate::langue::tr("PU HT")) } th {(crate::langue::tr("Type")) } th {(crate::langue::tr("Unité")) } } }
                     tbody {
                         @for pr in &listes {
                             tr {
@@ -1377,20 +1377,20 @@ async fn devis(State(app): State<App>, Query(q): Query<HashMap<String, String>>)
         "liste",
         "Devis",
         html! {
-            h1 { "Devis" }
+            h1 {(crate::langue::tr("Devis")) }
             form method="get" action="/devis" {
                 div .actions {
                     select name="statut" aria-label="Statut" {
-                        option value="" selected[statut.is_empty()] { "Tous" }
-                        option value="brouillon" selected[statut == "brouillon"] { "Brouillons" }
-                        option value="valide" selected[statut == "valide"] { "Validés" }
-                        option value="signe" selected[statut == "signe"] { "Signés" }
-                        option value="perdu" selected[statut == "perdu"] { "Perdus" }
+                        option value="" selected[statut.is_empty()] {(crate::langue::tr("Tous")) }
+                        option value="brouillon" selected[statut == "brouillon"] {(crate::langue::tr("Brouillons")) }
+                        option value="valide" selected[statut == "valide"] {(crate::langue::tr("Validés")) }
+                        option value="signe" selected[statut == "signe"] {(crate::langue::tr("Signés")) }
+                        option value="perdu" selected[statut == "perdu"] {(crate::langue::tr("Perdus")) }
                     }
                     input type="search" name="q" value=(filtre) placeholder="Référence…" aria-label="Recherche";
-                    button type="submit" class="petit" { "Filtrer" }
+                    button type="submit" class="petit" {(crate::langue::tr("Filtrer")) }
                     @if !statut.is_empty() || !filtre.is_empty() {
-                        a .bouton.secondaire.petit href="/devis" { "Tout voir" }
+                        a .bouton.secondaire.petit href="/devis" {(crate::langue::tr("Tout voir")) }
                     }
                 }
             }
@@ -1405,16 +1405,15 @@ async fn devis(State(app): State<App>, Query(q): Query<HashMap<String, String>>)
             // partie de tableau, et on ne va pas imbriquer des tables.
             form id="actions-devis" method="post" action="/devis/actions" {}
             div .actions {
-                button type="submit" form="actions-devis" name="action" value="valider" { "Valider la sélection" }
-                span style="color:#78736c;font-size:13.5px" {
-                    "Seuls les devis en brouillon sont cochables."
+                button type="submit" form="actions-devis" name="action" value="valider" {(crate::langue::tr("Valider la sélection")) }
+                span style="color:#78736c;font-size:13.5px" {(crate::langue::tr("Seuls les devis en brouillon sont cochables."))
                 }
             }
             @if listes.is_empty() {
                 (ui::vide("Aucun devis.", None))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Client" } th .num { "HT" } th .num { "TTC" } th { "Statut" } th { "" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th .num {(crate::langue::tr("HT")) } th .num {(crate::langue::tr("TTC")) } th {(crate::langue::tr("Statut")) } th { "" } } }
                     tbody {
                         @for d in &listes {
                             tr {
@@ -1431,7 +1430,7 @@ async fn devis(State(app): State<App>, Query(q): Query<HashMap<String, String>>)
                                 td .num { (ui::euros(d.total_ht.unwrap_or_default())) }
                                 td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
                                 td { (ui::pastille(d.fk_statut, 0, false)) }
-                                td { a .bouton.petit.secondaire href={ "/devis/" (d.rowid) } { "Ouvrir" } }
+                                td { a .bouton.petit.secondaire href={ "/devis/" (d.rowid) } {(crate::langue::tr("Ouvrir")) } }
                             }
                         }
                     }
@@ -1488,28 +1487,27 @@ async fn devis_fiche(
             ))
 
             div .actions {
-                a .bouton.secondaire href={ "/devis/" (id) "/pdf" } { "Télécharger le PDF" }
+                a .bouton.secondaire href={ "/devis/" (id) "/pdf" } {(crate::langue::tr("Télécharger le PDF")) }
                 @if d.fk_statut == 0 {
-                    a .bouton.secondaire href={ "/devis/" (id) "/modifier" } { "Modifier" }
+                    a .bouton.secondaire href={ "/devis/" (id) "/modifier" } {(crate::langue::tr("Modifier")) }
                     form method="post" action={ "/devis/" (id) "/valider" } {
-                        button type="submit" { "Valider le devis" }
+                        button type="submit" {(crate::langue::tr("Valider le devis")) }
                     }
                 }
                 @if situations.is_empty() {
                     form method="post" action={ "/devis/" (id) "/facturer" } {
-                        button type="submit" { "Facturer ce devis" }
+                        button type="submit" {(crate::langue::tr("Facturer ce devis")) }
                     }
                     form method="post" action={ "/devis/" (id) "/commander" } {
-                        button type="submit" class="secondaire" { "Créer la commande" }
+                        button type="submit" class="secondaire" {(crate::langue::tr("Créer la commande")) }
                     }
                 } @else {
-                    p style="color:#78736c;font-size:13px" {
-                        "Ce devis est facturé par situations : la facture globale est désactivée pour éviter la double facturation."
+                    p style="color:#78736c;font-size:13px" {(crate::langue::tr("Ce devis est facturé par situations : la facture globale est désactivée pour éviter la double facturation."))
                     }
                 }
             }
 
-            h2 { "Facturation par situations" }
+            h2 {(crate::langue::tr("Facturation par situations")) }
             p .sous-titre {
                 "Le devis se facture par tranches. La somme des situations égale le devis ; "
                 "la dernière prend le reste au centime."
@@ -1518,7 +1516,7 @@ async fn devis_fiche(
                 (ui::vide("Aucune situation facturée.", None))
             } @else {
                 table {
-                    thead { tr { th { "N°" } th { "Facture" } th { "Date" } th .num { "Part" } th .num { "TTC" } th { "" } } }
+                    thead { tr { th {(crate::langue::tr("N°")) } th {(crate::langue::tr("Facture")) } th {(crate::langue::tr("Date")) } th .num {(crate::langue::tr("Part")) } th .num {(crate::langue::tr("TTC")) } th { "" } } }
                     tbody {
                         @for s in &situations {
                             tr {
@@ -1537,7 +1535,7 @@ async fn devis_fiche(
                     }
                     tfoot {
                         tr {
-                            td colspan="4" .num { "Reste à facturer" }
+                            td colspan="4" .num {(crate::langue::tr("Reste à facturer")) }
                             td .num .total-fort { (ui::euros(reste_a_facturer)) }
                             td {}
                         }
@@ -1548,7 +1546,7 @@ async fn devis_fiche(
                 input type="number" name="pct" step="0.01" min="0.01" max="100"
                       placeholder="%" style="width:110px" aria-label="Pourcentage" required;
                 input type="date" name="date" aria-label="Date de la situation";
-                button type="submit" { "Créer la facture de situation" }
+                button type="submit" {(crate::langue::tr("Créer la facture de situation")) }
             }
         },
     ))
@@ -1564,8 +1562,8 @@ fn table_lignes(
     html! {
         table {
             thead { tr {
-                th { "Désignation" } th .num { "Qté" } th .num { "PU HT" }
-                th .num { "TVA" } th .num { "Total HT" }
+                th {(crate::langue::tr("Désignation")) } th .num {(crate::langue::tr("Qté")) } th .num {(crate::langue::tr("PU HT")) }
+                th .num {(crate::langue::tr("TVA")) } th .num {(crate::langue::tr("Total HT")) }
             } }
             tbody {
                 @for (section, label, qty, pu, tva, total) in lignes {
@@ -1583,11 +1581,11 @@ fn table_lignes(
                 }
             }
             tfoot {
-                tr { td colspan="4" .num { "Total HT" } td .num { (ui::euros(total_ht)) } }
-                tr { td colspan="4" .num { "TVA" } td .num { (ui::euros(total_tva)) } }
-                tr { td colspan="4" .num { "Total TTC" } td .num { (ui::euros(total_ttc)) } }
+                tr { td colspan="4" .num {(crate::langue::tr("Total HT")) } td .num { (ui::euros(total_ht)) } }
+                tr { td colspan="4" .num {(crate::langue::tr("TVA")) } td .num { (ui::euros(total_tva)) } }
+                tr { td colspan="4" .num {(crate::langue::tr("Total TTC")) } td .num { (ui::euros(total_ttc)) } }
                 @if let Some(r) = reste {
-                    tr { td colspan="4" .num { "Reste dû" } td .num .total-fort { (ui::euros(r)) } }
+                    tr { td colspan="4" .num {(crate::langue::tr("Reste dû")) } td .num .total-fort { (ui::euros(r)) } }
                 }
             }
         }
@@ -1665,19 +1663,19 @@ async fn factures(State(app): State<App>, Query(q): Query<HashMap<String, String
         "liste",
         "Factures",
         html! {
-            h1 { "Factures" }
+            h1 {(crate::langue::tr("Factures")) }
             form method="get" action="/factures" {
                 div .actions {
                     select name="statut" aria-label="Statut" {
-                        option value="" selected[statut.is_empty()] { "Toutes" }
-                        option value="brouillon" selected[statut == "brouillon"] { "Brouillons" }
-                        option value="validee" selected[statut == "validee"] { "Validées, non payées" }
-                        option value="payee" selected[statut == "payee"] { "Payées" }
+                        option value="" selected[statut.is_empty()] {(crate::langue::tr("Toutes")) }
+                        option value="brouillon" selected[statut == "brouillon"] {(crate::langue::tr("Brouillons")) }
+                        option value="validee" selected[statut == "validee"] {(crate::langue::tr("Validées, non payées")) }
+                        option value="payee" selected[statut == "payee"] {(crate::langue::tr("Payées")) }
                     }
                     input type="search" name="q" value=(filtre) placeholder="Référence…" aria-label="Recherche";
-                    button type="submit" class="petit" { "Filtrer" }
+                    button type="submit" class="petit" {(crate::langue::tr("Filtrer")) }
                     @if !statut.is_empty() || !filtre.is_empty() {
-                        a .bouton.secondaire.petit href="/factures" { "Tout voir" }
+                        a .bouton.secondaire.petit href="/factures" {(crate::langue::tr("Tout voir")) }
                     }
                 }
             }
@@ -1689,16 +1687,15 @@ async fn factures(State(app): State<App>, Query(q): Query<HashMap<String, String
             }
             form id="actions-factures" method="post" action="/factures/actions" {}
             div .actions {
-                button type="submit" form="actions-factures" name="action" value="valider" { "Valider la sélection" }
-                span style="color:#78736c;font-size:13.5px" {
-                    "Seules les factures en brouillon sont cochables."
+                button type="submit" form="actions-factures" name="action" value="valider" {(crate::langue::tr("Valider la sélection")) }
+                span style="color:#78736c;font-size:13.5px" {(crate::langue::tr("Seules les factures en brouillon sont cochables."))
                 }
             }
             @if listes.is_empty() {
                 (ui::vide("Aucune facture.", Some(("/devis", "Partir d'un devis"))))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Client" } th { "Échéance" } th .num { "TTC" } th .num { "Reste dû" } th { "Statut" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th {(crate::langue::tr("Échéance")) } th .num {(crate::langue::tr("TTC")) } th .num {(crate::langue::tr("Reste dû")) } th {(crate::langue::tr("Statut")) } } }
                     tbody {
                         @for f in &listes {
                             tr {
@@ -1789,68 +1786,67 @@ async fn factures_fiche(
             ))
 
             div .actions {
-                a .bouton.secondaire href={ "/factures/" (id) "/pdf" } { "Télécharger le PDF" }
+                a .bouton.secondaire href={ "/factures/" (id) "/pdf" } {(crate::langue::tr("Télécharger le PDF")) }
                 @if f.est_brouillon() {
                     form method="post" action={ "/factures/" (id) "/valider" } {
-                        button type="submit" { "Valider la facture" }
+                        button type="submit" {(crate::langue::tr("Valider la facture")) }
                     }
                 }
                 @if f.fk_statut >= 1 && f.type_ != 2 {
                     form method="post" action={ "/factures/" (id) "/avoir" } {
-                        button type="submit" class="secondaire" { "Créer un avoir" }
+                        button type="submit" class="secondaire" {(crate::langue::tr("Créer un avoir")) }
                     }
                 }
             }
 
             @if !f.est_brouillon() {
-                h2 { "Envoyer par e-mail" }
+                h2 {(crate::langue::tr("Envoyer par e-mail")) }
                 form method="post" action={ "/factures/" (id) "/envoyer" } {
                     table {
                         tbody {
                             tr {
-                                th { "Destinataire" }
+                                th {(crate::langue::tr("Destinataire")) }
                                 td {
                                     input type="email" name="destinataire" value=(courriel_tiers)
                                           required style="width:300px";
                                 }
                             }
                             tr {
-                                th { "Objet" }
+                                th {(crate::langue::tr("Objet")) }
                                 td { input type="text" name="sujet" value=(courriel_sujet) style="width:100%"; }
                             }
                             tr {
-                                th { "Message" }
+                                th {(crate::langue::tr("Message")) }
                                 td { textarea name="corps" rows="5" style="width:100%" { (courriel_corps) } }
                             }
                         }
                     }
                     div .actions {
-                        button type="submit" { "Envoyer la facture" }
-                        span style="color:#78736c;font-size:13.5px" {
-                            "Le PDF archivé part en pièce jointe. L'envoi est tracé."
+                        button type="submit" {(crate::langue::tr("Envoyer la facture")) }
+                        span style="color:#78736c;font-size:13.5px" {(crate::langue::tr("Le PDF archivé part en pièce jointe. L'envoi est tracé."))
                         }
                     }
                 }
             }
 
             @if !f.est_brouillon() {
-                h2 { "Facture récurrente" }
+                h2 {(crate::langue::tr("Facture récurrente")) }
                 form method="post" action={ "/factures/" (id) "/recurrence" } {
                     table {
                         tbody {
                             tr {
-                                th { "Périodicité" }
+                                th {(crate::langue::tr("Périodicité")) }
                                 td {
                                     select name="periode" aria-label="Périodicité" {
-                                        option value="mois" { "Tous les mois" }
-                                        option value="trimestre" { "Tous les trimestres" }
-                                        option value="semaine" { "Toutes les semaines" }
-                                        option value="an" { "Tous les ans" }
+                                        option value="mois" {(crate::langue::tr("Tous les mois")) }
+                                        option value="trimestre" {(crate::langue::tr("Tous les trimestres")) }
+                                        option value="semaine" {(crate::langue::tr("Toutes les semaines")) }
+                                        option value="an" {(crate::langue::tr("Tous les ans")) }
                                     }
                                 }
-                                th { "Prochaine échéance" }
+                                th {(crate::langue::tr("Prochaine échéance")) }
                                 td { input type="date" name="prochaine" required; }
-                                th { "Nombre" }
+                                th {(crate::langue::tr("Nombre")) }
                                 td {
                                     input type="number" name="maximum" min="0" value="0"
                                           title="0 = sans fin";
@@ -1859,31 +1855,30 @@ async fn factures_fiche(
                         }
                     }
                     div .actions {
-                        button type="submit" { "Créer la série" }
-                        span style="color:#78736c;font-size:13.5px" {
-                            "La série est une copie figée : modifier cette facture ne la change pas."
+                        button type="submit" {(crate::langue::tr("Créer la série")) }
+                        span style="color:#78736c;font-size:13.5px" {(crate::langue::tr("La série est une copie figée : modifier cette facture ne la change pas."))
                         }
                     }
                 }
             }
 
             @if !solde.soldee && !f.est_brouillon() {
-                h2 { "Enregistrer un règlement" }
+                h2 {(crate::langue::tr("Enregistrer un règlement")) }
                 form method="post" action={ "/factures/" (id) "/reglement" } .actions {
                     input type="number" name="montant" step="0.01" min="0.01"
                           value=(solde.reste.to_string()) style="width:150px" aria-label="Montant";
                     select name="mode" aria-label="Mode de règlement" {
-                        option value="virement" { "Virement" }
-                        option value="cheque" { "Chèque" }
-                        option value="especes" { "Espèces" }
-                        option value="carte" { "Carte" }
+                        option value="virement" {(crate::langue::tr("Virement")) }
+                        option value="cheque" {(crate::langue::tr("Chèque")) }
+                        option value="especes" {(crate::langue::tr("Espèces")) }
+                        option value="carte" {(crate::langue::tr("Carte")) }
                     }
-                    button type="submit" { "Encaisser" }
+                    button type="submit" {(crate::langue::tr("Encaisser")) }
                 }
             }
 
             @if !docs.is_empty() {
-                h2 { "Documents archivés" }
+                h2 {(crate::langue::tr("Documents archivés")) }
                 table {
                     tbody {
                         @for (dossier, nom) in &docs {
@@ -1897,7 +1892,7 @@ async fn factures_fiche(
             }
 
             @if !evts.is_empty() {
-                h2 { "Historique" }
+                h2 {(crate::langue::tr("Historique")) }
                 table {
                     tbody {
                         @for e in &evts {
@@ -1911,9 +1906,9 @@ async fn factures_fiche(
             }
 
             @if !reglements.is_empty() {
-                h2 { "Règlements" }
+                h2 {(crate::langue::tr("Règlements")) }
                 table {
-                    thead { tr { th { "Réf." } th { "Date" } th .num { "Montant" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Date")) } th .num {(crate::langue::tr("Montant")) } } }
                     tbody {
                         @for r in &reglements {
                             tr {
@@ -2021,16 +2016,15 @@ async fn chantiers(
         "Chantiers",
         html! {
             (message(q.get("ok")))
-            h1 { "Chantiers" }
-            p .sous-titre {
-                "Un chantier porte son budget et ses tâches : c'est le projet Dolibarr (llx_projet)."
+            h1 {(crate::langue::tr("Chantiers")) }
+            p .sous-titre {(crate::langue::tr("Un chantier porte son budget et ses tâches : c'est le projet Dolibarr (llx_projet)."))
             }
 
             @if liste.is_empty() {
                 (ui::vide("Aucun chantier.", None))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Chantier" } th { "Client" } th { "Début" } th { "Fin" } th .num { "Budget" } th { "État" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Chantier")) } th {(crate::langue::tr("Client")) } th {(crate::langue::tr("Début")) } th {(crate::langue::tr("Fin")) } th .num {(crate::langue::tr("Budget")) } th { "État" } } }
                     tbody {
                         @for c in &liste {
                             tr {
@@ -2053,29 +2047,29 @@ async fn chantiers(
                 }
             }
 
-            h2 { "Nouveau chantier" }
+            h2 {(crate::langue::tr("Nouveau chantier")) }
             form method="post" action="/chantiers" {
                 table {
                     tbody {
                         tr {
-                            th { "Client" }
+                            th {(crate::langue::tr("Client")) }
                             td {
                                 select name="soc" style="width:100%" {
-                                    option value="" { "— chantier interne —" }
+                                    option value="" {(crate::langue::tr("— chantier interne —")) }
                                     @for c in &clients {
                                         option value=(c.rowid) { (c.nom) }
                                     }
                                 }
                             }
                         }
-                        tr { th { "Intitulé" } td { input type="text" name="title" required style="width:100%"; } }
-                        tr { th { "Début" } td { input type="date" name="debut" style="width:170px"; } }
-                        tr { th { "Fin prévue" } td { input type="date" name="fin" style="width:170px"; } }
-                        tr { th { "Budget HT" } td { input type="number" name="budget" step="0.01" min="0" style="width:150px"; } }
-                        tr { th { "Description" } td { input type="text" name="description" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Intitulé")) } td { input type="text" name="title" required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Fin prévue")) } td { input type="date" name="fin" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Budget HT")) } td { input type="number" name="budget" step="0.01" min="0" style="width:150px"; } }
+                        tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" style="width:100%"; } }
                     }
                 }
-                div .actions { button type="submit" { "Créer le chantier" } }
+                div .actions { button type="submit" {(crate::langue::tr("Créer le chantier")) } }
             }
         },
     ))
@@ -2137,12 +2131,12 @@ async fn chantier_fiche(
                 p { (d) }
             }
 
-            h2 { "Tâches" }
+            h2 {(crate::langue::tr("Tâches")) }
             @if taches.is_empty() {
                 (ui::vide("Aucune tâche.", None))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Tâche" } th { "Début" } th { "Fin" } th .num { "Avancement" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Tâche")) } th {(crate::langue::tr("Début")) } th {(crate::langue::tr("Fin")) } th .num {(crate::langue::tr("Avancement")) } } }
                     tbody {
                         @for t in &taches {
                             tr {
@@ -2157,16 +2151,16 @@ async fn chantier_fiche(
                 }
             }
 
-            h2 { "Nouvelle tâche" }
+            h2 {(crate::langue::tr("Nouvelle tâche")) }
             form method="post" action={ "/chantiers/" (id) "/tache" } {
                 table {
                     tbody {
-                        tr { th { "Libellé" } td { input type="text" name="label" required style="width:100%"; } }
-                        tr { th { "Début" } td { input type="date" name="debut" style="width:170px"; } }
-                        tr { th { "Fin" } td { input type="date" name="fin" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Fin")) } td { input type="date" name="fin" style="width:170px"; } }
                     }
                 }
-                div .actions { button type="submit" { "Ajouter la tâche" } }
+                div .actions { button type="submit" {(crate::langue::tr("Ajouter la tâche")) } }
             }
         },
     ))
@@ -2207,9 +2201,8 @@ async fn achats(State(app): State<App>, Query(q): Query<HashMap<String, String>>
         "Achats",
         html! {
             (message(q.get("ok")))
-            h1 { "Achats" }
-            p .sous-titre {
-                "Fournisseurs et factures fournisseurs (llx_societe fournisseur = 1, llx_facture_fourn)."
+            h1 {(crate::langue::tr("Achats")) }
+            p .sous-titre {(crate::langue::tr("Fournisseurs et factures fournisseurs (llx_societe fournisseur à 1, llx_facture_fourn)."))
             }
 
             div .cartes {
@@ -2217,12 +2210,12 @@ async fn achats(State(app): State<App>, Query(q): Query<HashMap<String, String>>
                 (ui::carte("Fournisseurs", &liste.len().to_string(), None, false))
             }
 
-            h2 { "Fournisseurs" }
+            h2 {(crate::langue::tr("Fournisseurs")) }
             @if liste.is_empty() {
                 (ui::vide("Aucun fournisseur.", None))
             } @else {
                 table {
-                    thead { tr { th { "Code" } th { "Nom" } th { "Ville" } th { "SIRET" } th { "E-mail" } } }
+                    thead { tr { th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Nom")) } th {(crate::langue::tr("Ville")) } th {(crate::langue::tr("SIRET")) } th {(crate::langue::tr("E-mail")) } } }
                     tbody {
                         @for f in &liste {
                             tr {
@@ -2237,21 +2230,21 @@ async fn achats(State(app): State<App>, Query(q): Query<HashMap<String, String>>
                 }
             }
 
-            h2 { "Nouveau fournisseur" }
+            h2 {(crate::langue::tr("Nouveau fournisseur")) }
             form method="post" action="/achats/fournisseur" {
                 table {
                     tbody {
-                        tr { th { "Nom" } td { input type="text" name="nom" required style="width:100%"; } }
-                        tr { th { "Code fournisseur" } td { input type="text" name="code" placeholder="généré si vide" style="width:220px"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Code fournisseur")) } td { input type="text" name="code" placeholder="généré si vide" style="width:220px"; } }
                     }
                 }
-                div .actions { button type="submit" { "Créer le fournisseur" } }
+                div .actions { button type="submit" {(crate::langue::tr("Créer le fournisseur")) } }
             }
 
             @if !paiements.is_empty() {
-                h2 { "Paiements fournisseurs" }
+                h2 {(crate::langue::tr("Paiements fournisseurs")) }
                 table {
-                    thead { tr { th { "Réf." } th { "Date" } th { "Mode" } th .num { "Montant" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Date")) } th {(crate::langue::tr("Mode")) } th .num {(crate::langue::tr("Montant")) } } }
                     tbody {
                         @for (ref_, date, montant, mode) in &paiements {
                             tr {
@@ -2265,15 +2258,15 @@ async fn achats(State(app): State<App>, Query(q): Query<HashMap<String, String>>
                 }
             }
 
-            h2 { "Factures fournisseurs" }
+            h2 {(crate::langue::tr("Factures fournisseurs")) }
             div .actions {
-                a .bouton href="/achats/facture" { "Saisir une facture fournisseur" }
+                a .bouton href="/achats/facture" {(crate::langue::tr("Saisir une facture fournisseur")) }
             }
             @if factures.is_empty() {
                 (ui::vide("Aucune facture fournisseur.", None))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Chez le fournisseur" } th { "Fournisseur" } th { "Date" } th .num { "TTC" } th { "État" } th { "" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Chez le fournisseur")) } th {(crate::langue::tr("Fournisseur")) } th {(crate::langue::tr("Date")) } th .num {(crate::langue::tr("TTC")) } th { "État" } th { "" } } }
                     tbody {
                         @for f in &factures {
                             tr {
@@ -2286,7 +2279,7 @@ async fn achats(State(app): State<App>, Query(q): Query<HashMap<String, String>>
                                 td {
                                     @if f.est_brouillon() {
                                         form method="post" action={ "/achats/facture/" (f.rowid) "/valider" } {
-                                            button type="submit" class="secondaire petit" { "Valider" }
+                                            button type="submit" class="secondaire petit" {(crate::langue::tr("Valider")) }
                                         }
                                     }
                                 }
@@ -2312,13 +2305,13 @@ async fn achat_facture_nouvelle(
         "Nouvelle facture fournisseur",
         html! {
             (message(q.get("ok")))
-            h1 { "Nouvelle facture fournisseur" }
-            p .sous-titre { "Saisie d'un achat reçu. La facture est créée en brouillon." }
+            h1 {(crate::langue::tr("Nouvelle facture fournisseur")) }
+            p .sous-titre {(crate::langue::tr("Saisie d'un achat reçu. La facture est créée en brouillon.")) }
             form method="post" action="/achats/facture" {
                 table {
                     tbody {
                         tr {
-                            th { "Fournisseur" }
+                            th {(crate::langue::tr("Fournisseur")) }
                             td {
                                 select name="soc" required style="width:100%" {
                                     @for f in &fournisseurs {
@@ -2327,14 +2320,14 @@ async fn achat_facture_nouvelle(
                                 }
                             }
                         }
-                        tr { th { "Référence chez le fournisseur" } td { input type="text" name="ref_supplier" style="width:100%"; } }
-                        tr { th { "Date" } td { input type="date" name="datef" style="width:170px"; } }
-                        tr { th { "Note interne" } td { input type="text" name="note" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Référence chez le fournisseur")) } td { input type="text" name="ref_supplier" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Date")) } td { input type="date" name="datef" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" style="width:100%"; } }
                     }
                 }
-                h2 { "Lignes" }
+                h2 {(crate::langue::tr("Lignes")) }
                 table {
-                    thead { tr { th { "Désignation" } th .num { "Qté" } th .num { "PU HT" } th { "TVA" } } }
+                    thead { tr { th {(crate::langue::tr("Désignation")) } th .num {(crate::langue::tr("Qté")) } th .num {(crate::langue::tr("PU HT")) } th {(crate::langue::tr("TVA")) } } }
                     tbody {
                         @for i in 1..=5 {
                             tr {
@@ -2353,8 +2346,8 @@ async fn achat_facture_nouvelle(
                     }
                 }
                 div .actions {
-                    button type="submit" { "Créer la facture fournisseur" }
-                    a .bouton.secondaire href="/achats" { "Annuler" }
+                    button type="submit" {(crate::langue::tr("Créer la facture fournisseur")) }
+                    a .bouton.secondaire href="/achats" {(crate::langue::tr("Annuler")) }
                 }
             }
         },
@@ -2453,18 +2446,18 @@ async fn banques(State(app): State<App>, Query(q): Query<HashMap<String, String>
         "Banques",
         html! {
             (message(q.get("ok")))
-            h1 { "Banques" }
+            h1 {(crate::langue::tr("Banques")) }
             p .sous-titre {
                 "Le solde se déduit des écritures : il n'est jamais stocké, comme dans Dolibarr. "
                 "Les règlements de factures écrivent déjà leur ligne bancaire."
             }
 
-            h2 { "Comptes" }
+            h2 {(crate::langue::tr("Comptes")) }
             @if liste.is_empty() {
                 (ui::vide("Aucun compte bancaire.", None))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Libellé" } th { "Banque" } th { "IBAN" } th .num { "Solde" } th { "État" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Libellé")) } th {(crate::langue::tr("Banque")) } th {(crate::langue::tr("IBAN")) } th .num {(crate::langue::tr("Solde")) } th { "État" } } }
                     tbody {
                         @for (i, c) in liste.iter().enumerate() {
                             tr {
@@ -2486,26 +2479,26 @@ async fn banques(State(app): State<App>, Query(q): Query<HashMap<String, String>
                 }
             }
 
-            h2 { "Nouveau compte" }
+            h2 {(crate::langue::tr("Nouveau compte")) }
             form method="post" action="/banques" {
                 table {
                     tbody {
-                        tr { th { "Référence" } td { input type="text" name="ref" required style="width:140px"; } }
-                        tr { th { "Libellé" } td { input type="text" name="label" required style="width:100%"; } }
-                        tr { th { "Banque" } td { input type="text" name="banque" style="width:100%"; } }
-                        tr { th { "IBAN" } td { input type="text" name="iban" style="width:100%"; } }
-                        tr { th { "BIC" } td { input type="text" name="bic" style="width:260px"; } }
+                        tr { th {(crate::langue::tr("Référence")) } td { input type="text" name="ref" required style="width:140px"; } }
+                        tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Banque")) } td { input type="text" name="banque" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" style="width:260px"; } }
                     }
                 }
-                div .actions { button type="submit" { "Créer le compte" } }
+                div .actions { button type="submit" {(crate::langue::tr("Créer le compte")) } }
             }
 
-            h2 { "Dernières écritures" }
+            h2 {(crate::langue::tr("Dernières écritures")) }
             @if ecritures.is_empty() {
                 (ui::vide("Aucune écriture. Encaisser une facture en crée une.", None))
             } @else {
                 table {
-                    thead { tr { th { "Date" } th { "Libellé" } th { "Compte" } th .num { "Montant" } th { "Rapprochement" } } }
+                    thead { tr { th {(crate::langue::tr("Date")) } th {(crate::langue::tr("Libellé")) } th {(crate::langue::tr("Compte")) } th .num {(crate::langue::tr("Montant")) } th {(crate::langue::tr("Rapprochement")) } } }
                     tbody {
                         @for e in &ecritures {
                             tr {
@@ -2574,7 +2567,7 @@ async fn documents(State(app): State<App>) -> Res<Markup> {
         "ged",
         "Documents",
         html! {
-            h1 { "Documents archivés" }
+            h1 {(crate::langue::tr("Documents archivés")) }
             p .sous-titre {
                 "Les PDF de devis et de factures sont déposés ici à chaque édition, "
                 "rangés comme dans Dolibarr (documents/<module>/<réf>/)."
@@ -2583,7 +2576,7 @@ async fn documents(State(app): State<App>) -> Res<Markup> {
                 (ui::vide("Aucun document archivé.", None))
             } @else {
                 table {
-                    thead { tr { th { "Date" } th { "Libellé" } th { "Dossier" } th { "Fichier" } } }
+                    thead { tr { th {(crate::langue::tr("Date")) } th {(crate::langue::tr("Libellé")) } th {(crate::langue::tr("Dossier")) } th {(crate::langue::tr("Fichier")) } } }
                     tbody {
                         @for d in &docs {
                             tr {
@@ -2607,23 +2600,23 @@ async fn agenda(State(app): State<App>) -> Res<Markup> {
         "evenements",
         "Agenda",
         html! {
-            h1 { "Agenda" }
+            h1 {(crate::langue::tr("Agenda")) }
             p .sous-titre {
                 "Les événements sont écrits dans le journal Dolibarr (llx_actioncomm) : "
                 "validation de devis, relances, règlements."
             }
-            h2 { "Nouvel événement" }
+            h2 {(crate::langue::tr("Nouvel événement")) }
             form method="post" action="/agenda/nouveau" .actions {
                 input type="text" name="label" placeholder="Objet du rendez-vous" required style="width:320px";
                 input type="date" name="date" aria-label="Date";
-                button type="submit" { "Ajouter" }
+                button type="submit" {(crate::langue::tr("Ajouter")) }
             }
 
             @if evenements.is_empty() {
                 (ui::vide("Aucun événement.", None))
             } @else {
                 table {
-                    thead { tr { th { "Date" } th { "Événement" } th { "Objet" } } }
+                    thead { tr { th {(crate::langue::tr("Date")) } th {(crate::langue::tr("Événement")) } th {(crate::langue::tr("Objet")) } } }
                     tbody {
                         @for e in &evenements {
                             tr {
@@ -2691,8 +2684,8 @@ async fn parametres(
         "Paramètres — société",
         html! {
             (message(q.get("ok")))
-            h1 { "Société émettrice" }
-            p .sous-titre { "Ces informations alimentent l'en-tête et les mentions de tous les documents." }
+            h1 {(crate::langue::tr("Société émettrice")) }
+            p .sous-titre {(crate::langue::tr("Ces informations alimentent l'en-tête et les mentions de tous les documents.")) }
 
             @if let Some(m) = &retour {
                 p .flash { (m) }
@@ -2701,77 +2694,76 @@ async fn parametres(
             div .actions {
                 form method="get" action="/parametres" {
                     input type="text" name="siret" placeholder="SIRET ou SIREN" style="width:190px";
-                    button type="submit" { "Chercher l'entreprise" }
+                    button type="submit" {(crate::langue::tr("Chercher l'entreprise")) }
                 }
                 form method="get" action="/parametres" {
                     input type="text" name="adresse" placeholder="17 chemin du Grimpillon, Saint-Cyr" style="width:330px";
-                    button type="submit" class="secondaire" { "Chercher l'adresse" }
+                    button type="submit" class="secondaire" {(crate::langue::tr("Chercher l'adresse")) }
                 }
             }
 
             form method="post" action="/parametres/societe" {
                 table {
                     tbody {
-                        tr { th { "Denomination" } td { input type="text" name="nom" value=(s.nom) style="width:100%"; } }
-                        tr { th { "Forme juridique" } td { input type="text" name="forme" value=(s.forme_juridique.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "Capital" } td { input type="text" name="capital" value=(s.capital.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "RCS" } td { input type="text" name="rcs" value=(s.rcs.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "Adresse" } td { input type="text" name="adresse" value=(s.adresse.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "Code postal" } td { input type="text" name="cp" value=(s.code_postal.clone().unwrap_or_default()) style="width:120px"; } }
-                        tr { th { "Ville" } td { input type="text" name="ville" value=(s.ville.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "SIRET" } td { input type="text" name="siret" value=(s.siret.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "TVA intracommunautaire" } td { input type="text" name="tva_intra" value=(s.tva_intra.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "Email" } td { input type="text" name="email" value=(s.email.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "IBAN" } td { input type="text" name="iban" value=(s.iban.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "BIC" } td { input type="text" name="bic" value=(s.bic.clone().unwrap_or_default()) style="width:260px"; } }
-                        tr { th { "Assurance décennale (assureur)" } td { input type="text" name="assurance_assureur" value=(s.assurance_assureur.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "Assurance (n° de police)" } td { input type="text" name="assurance_police" value=(s.assurance_police.clone().unwrap_or_default()) style="width:260px"; } }
-                        tr { th { "Assurance (couverture)" } td { input type="text" name="assurance_couverture" value=(s.assurance_couverture.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Denomination")) } td { input type="text" name="nom" value=(s.nom) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Forme juridique")) } td { input type="text" name="forme" value=(s.forme_juridique.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Capital")) } td { input type="text" name="capital" value=(s.capital.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("RCS")) } td { input type="text" name="rcs" value=(s.rcs.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(s.adresse.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(s.code_postal.clone().unwrap_or_default()) style="width:120px"; } }
+                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(s.ville.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(s.siret.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" value=(s.tva_intra.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Email")) } td { input type="text" name="email" value=(s.email.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" value=(s.iban.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" value=(s.bic.clone().unwrap_or_default()) style="width:260px"; } }
+                        tr { th {(crate::langue::tr("Assurance décennale (assureur)")) } td { input type="text" name="assurance_assureur" value=(s.assurance_assureur.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Assurance (n° de police)")) } td { input type="text" name="assurance_police" value=(s.assurance_police.clone().unwrap_or_default()) style="width:260px"; } }
+                        tr { th {(crate::langue::tr("Assurance (couverture)")) } td { input type="text" name="assurance_couverture" value=(s.assurance_couverture.clone().unwrap_or_default()) style="width:100%"; } }
                         tr {
-                            th { "TVA taux réduit (travaux)" }
+                            th {(crate::langue::tr("TVA taux réduit (travaux)")) }
                             td {
                                 select name="tva_taux_reduit" {
-                                    option value="0" selected[!s.tva_taux_reduit] { "Non" }
-                                    option value="1" selected[s.tva_taux_reduit] { "Oui — attestation 279-0 bis imprimée" }
+                                    option value="0" selected[!s.tva_taux_reduit] {(crate::langue::tr("Non")) }
+                                    option value="1" selected[s.tva_taux_reduit] {(crate::langue::tr("Oui — attestation 279-0 bis imprimée")) }
                                 }
                             }
                         }
                         tr {
-                            th { "TVA sur les encaissements" }
+                            th {(crate::langue::tr("TVA sur les encaissements")) }
                             td {
                                 select name="tva_encaissements" {
-                                    option value="0" selected[!s.tva_sur_encaissements] { "Non — TVA sur les débits" }
-                                    option value="1" selected[s.tva_sur_encaissements] { "Oui — TVA exigible sur les encaissements" }
+                                    option value="0" selected[!s.tva_sur_encaissements] {(crate::langue::tr("Non — TVA sur les débits")) }
+                                    option value="1" selected[s.tva_sur_encaissements] {(crate::langue::tr("Oui — TVA exigible sur les encaissements")) }
                                 }
                             }
                         }
                         tr {
-                            th { "Conditions générales de vente" }
+                            th {(crate::langue::tr("Conditions générales de vente")) }
                             td {
                                 textarea name="cgv" rows="6" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #e6e2dc" {
                                     (s.cgv.clone().unwrap_or_default())
                                 }
-                                p style="color:#78736c;font-size:12.5px;margin:6px 0 0" {
-                                    "Imprimées en bas de chaque devis et facture. Une ligne = un paragraphe."
+                                p style="color:#78736c;font-size:12.5px;margin:6px 0 0" {(crate::langue::tr("Imprimées en bas de chaque devis et facture. Une ligne fait un paragraphe."))
                                 }
                             }
                         }
-                        tr { th { "Delai de paiement (jours)" } td { input type="number" name="delai" value=(s.delai_paiement_jours) style="width:110px"; } }
+                        tr { th {(crate::langue::tr("Delai de paiement (jours)")) } td { input type="number" name="delai" value=(s.delai_paiement_jours) style="width:110px"; } }
                         tr {
-                            th { "Regime de TVA" }
+                            th {(crate::langue::tr("Regime de TVA")) }
                             td {
                                 select name="franchise" {
-                                    option value="0" selected[!s.franchise_en_base] { "Assujetti" }
-                                    option value="1" selected[s.franchise_en_base] { "Franchise en base (art. 293 B)" }
+                                    option value="0" selected[!s.franchise_en_base] {(crate::langue::tr("Assujetti")) }
+                                    option value="1" selected[s.franchise_en_base] {(crate::langue::tr("Franchise en base (art. 293 B)")) }
                                 }
                             }
                         }
                     }
                 }
-                div .actions { button type="submit" { "Enregistrer" } }
+                div .actions { button type="submit" {(crate::langue::tr("Enregistrer")) } }
             }
             form method="post" action="/parametres/cgv-modele" .actions {
-                button type="submit" class="secondaire" { "Insérer un modèle de CGV" }
+                button type="submit" class="secondaire" {(crate::langue::tr("Insérer un modèle de CGV")) }
             }
         },
     ))
@@ -2804,7 +2796,7 @@ async fn parametres_modules(
         "Modules et applications",
         html! {
             (message(q.get("ok")))
-            h1 { "Modules et applications" }
+            h1 {(crate::langue::tr("Modules et applications")) }
             p .sous-titre {
                 "L'activation s'écrit dans les constantes Dolibarr ("
                 code { "llx_const" }
@@ -2816,7 +2808,7 @@ async fn parametres_modules(
                 @if !liste.is_empty() {
                     h2 { (libelle) }
                     table {
-                        thead { tr { th { "Module" } th { "Nom technique" } th { "Statut" } th { "" } } }
+                        thead { tr { th {(crate::langue::tr("Module")) } th {(crate::langue::tr("Nom technique")) } th {(crate::langue::tr("Statut")) } th { "" } } }
                         tbody {
                             @for m in liste {
                                 @let actif = actifs.contains(&m.code.to_uppercase());
@@ -2825,24 +2817,24 @@ async fn parametres_modules(
                                         strong { (m.nom) }
                                         @if m.porte {
                                             " "
-                                            span .pastille.p-payee style="font-size:11px" { "porté" }
+                                            span .pastille.p-payee style="font-size:11px" {(crate::langue::tr("porté")) }
                                         }
                                     }
                                     td .ref { (m.code) }
                                     td {
                                         @if actif {
-                                            span .pastille.p-validee { "activé" }
+                                            span .pastille.p-validee {(crate::langue::tr("activé")) }
                                         } @else {
                                             span .pastille.p-brouillon { "inactif" }
                                         }
                                     }
                                     td .num {
                                         @if let Some(ecran) = plugin::par_code(m.code).and_then(|x| x.ecran) {
-                                            a .bouton.petit.secondaire href=(ecran) style="margin-right:6px" { "Ouvrir" }
+                                            a .bouton.petit.secondaire href=(ecran) style="margin-right:6px" {(crate::langue::tr("Ouvrir")) }
                                         }
                                         @if actif {
                                             @if plugin::par_code(m.code).is_some() {
-                                                a .bouton.petit.secondaire href={ "/parametres/module/" (m.code) } style="margin-right:6px" title="Options du module" { "Options" }
+                                                a .bouton.petit.secondaire href={ "/parametres/module/" (m.code) } style="margin-right:6px" title="Options du module" {(crate::langue::tr("Options")) }
                                             }
                                         }
                                         form method="post" action="/parametres/modules" style="display:inline" {
@@ -2929,7 +2921,7 @@ async fn comptabilite(State(app): State<App>) -> Res<Markup> {
         "journaux",
         "Comptabilité",
         html! {
-            h1 { "Comptabilité" }
+            h1 {(crate::langue::tr("Comptabilité")) }
             p .sous-titre {
                 "Synthèse bâtie sur les factures validées, pas sur un grand livre : "
                 "Dolibarr tient le grand livre dans llx_accounting_bookkeeping, qui demande "
@@ -2950,35 +2942,35 @@ async fn comptabilite(State(app): State<App>) -> Res<Markup> {
             }
 
             div .actions {
-                a .bouton.secondaire href="/comptabilite/grand-livre" { "Grand livre et balance" }
-                a .bouton.secondaire href="/comptabilite/fec" { "Comptabilisation et FEC" }
+                a .bouton.secondaire href="/comptabilite/grand-livre" {(crate::langue::tr("Grand livre et balance")) }
+                a .bouton.secondaire href="/comptabilite/fec" {(crate::langue::tr("Comptabilisation et FEC")) }
             }
 
-            h2 { "Exports comptables" }
+            h2 {(crate::langue::tr("Exports comptables")) }
             div .actions {
                 form method="get" action="/export/ventes.csv" {
                     input type="date" name="debut" aria-label="Début";
                     input type="date" name="fin" aria-label="Fin";
-                    button type="submit" { "Journal des ventes (CSV)" }
+                    button type="submit" {(crate::langue::tr("Journal des ventes (CSV)")) }
                 }
                 form method="get" action="/export/achats.csv" {
                     input type="date" name="debut" aria-label="Début";
                     input type="date" name="fin" aria-label="Fin";
-                    button type="submit" class="secondaire" { "Journal des achats (CSV)" }
+                    button type="submit" class="secondaire" {(crate::langue::tr("Journal des achats (CSV)")) }
                 }
                 form method="get" action="/export/tva.csv" {
                     input type="date" name="debut" aria-label="Début";
                     input type="date" name="fin" aria-label="Fin";
-                    button type="submit" class="secondaire" { "TVA par taux (CSV)" }
+                    button type="submit" class="secondaire" {(crate::langue::tr("TVA par taux (CSV)")) }
                 }
             }
 
-            h2 { "Ventes par mois" }
+            h2 {(crate::langue::tr("Ventes par mois")) }
             @if ventes.is_empty() {
                 (ui::vide("Aucune facture validée.", None))
             } @else {
                 table {
-                    thead { tr { th { "Mois" } th .num { "Documents" } th .num { "HT" } th .num { "TVA" } th .num { "TTC" } } }
+                    thead { tr { th {(crate::langue::tr("Mois")) } th .num {(crate::langue::tr("Documents")) } th .num {(crate::langue::tr("HT")) } th .num {(crate::langue::tr("TVA")) } th .num {(crate::langue::tr("TTC")) } } }
                     tbody {
                         @for m in &ventes {
                             tr {
@@ -2993,12 +2985,12 @@ async fn comptabilite(State(app): State<App>) -> Res<Markup> {
                 }
             }
 
-            h2 { "Achats par mois" }
+            h2 {(crate::langue::tr("Achats par mois")) }
             @if achats.is_empty() {
                 (ui::vide("Aucune facture fournisseur validée.", None))
             } @else {
                 table {
-                    thead { tr { th { "Mois" } th .num { "Documents" } th .num { "HT" } th .num { "TVA" } th .num { "TTC" } } }
+                    thead { tr { th {(crate::langue::tr("Mois")) } th .num {(crate::langue::tr("Documents")) } th .num {(crate::langue::tr("HT")) } th .num {(crate::langue::tr("TVA")) } th .num {(crate::langue::tr("TTC")) } } }
                     tbody {
                         @for m in &achats {
                             tr {
@@ -3066,13 +3058,13 @@ async fn commandes(
         "Commandes",
         html! {
             (message(q.get("ok")))
-            h1 { "Commandes clients" }
-            p .sous-titre { "Le maillon entre le devis signé et la facture." }
+            h1 {(crate::langue::tr("Commandes clients")) }
+            p .sous-titre {(crate::langue::tr("Le maillon entre le devis signé et la facture.")) }
             @if liste.is_empty() {
                 (ui::vide("Aucune commande. Elle se crée depuis un devis validé.", Some(("/devis", "Voir les devis"))))
             } @else {
                 table {
-                    thead { tr { th { "Réf." } th { "Client" } th { "Date" } th .num { "TTC" } th { "État" } } }
+                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th {(crate::langue::tr("Date")) } th .num {(crate::langue::tr("TTC")) } th { "État" } } }
                     tbody {
                         @for c in &liste {
                             tr {
@@ -3083,9 +3075,9 @@ async fn commandes(
                                 td {
                                     @match c.fk_statut {
                                         0 => { span .pastille.p-brouillon { "brouillon" } }
-                                        1 => { span .pastille.p-validee { "validée" } }
-                                        2 => { span .pastille.p-payee { "livrée" } }
-                                        _ => { span .pastille.p-brouillon { "annulée" } }
+                                        1 => { span .pastille.p-validee {(crate::langue::tr("validée")) } }
+                                        2 => { span .pastille.p-payee {(crate::langue::tr("livrée")) } }
+                                        _ => { span .pastille.p-brouillon {(crate::langue::tr("annulée")) } }
                                     }
                                 }
                             }
@@ -3138,11 +3130,11 @@ async fn commande_fiche(
             div .actions {
                 @if c.est_brouillon() {
                     form method="post" action={ "/commandes/" (id) "/valider" } {
-                        button type="submit" { "Valider la commande" }
+                        button type="submit" {(crate::langue::tr("Valider la commande")) }
                     }
                 } @else {
                     form method="post" action={ "/commandes/" (id) "/facturer" } {
-                        button type="submit" { "Facturer la commande" }
+                        button type="submit" {(crate::langue::tr("Facturer la commande")) }
                     }
                 }
                 @if c.deposit_percent.unwrap_or_default() > rust_decimal::Decimal::ZERO && !acompte_existe {
@@ -3152,8 +3144,8 @@ async fn commande_fiche(
                         }
                     }
                 }
-                a .bouton.secondaire href={ "/commandes/" (id) "/pdf" } { "Télécharger le PDF" }
-                a .bouton.secondaire href="/commandes" { "Retour" }
+                a .bouton.secondaire href={ "/commandes/" (id) "/pdf" } {(crate::langue::tr("Télécharger le PDF")) }
+                a .bouton.secondaire href="/commandes" {(crate::langue::tr("Retour")) }
             }
         },
     ))
@@ -3198,12 +3190,12 @@ async fn parametres_dictionnaires(State(app): State<App>) -> Res<Markup> {
         "dictionnaires",
         "Paramètres — dictionnaires",
         html! {
-            h1 { "Dictionnaires" }
-            p .sous-titre { "Lus directement dans la base Dolibarr, jamais recopiés. Ajouter une entrée dans Dolibarr la rend disponible ici." }
+            h1 {(crate::langue::tr("Dictionnaires")) }
+            p .sous-titre {(crate::langue::tr("Lus directement dans la base Dolibarr, jamais recopiés. Ajouter une entrée dans Dolibarr la rend disponible ici.")) }
 
-            h2 { "Taux de TVA" }
+            h2 {(crate::langue::tr("Taux de TVA")) }
             table {
-                thead { tr { th { "Taux" } th { "Code" } th { "Note" } } }
+                thead { tr { th {(crate::langue::tr("Taux")) } th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Note")) } } }
                 tbody {
                     @for t in &tva {
                         tr { td .num { (app::fmt_dec(Some(t.taux))) " %" } td { (t.code) } td { (t.libelle) } }
@@ -3211,9 +3203,9 @@ async fn parametres_dictionnaires(State(app): State<App>) -> Res<Markup> {
                 }
             }
 
-            h2 { "Conditions de règlement" }
+            h2 {(crate::langue::tr("Conditions de règlement")) }
             table {
-                thead { tr { th { "Code" } th { "Libellé client" } th .num { "Délai" } th { "" } } }
+                thead { tr { th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Libellé client")) } th .num {(crate::langue::tr("Délai")) } th { "" } } }
                 tbody {
                     @for c in &conditions {
                         tr {
@@ -3223,7 +3215,7 @@ async fn parametres_dictionnaires(State(app): State<App>) -> Res<Markup> {
                             td {
                                 form method="post" action="/parametres/conditions-reglement/desactiver" {
                                     input type="hidden" name="id" value=(c.rowid);
-                                    button type="submit" class="secondaire petit" { "Désactiver" }
+                                    button type="submit" class="secondaire petit" {(crate::langue::tr("Désactiver")) }
                                 }
                             }
                         }
@@ -3231,47 +3223,47 @@ async fn parametres_dictionnaires(State(app): State<App>) -> Res<Markup> {
                 }
             }
 
-            h3 { "Nouvelle condition" }
+            h3 {(crate::langue::tr("Nouvelle condition")) }
             form method="post" action="/parametres/conditions-reglement" {
                 table {
                     tbody {
-                        tr { th { "Code" } td { input type="text" name="code" required placeholder="RECEPTION" style="width:180px"; } }
-                        tr { th { "Libellé client" } td { input type="text" name="libelle" required placeholder="Règlement à réception de facture, par virement" style="width:100%"; } }
-                        tr { th { "Délai (jours)" } td { input type="number" name="nbjour" min="0" value="0" style="width:110px"; } }
+                        tr { th {(crate::langue::tr("Code")) } td { input type="text" name="code" required placeholder="RECEPTION" style="width:180px"; } }
+                        tr { th {(crate::langue::tr("Libellé client")) } td { input type="text" name="libelle" required placeholder="Règlement à réception de facture, par virement" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Délai (jours)")) } td { input type="number" name="nbjour" min="0" value="0" style="width:110px"; } }
                         tr {
-                            th { "Fin de mois" }
+                            th {(crate::langue::tr("Fin de mois")) }
                             td {
                                 select name="fin_de_mois" {
-                                    option value="0" { "Non" }
-                                    option value="1" { "Oui — dernier jour du mois" }
+                                    option value="0" {(crate::langue::tr("Non")) }
+                                    option value="1" {(crate::langue::tr("Oui — dernier jour du mois")) }
                                 }
                             }
                         }
                     }
                 }
-                div .actions { button type="submit" { "Créer la condition" } }
+                div .actions { button type="submit" {(crate::langue::tr("Créer la condition")) } }
             }
 
-            h2 { "Modes de paiement" }
+            h2 {(crate::langue::tr("Modes de paiement")) }
             table {
-                thead { tr { th { "Id" } th { "Code" } th { "Libellé" } } }
+                thead { tr { th {(crate::langue::tr("Id")) } th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Libellé")) } } }
                 tbody {
                     @for m in &modes { tr { td .num { (m.id) } td .ref { (m.code) } td { (m.libelle) } } }
                 }
             }
 
-            h2 { "Unités de mesure" }
+            h2 {(crate::langue::tr("Unités de mesure")) }
             table {
-                thead { tr { th { "Code" } th { "Libellé" } } }
+                thead { tr { th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Libellé")) } } }
                 tbody {
                     @for u in &unites { tr { td .ref { (u.code) } td { (u.libelle) } } }
                 }
             }
 
-            h2 { "Toutes les tables de dictionnaire" }
+            h2 {(crate::langue::tr("Toutes les tables de dictionnaire")) }
             p .sous-titre { (recensement.len()) " tables llx_c_*" }
             table {
-                thead { tr { th { "Table" } th .num { "Lignes" } } }
+                thead { tr { th {(crate::langue::tr("Table")) } th .num {(crate::langue::tr("Lignes")) } } }
                 tbody {
                     @for (t, n) in &recensement {
                         tr { td .ref { (t) } td .num { (n) } }
@@ -3301,22 +3293,22 @@ async fn parametres_base(State(app): State<App>) -> Res<Markup> {
         "base",
         "Paramètres — base de données",
         html! {
-            h1 { "Base de données" }
-            p .sous-titre { "Connexion et état du schéma Dolibarr" }
+            h1 {(crate::langue::tr("Base de données")) }
+            p .sous-titre {(crate::langue::tr("Connexion et état du schéma Dolibarr")) }
 
             table {
                 tbody {
-                    tr { th { "Serveur" } td { (i.version_serveur) } }
-                    tr { th { "Hôte" } td { (i.hote) ":" (i.port) } }
-                    tr { th { "Base" } td { (i.base) } }
-                    tr { th { "Tables" } td .num { (i.tables) } }
-                    tr { th { "Colonnes" } td .num { (i.colonnes) } }
-                    tr { th { "Schéma de référence" } td { "Dolibarr 24.0.1" } }
+                    tr { th {(crate::langue::tr("Serveur")) } td { (i.version_serveur) } }
+                    tr { th {(crate::langue::tr("Hôte")) } td { (i.hote) ":" (i.port) } }
+                    tr { th {(crate::langue::tr("Base")) } td { (i.base) } }
+                    tr { th {(crate::langue::tr("Tables")) } td .num { (i.tables) } }
+                    tr { th {(crate::langue::tr("Colonnes")) } td .num { (i.colonnes) } }
+                    tr { th {(crate::langue::tr("Schéma de référence")) } td {(crate::langue::tr("Dolibarr 24.0.1")) } }
                     tr {
-                        th { "Conformité de la société" }
+                        th {(crate::langue::tr("Conformité de la société")) }
                         td {
                             @if manquants.is_empty() {
-                                span .pastille.p-payee { "complète" }
+                                span .pastille.p-payee {(crate::langue::tr("complète")) }
                             } @else {
                                 span .pastille.p-retard { (manquants.join(", ")) }
                             }
@@ -3325,7 +3317,7 @@ async fn parametres_base(State(app): State<App>) -> Res<Markup> {
                 }
             }
 
-            h2 { "Modules Dolibarr activés" }
+            h2 {(crate::langue::tr("Modules Dolibarr activés")) }
             @if modules.is_empty() {
                 (ui::vide("Aucun module activé dans llx_const.", None))
             } @else {
@@ -3420,40 +3412,40 @@ async fn tiers_nouveau(
         "nouveau",
         "Nouveau tiers",
         html! {
-            h1 { "Nouveau tiers" }
+            h1 {(crate::langue::tr("Nouveau tiers")) }
             @if let Some(m) = &retour {
                 p .flash { (m) }
             }
 
-            h2 { "Remplir automatiquement" }
+            h2 {(crate::langue::tr("Remplir automatiquement")) }
             div .actions {
                 form method="get" action="/tiers/nouveau" {
                     input type="text" name="siret" placeholder="SIRET ou SIREN" style="width:190px";
-                    button type="submit" { "Chercher l'entreprise" }
+                    button type="submit" {(crate::langue::tr("Chercher l'entreprise")) }
                 }
                 form method="get" action="/tiers/nouveau" {
                     input type="text" name="adresse" placeholder="17 chemin du Grimpillon, Saint-Cyr" style="width:330px";
-                    button type="submit" class="secondaire" { "Chercher l'adresse" }
+                    button type="submit" class="secondaire" {(crate::langue::tr("Chercher l'adresse")) }
                 }
             }
 
-            h2 { "Fiche" }
+            h2 {(crate::langue::tr("Fiche")) }
             form method="post" action="/tiers/nouveau" {
                 table {
                     tbody {
-                        tr { th { "Nom" } td { input type="text" name="nom" required value=(nom) style="width:100%"; } }
-                        tr { th { "Adresse" } td { input type="text" name="adresse" value=(adresse) style="width:100%"; } }
-                        tr { th { "Code postal" } td { input type="text" name="cp" value=(cp) style="width:120px"; } }
-                        tr { th { "Ville" } td { input type="text" name="ville" value=(ville) style="width:100%"; } }
-                        tr { th { "Email" } td { input type="email" name="email" style="width:100%"; } }
-                        tr { th { "Telephone" } td { input type="text" name="tel" style="width:100%"; } }
-                        tr { th { "SIRET" } td { input type="text" name="siret" value=(siret) style="width:100%"; } }
-                        tr { th { "TVA intracommunautaire" } td { input type="text" name="tva_intra" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required value=(nom) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(adresse) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(cp) style="width:120px"; } }
+                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(ville) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Email")) } td { input type="email" name="email" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Telephone")) } td { input type="text" name="tel" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(siret) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" style="width:100%"; } }
                     }
                 }
                 div .actions {
-                    button type="submit" { "Creer le tiers" }
-                    a .bouton.secondaire href="/tiers" { "Annuler" }
+                    button type="submit" {(crate::langue::tr("Creer le tiers")) }
+                    a .bouton.secondaire href="/tiers" {(crate::langue::tr("Annuler")) }
                 }
             }
         },
@@ -3502,10 +3494,10 @@ async fn produit_fiche(
             form method="post" action={ "/produits/" (id) "/modifier" } {
                 table {
                     tbody {
-                        tr { th { "Désignation" } td { input type="text" name="label" value=(p.label) required style="width:100%"; } }
-                        tr { th { "Prix HT" } td { input type="number" name="prix" step="0.01" min="0" value=(app::fmt_dec(p.price)) style="width:140px"; } }
+                        tr { th {(crate::langue::tr("Désignation")) } td { input type="text" name="label" value=(p.label) required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Prix HT")) } td { input type="number" name="prix" step="0.01" min="0" value=(app::fmt_dec(p.price)) style="width:140px"; } }
                         tr {
-                            th { "TVA" }
+                            th {(crate::langue::tr("TVA")) }
                             td {
                                 select name="tva" {
                                     @for t in &tva {
@@ -3514,21 +3506,21 @@ async fn produit_fiche(
                                 }
                             }
                         }
-                        tr { th { "Description" } td { input type="text" name="description" value=(p.description.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" value=(p.description.clone().unwrap_or_default()) style="width:100%"; } }
                         tr {
-                            th { "En vente" }
+                            th {(crate::langue::tr("En vente")) }
                             td {
                                 select name="vente" {
-                                    option value="1" selected[p.on_sell()] { "Oui" }
-                                    option value="0" selected[!p.on_sell()] { "Non (masqué)" }
+                                    option value="1" selected[p.on_sell()] {(crate::langue::tr("Oui")) }
+                                    option value="0" selected[!p.on_sell()] {(crate::langue::tr("Non (masqué)")) }
                                 }
                             }
                         }
                     }
                 }
                 div .actions {
-                    button type="submit" { "Enregistrer" }
-                    a .bouton.secondaire href="/produits" { "Retour" }
+                    button type="submit" {(crate::langue::tr("Enregistrer")) }
+                    a .bouton.secondaire href="/produits" {(crate::langue::tr("Retour")) }
                 }
             }
             p .sous-titre { "Prix TTC calculé : " strong { (app::fmt_eur(p.price_ttc)) } }
@@ -3576,15 +3568,15 @@ async fn produits_nouveau(State(app): State<App>) -> Res<Markup> {
         "nouveau",
         "Nouveau produit",
         html! {
-            h1 { "Nouveau produit" }
+            h1 {(crate::langue::tr("Nouveau produit")) }
             form method="post" action="/produits/nouveau" {
                 table {
                     tbody {
-                        tr { th { "Reference" } td { input type="text" name="ref" required style="width:220px"; } }
-                        tr { th { "Libelle" } td { input type="text" name="label" required style="width:100%"; } }
-                        tr { th { "Prix HT" } td { input type="number" name="prix" step="0.01" min="0" style="width:140px"; } }
+                        tr { th {(crate::langue::tr("Reference")) } td { input type="text" name="ref" required style="width:220px"; } }
+                        tr { th {(crate::langue::tr("Libelle")) } td { input type="text" name="label" required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Prix HT")) } td { input type="number" name="prix" step="0.01" min="0" style="width:140px"; } }
                         tr {
-                            th { "Taux de TVA" }
+                            th {(crate::langue::tr("Taux de TVA")) }
                             td {
                                 select name="tva" {
                                     @for t in &tva {
@@ -3594,7 +3586,7 @@ async fn produits_nouveau(State(app): State<App>) -> Res<Markup> {
                             }
                         }
                         tr {
-                            th { "Unite" }
+                            th {(crate::langue::tr("Unite")) }
                             td {
                                 select name="unite" {
                                     option value="" { "aucune" }
@@ -3605,19 +3597,19 @@ async fn produits_nouveau(State(app): State<App>) -> Res<Markup> {
                             }
                         }
                         tr {
-                            th { "Nature" }
+                            th {(crate::langue::tr("Nature")) }
                             td {
                                 select name="nature" {
-                                    option value="produit" { "Produit" }
-                                    option value="service" { "Service" }
+                                    option value="produit" {(crate::langue::tr("Produit")) }
+                                    option value="service" {(crate::langue::tr("Service")) }
                                 }
                             }
                         }
                     }
                 }
                 div .actions {
-                    button type="submit" { "Creer le produit" }
-                    a .bouton.secondaire href="/produits" { "Annuler" }
+                    button type="submit" {(crate::langue::tr("Creer le produit")) }
+                    a .bouton.secondaire href="/produits" {(crate::langue::tr("Annuler")) }
                 }
             }
         },
@@ -3653,12 +3645,12 @@ async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
         "nouveau",
         "Nouveau devis",
         html! {
-            h1 { "Nouveau devis" }
+            h1 {(crate::langue::tr("Nouveau devis")) }
             form method="post" action="/devis/nouveau" {
                 table {
                     tbody {
                         tr {
-                            th { "Client" }
+                            th {(crate::langue::tr("Client")) }
                             td {
                                 select name="soc" required style="width:100%" {
                                     @for c in &clients {
@@ -3667,9 +3659,9 @@ async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
                                 }
                             }
                         }
-                        tr { th { "Note interne" } td { input type="text" name="note" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" style="width:100%"; } }
                         tr {
-                            th { "Règlement" }
+                            th {(crate::langue::tr("Règlement")) }
                             td {
                                 select name="cond" style="width:100%" {
                                     @for c in &conditions {
@@ -3678,18 +3670,18 @@ async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
                                 }
                             }
                         }
-                        tr { th { "Acompte (%)" } td { input type="number" name="acompte" step="0.01" min="0" max="100" style="width:110px" placeholder="0"; } }
-                        tr { th { "Valable jusqu'au" } td { input type="date" name="validite" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Acompte (%)")) } td { input type="number" name="acompte" step="0.01" min="0" max="100" style="width:110px" placeholder="0"; } }
+                        tr { th {(crate::langue::tr("Valable jusqu'au")) } td { input type="date" name="validite" style="width:170px"; } }
                     }
                 }
-                h2 { "Lignes" }
+                h2 {(crate::langue::tr("Lignes")) }
                 table {
                     thead {
                         tr {
-                            th { "Designation" }
-                            th .num { "Qte" }
-                            th .num { "PU HT" }
-                            th { "TVA" }
+                            th {(crate::langue::tr("Designation")) }
+                            th .num {(crate::langue::tr("Qte")) }
+                            th .num {(crate::langue::tr("PU HT")) }
+                            th {(crate::langue::tr("TVA")) }
                         }
                     }
                     tbody {
@@ -3710,8 +3702,8 @@ async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
                     }
                 }
                 div .actions {
-                    button type="submit" { "Creer le devis" }
-                    a .bouton.secondaire href="/devis" { "Annuler" }
+                    button type="submit" {(crate::langue::tr("Creer le devis")) }
+                    a .bouton.secondaire href="/devis" {(crate::langue::tr("Annuler")) }
                 }
             }
         },
@@ -3817,34 +3809,34 @@ async fn tiers_modifier(
                 p .flash { (m) }
             }
 
-            h2 { "Remplir automatiquement" }
+            h2 {(crate::langue::tr("Remplir automatiquement")) }
             div .actions {
                 form method="get" action={ "/tiers/" (id) "/modifier" } {
                     input type="text" name="siret" placeholder="SIRET ou SIREN" style="width:190px";
-                    button type="submit" { "Chercher l'entreprise" }
+                    button type="submit" {(crate::langue::tr("Chercher l'entreprise")) }
                 }
                 form method="get" action={ "/tiers/" (id) "/modifier" } {
                     input type="text" name="adresse" placeholder="17 chemin du Grimpillon, Saint-Cyr" style="width:330px";
-                    button type="submit" class="secondaire" { "Chercher l'adresse" }
+                    button type="submit" class="secondaire" {(crate::langue::tr("Chercher l'adresse")) }
                 }
             }
 
             form method="post" action={ "/tiers/" (id) "/modifier" } {
                 table {
                     tbody {
-                        tr { th { "Nom" } td { input type="text" name="nom" required value=(t.nom) style="width:100%"; } }
-                        tr { th { "Adresse" } td { input type="text" name="adresse" value=(t.address.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "Code postal" } td { input type="text" name="cp" value=(t.zip.clone().unwrap_or_default()) style="width:120px"; } }
-                        tr { th { "Ville" } td { input type="text" name="ville" value=(t.town.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "Email" } td { input type="email" name="email" value=(t.email.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "Telephone" } td { input type="text" name="tel" value=(t.phone.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "SIRET" } td { input type="text" name="siret" value=(t.siret.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th { "TVA intracommunautaire" } td { input type="text" name="tva_intra" value=(t.tva_intra.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required value=(t.nom) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(t.address.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(t.zip.clone().unwrap_or_default()) style="width:120px"; } }
+                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(t.town.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Email")) } td { input type="email" name="email" value=(t.email.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Telephone")) } td { input type="text" name="tel" value=(t.phone.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(t.siret.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" value=(t.tva_intra.clone().unwrap_or_default()) style="width:100%"; } }
                     }
                 }
                 div .actions {
-                    button type="submit" { "Enregistrer" }
-                    a .bouton.secondaire href={ "/tiers/" (id) } { "Annuler" }
+                    button type="submit" {(crate::langue::tr("Enregistrer")) }
+                    a .bouton.secondaire href={ "/tiers/" (id) } {(crate::langue::tr("Annuler")) }
                 }
             }
         },
@@ -3928,14 +3920,13 @@ async fn devis_modifier(State(app): State<App>, Path(id): Path<i64>) -> Res<Mark
         &format!("Modifier {}", d.ref_),
         html! {
             h1 { "Modifier le devis " (d.ref_) }
-            p .sous-titre {
-                "Les lignes sont remplacees en bloc. Une ligne sans libelle mais avec un nom de section ouvre une section."
+            p .sous-titre {(crate::langue::tr("Les lignes sont remplacees en bloc. Une ligne sans libelle mais avec un nom de section ouvre une section."))
             }
             form method="post" action={ "/devis/" (id) "/modifier" } {
                 table {
                     tbody {
                         tr {
-                            th { "Client" }
+                            th {(crate::langue::tr("Client")) }
                             td {
                                 select name="soc" required style="width:100%" {
                                     @for c in &clients {
@@ -3944,9 +3935,9 @@ async fn devis_modifier(State(app): State<App>, Path(id): Path<i64>) -> Res<Mark
                                 }
                             }
                         }
-                        tr { th { "Note interne" } td { input type="text" name="note" value=(d.note_private.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" value=(d.note_private.clone().unwrap_or_default()) style="width:100%"; } }
                         tr {
-                            th { "Règlement" }
+                            th {(crate::langue::tr("Règlement")) }
                             td {
                                 select name="cond" style="width:100%" {
                                     @for c in &conditions {
@@ -3955,19 +3946,19 @@ async fn devis_modifier(State(app): State<App>, Path(id): Path<i64>) -> Res<Mark
                                 }
                             }
                         }
-                        tr { th { "Acompte (%)" } td { input type="number" name="acompte" step="0.01" min="0" max="100" value=(app::fmt_dec(d.deposit_percent)) style="width:110px"; } }
-                        tr { th { "Valable jusqu'au" } td { input type="date" name="validite" value=(d.fin_validite.clone().unwrap_or_default()) style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Acompte (%)")) } td { input type="number" name="acompte" step="0.01" min="0" max="100" value=(app::fmt_dec(d.deposit_percent)) style="width:110px"; } }
+                        tr { th {(crate::langue::tr("Valable jusqu'au")) } td { input type="date" name="validite" value=(d.fin_validite.clone().unwrap_or_default()) style="width:170px"; } }
                     }
                 }
-                h2 { "Lignes" }
+                h2 {(crate::langue::tr("Lignes")) }
                 table {
                     thead {
                         tr {
-                            th { "Section" }
-                            th { "Designation" }
-                            th .num { "Qte" }
-                            th .num { "PU HT" }
-                            th { "TVA" }
+                            th {(crate::langue::tr("Section")) }
+                            th {(crate::langue::tr("Designation")) }
+                            th .num {(crate::langue::tr("Qte")) }
+                            th .num {(crate::langue::tr("PU HT")) }
+                            th {(crate::langue::tr("TVA")) }
                         }
                     }
                     tbody {
@@ -3991,8 +3982,8 @@ async fn devis_modifier(State(app): State<App>, Path(id): Path<i64>) -> Res<Mark
                     }
                 }
                 div .actions {
-                    button type="submit" { "Enregistrer" }
-                    a .bouton.secondaire href={ "/devis/" (id) } { "Annuler" }
+                    button type="submit" {(crate::langue::tr("Enregistrer")) }
+                    a .bouton.secondaire href={ "/devis/" (id) } {(crate::langue::tr("Annuler")) }
                 }
             }
         },
@@ -4128,13 +4119,13 @@ async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
         "nouveau",
         "Nouvelle facture",
         html! {
-            h1 { "Nouvelle facture" }
-            p .sous-titre { "Sans devis préalable. La facture est créée en brouillon." }
+            h1 {(crate::langue::tr("Nouvelle facture")) }
+            p .sous-titre {(crate::langue::tr("Sans devis préalable. La facture est créée en brouillon.")) }
             form method="post" action="/factures/nouveau" {
                 table {
                     tbody {
                         tr {
-                            th { "Client" }
+                            th {(crate::langue::tr("Client")) }
                             td {
                                 select name="soc" required style="width:100%" {
                                     @for c in &clients {
@@ -4143,9 +4134,9 @@ async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
                                 }
                             }
                         }
-                        tr { th { "Bon de commande" } td { input type="text" name="ref_client" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Bon de commande")) } td { input type="text" name="ref_client" style="width:100%"; } }
                         tr {
-                            th { "Règlement" }
+                            th {(crate::langue::tr("Règlement")) }
                             td {
                                 select name="cond" style="width:100%" {
                                     @for c in &conditions {
@@ -4154,17 +4145,17 @@ async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
                                 }
                             }
                         }
-                        tr { th { "Date de la prestation" } td { input type="date" name="date_prestation" style="width:170px"; } }
-                        tr { th { "Note interne" } td { input type="text" name="note" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Date de la prestation")) } td { input type="date" name="date_prestation" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" style="width:100%"; } }
                     } }
-                h2 { "Lignes" }
+                h2 {(crate::langue::tr("Lignes")) }
                 table {
                     thead {
                         tr {
-                            th { "Designation" }
-                            th .num { "Qte" }
-                            th .num { "PU HT" }
-                            th { "TVA" }
+                            th {(crate::langue::tr("Designation")) }
+                            th .num {(crate::langue::tr("Qte")) }
+                            th .num {(crate::langue::tr("PU HT")) }
+                            th {(crate::langue::tr("TVA")) }
                         }
                     }
                     tbody {
@@ -4185,8 +4176,8 @@ async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
                     }
                 }
                 div .actions {
-                    button type="submit" { "Créer la facture" }
-                    a .bouton.secondaire href="/factures" { "Annuler" }
+                    button type="submit" {(crate::langue::tr("Créer la facture")) }
+                    a .bouton.secondaire href="/factures" {(crate::langue::tr("Annuler")) }
                 }
             }
         },
@@ -4252,7 +4243,7 @@ async fn relances(State(app): State<App>) -> Res<Markup> {
         "liste",
         "Relances",
         html! {
-            h1 { "Relances" }
+            h1 {(crate::langue::tr("Relances")) }
             p .sous-titre {
                 (listes.len()) " facture(s) échue(s) — " (ui::euros(montant)) " à relancer"
             }
@@ -4262,11 +4253,11 @@ async fn relances(State(app): State<App>) -> Res<Markup> {
                 table {
                     thead {
                         tr {
-                            th { "Facture" }
-                            th { "Client" }
-                            th { "Échéance" }
-                            th .num { "Retard" }
-                            th .num { "Reste dû" }
+                            th {(crate::langue::tr("Facture")) }
+                            th {(crate::langue::tr("Client")) }
+                            th {(crate::langue::tr("Échéance")) }
+                            th .num {(crate::langue::tr("Retard")) }
+                            th .num {(crate::langue::tr("Reste dû")) }
                             th { "" }
                         }
                     }
@@ -4283,9 +4274,9 @@ async fn relances(State(app): State<App>) -> Res<Markup> {
                                         a .bouton.petit.secondaire
                                           href={ "mailto:" (mail) "?subject=Relance facture " (r.reference)
                                                  "&body=" (urlencode(&db::relance::texte(r))) }
-                                          { "Préparer le mail" }
+                                          {(crate::langue::tr("Préparer le mail")) }
                                     } @else {
-                                        span .vide { "pas d'e-mail" }
+                                        span .vide {(crate::langue::tr("pas d'e-mail")) }
                                     }
                                 }
                             }
@@ -4323,8 +4314,8 @@ async fn utilisateurs(
         "Utilisateurs",
         html! {
             (message(q.get("ok")))
-            h1 { "Utilisateurs" }
-            p .sous-titre { "Comptes de la base Dolibarr : les mots de passe créés ici fonctionnent aussi dans Dolibarr." }
+            h1 {(crate::langue::tr("Utilisateurs")) }
+            p .sous-titre {(crate::langue::tr("Comptes de la base Dolibarr : les mots de passe créés ici fonctionnent aussi dans Dolibarr.")) }
 
             @if listes.is_empty() {
                 (ui::vide("Aucun compte.", None))
@@ -4332,10 +4323,10 @@ async fn utilisateurs(
                 table {
                     thead {
                         tr {
-                            th { "Identifiant" }
-                            th { "Nom" }
-                            th { "E-mail" }
-                            th { "Rôle" }
+                            th {(crate::langue::tr("Identifiant")) }
+                            th {(crate::langue::tr("Nom")) }
+                            th {(crate::langue::tr("E-mail")) }
+                            th {(crate::langue::tr("Rôle")) }
                             th { "État" }
                             th { "" }
                         }
@@ -4351,12 +4342,12 @@ async fn utilisateurs(
                                     @if u.actif() {
                                         span .pastille.p-payee { "actif" }
                                     } @else {
-                                        span .pastille.p-brouillon { "désactivé" }
+                                        span .pastille.p-brouillon {(crate::langue::tr("désactivé")) }
                                     }
                                 }
                                 td {
                                     @if !u.admin {
-                                        a .bouton.petit.secondaire href={ "/parametres/utilisateurs/" (u.rowid) "/droits" } { "Droits" }
+                                        a .bouton.petit.secondaire href={ "/parametres/utilisateurs/" (u.rowid) "/droits" } {(crate::langue::tr("Droits")) }
                                     }
                                     form method="post" action={ "/parametres/utilisateurs/" (u.rowid) "/basculer" } {
                                         button type="submit" class="petit secondaire" {
@@ -4370,27 +4361,27 @@ async fn utilisateurs(
                 }
             }
 
-            h2 { "Nouveau compte" }
+            h2 {(crate::langue::tr("Nouveau compte")) }
             form method="post" action="/parametres/utilisateurs/nouveau" {
                 table {
                     tbody {
-                        tr { th { "Identifiant" } td { input type="text" name="login" required style="width:220px"; } }
-                        tr { th { "Mot de passe" } td { input type="text" name="mdp" required minlength="8" style="width:220px"; } }
-                        tr { th { "Prénom" } td { input type="text" name="prenom" style="width:100%"; } }
-                        tr { th { "Nom" } td { input type="text" name="nom" style="width:100%"; } }
-                        tr { th { "E-mail" } td { input type="email" name="email" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Identifiant")) } td { input type="text" name="login" required style="width:220px"; } }
+                        tr { th {(crate::langue::tr("Mot de passe")) } td { input type="text" name="mdp" required minlength="8" style="width:220px"; } }
+                        tr { th {(crate::langue::tr("Prénom")) } td { input type="text" name="prenom" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" style="width:100%"; } }
                         tr {
-                            th { "Rôle" }
+                            th {(crate::langue::tr("Rôle")) }
                             td {
                                 select name="admin" {
-                                    option value="0" { "Utilisateur" }
-                                    option value="1" { "Administrateur" }
+                                    option value="0" {(crate::langue::tr("Utilisateur")) }
+                                    option value="1" {(crate::langue::tr("Administrateur")) }
                                 }
                             }
                         }
                     }
                 }
-                div .actions { button type="submit" { "Créer le compte" } }
+                div .actions { button type="submit" {(crate::langue::tr("Créer le compte")) } }
             }
         },
     ))
@@ -4430,39 +4421,39 @@ async fn import_page(Query(q): Query<HashMap<String, String>>) -> Res<Markup> {
             @if let Some(n) = q.get("crees") {
                 p .flash { "Import terminé : " (n) " tiers créés." }
             }
-            h1 { "Import / Export" }
-            p .sous-titre { "CSV séparé par « ; » ou par « , », avec une ligne d'entête. Les colonnes sont reconnues par leur nom." }
+            h1 {(crate::langue::tr("Import / Export")) }
+            p .sous-titre {(crate::langue::tr("CSV séparé par « ; » ou par « , », avec une ligne d'entête. Les colonnes sont reconnues par leur nom.")) }
 
-            h2 { "Importer des tiers" }
+            h2 {(crate::langue::tr("Importer des tiers")) }
             p { "Colonnes reconnues : " code { "nom" } " (obligatoire), " code { "adresse" } ", " code { "cp" } ", " code { "ville" } ", " code { "email" } ", " code { "tel" } ", " code { "siret" } ", " code { "tva" } "." }
             form method="post" action="/parametres/import" {
                 textarea name="csv" rows="10" style="width:100%;font-family:ui-monospace,monospace;padding:10px;border:1px solid #e2e2e2" placeholder="nom;ville;email&#10;SARL Exemple;Charly;contact@exemple.fr"
                 { "" }
                 div .actions {
-                    button type="submit" { "Importer" }
+                    button type="submit" {(crate::langue::tr("Importer")) }
                 }
             }
 
-            h2 { "Importer des produits" }
+            h2 {(crate::langue::tr("Importer des produits")) }
             p { "Colonnes reconnues : " code { "ref" } " (obligatoire), " code { "libelle" } ", " code { "prix" } ", " code { "tva" } ", " code { "type" } " (produit ou service), " code { "unite" } "." }
             form method="post" action="/parametres/import/produits" {
                 textarea name="csv" rows="6" style="width:100%;font-family:ui-monospace,monospace;padding:10px;border:1px solid #e2e2e2" placeholder="ref;libelle;prix;tva;type&#10;BOR-030;Bordure granit 30 cm;125.50;20;produit" { "" }
-                div .actions { button type="submit" { "Importer" } }
+                div .actions { button type="submit" {(crate::langue::tr("Importer")) } }
             }
 
-            h2 { "Importer des factures" }
+            h2 {(crate::langue::tr("Importer des factures")) }
             p { "Une ligne = une ligne de facture, regroupée par client et référence. Colonnes : " code { "client" } " (obligatoire), " code { "facture" } ", " code { "date" } ", " code { "echeance" } ", " code { "libelle" } ", " code { "qte" } ", " code { "pu" } ", " code { "tva" } "." }
-            p .vide { "Les factures importées sont créées puis validées. Le client est créé s'il n'existe pas. La numérotation Dolibarr est attribuée." }
+            p .vide {(crate::langue::tr("Les factures importées sont créées puis validées. Le client est créé s'il n'existe pas. La numérotation Dolibarr est attribuée.")) }
             form method="post" action="/parametres/import/factures" {
                 textarea name="csv" rows="6" style="width:100%;font-family:ui-monospace,monospace;padding:10px;border:1px solid #e2e2e2" placeholder="client;facture;date;libelle;qte;pu;tva&#10;SARL Exemple;F2024-001;2024-03-12;Travaux;1;1200;20" { "" }
-                div .actions { button type="submit" { "Importer" } }
+                div .actions { button type="submit" {(crate::langue::tr("Importer")) } }
             }
 
-            h2 { "Exporter" }
+            h2 {(crate::langue::tr("Exporter")) }
             table {
                 tbody {
-                    tr { td { a .bouton.secondaire href="/export/tiers.csv" { "Tiers (CSV)" } } td { "code client, nom, adresse, CP, ville, e-mail, téléphone, SIRET, TVA" } }
-                    tr { td { a .bouton.secondaire href="/export/produits.csv" { "Produits (CSV)" } } td { "référence, libellé, prix HT, taux de TVA, type" } }
+                    tr { td { a .bouton.secondaire href="/export/tiers.csv" {(crate::langue::tr("Tiers (CSV)")) } } td {(crate::langue::tr("code client, nom, adresse, CP, ville, e-mail, téléphone, SIRET, TVA")) } }
+                    tr { td { a .bouton.secondaire href="/export/produits.csv" {(crate::langue::tr("Produits (CSV)")) } } td {(crate::langue::tr("référence, libellé, prix HT, taux de TVA, type")) } }
                 }
             }
         },
@@ -4483,14 +4474,14 @@ async fn import_tiers(
         "import",
         "Import",
         html! {
-            h1 { "Résultat de l'import" }
+            h1 {(crate::langue::tr("Résultat de l'import")) }
             div .cartes {
                 (ui::carte("Créés", &rapport.crees.to_string(), None, false))
                 (ui::carte("Ignorés", &rapport.ignores.to_string(), Some("déjà présents ou sans nom"), false))
                 (ui::carte("Erreurs", &rapport.erreurs.len().to_string(), None, !rapport.erreurs.is_empty()))
             }
             @if !rapport.erreurs.is_empty() {
-                h2 { "Erreurs" }
+                h2 {(crate::langue::tr("Erreurs")) }
                 table {
                     tbody {
                         @for e in &rapport.erreurs { tr { td { (e) } } }
@@ -4498,8 +4489,8 @@ async fn import_tiers(
                 }
             }
             div .actions {
-                a .bouton href="/tiers" { "Voir les tiers" }
-                a .bouton.secondaire href="/parametres/import" { "Importer un autre fichier" }
+                a .bouton href="/tiers" {(crate::langue::tr("Voir les tiers")) }
+                a .bouton.secondaire href="/parametres/import" {(crate::langue::tr("Importer un autre fichier")) }
             }
         },
     ))
@@ -4519,19 +4510,19 @@ async fn import_produits(
         "import",
         "Import produits",
         html! {
-            h1 { "Résultat de l'import produits" }
+            h1 {(crate::langue::tr("Résultat de l'import produits")) }
             div .cartes {
                 (ui::carte("Créés", &rapport.crees.to_string(), None, false))
                 (ui::carte("Ignorés", &rapport.ignores.to_string(), Some("déjà présents ou sans référence"), false))
                 (ui::carte("Erreurs", &rapport.erreurs.len().to_string(), None, !rapport.erreurs.is_empty()))
             }
             @if !rapport.erreurs.is_empty() {
-                h2 { "Erreurs" }
+                h2 {(crate::langue::tr("Erreurs")) }
                 table { tbody { @for e in &rapport.erreurs { tr { td { (e) } } } } }
             }
             div .actions {
-                a .bouton href="/produits" { "Voir les produits" }
-                a .bouton.secondaire href="/parametres/import" { "Retour" }
+                a .bouton href="/produits" {(crate::langue::tr("Voir les produits")) }
+                a .bouton.secondaire href="/parametres/import" {(crate::langue::tr("Retour")) }
             }
         },
     ))
@@ -4551,19 +4542,19 @@ async fn import_factures(
         "import",
         "Import factures",
         html! {
-            h1 { "Résultat de l'import factures" }
+            h1 {(crate::langue::tr("Résultat de l'import factures")) }
             div .cartes {
                 (ui::carte("Créées", &rapport.crees.to_string(), Some("validées automatiquement"), false))
                 (ui::carte("Ignorées", &rapport.ignores.to_string(), None, false))
                 (ui::carte("Erreurs", &rapport.erreurs.len().to_string(), None, !rapport.erreurs.is_empty()))
             }
             @if !rapport.erreurs.is_empty() {
-                h2 { "Erreurs" }
+                h2 {(crate::langue::tr("Erreurs")) }
                 table { tbody { @for e in &rapport.erreurs { tr { td { (e) } } } } }
             }
             div .actions {
-                a .bouton href="/factures" { "Voir les factures" }
-                a .bouton.secondaire href="/parametres/import" { "Retour" }
+                a .bouton href="/factures" {(crate::langue::tr("Voir les factures")) }
+                a .bouton.secondaire href="/parametres/import" {(crate::langue::tr("Retour")) }
             }
         },
     ))
@@ -4615,7 +4606,7 @@ async fn grand_livre(
         "journaux",
         "Grand livre",
         html! {
-            h1 { "Grand livre" }
+            h1 {(crate::langue::tr("Grand livre")) }
             p .sous-titre {
                 "Écritures dérivées des documents (plan comptable général simplifié). "
                 "Ce n'est pas une comptabilité tenue : c'est une proposition à valider par l'expert-comptable."
@@ -4623,16 +4614,16 @@ async fn grand_livre(
             form method="get" action="/comptabilite/grand-livre" .actions {
                 input type="date" name="debut" value=(debut) aria-label="Début";
                 input type="date" name="fin" value=(fin) aria-label="Fin";
-                button type="submit" { "Filtrer" }
-                a .bouton.secondaire href={ "/export/grand-livre.csv?debut=" (debut) "&fin=" (fin) } { "Exporter le grand livre (CSV)" }
+                button type="submit" {(crate::langue::tr("Filtrer")) }
+                a .bouton.secondaire href={ "/export/grand-livre.csv?debut=" (debut) "&fin=" (fin) } {(crate::langue::tr("Exporter le grand livre (CSV)")) }
             }
 
-            h2 { "Balance" }
+            h2 {(crate::langue::tr("Balance")) }
             @if balance.is_empty() {
                 (ui::vide("Aucune écriture sur la période.", None))
             } @else {
                 table {
-                    thead { tr { th { "Compte" } th { "Libellé" } th .num { "Débit" } th .num { "Crédit" } th .num { "Solde" } } }
+                    thead { tr { th {(crate::langue::tr("Compte")) } th {(crate::langue::tr("Libellé")) } th .num {(crate::langue::tr("Débit")) } th .num {(crate::langue::tr("Crédit")) } th .num {(crate::langue::tr("Solde")) } } }
                     tbody {
                         @for b in &balance {
                             tr {
@@ -4646,7 +4637,7 @@ async fn grand_livre(
                     }
                     tfoot {
                         tr {
-                            td colspan="2" .num { "Totaux" }
+                            td colspan="2" .num {(crate::langue::tr("Totaux")) }
                             td .num { (ui::euros(total_debit)) }
                             td .num { (ui::euros(total_credit)) }
                             td .num { (ui::euros(total_debit - total_credit)) }
@@ -4660,7 +4651,7 @@ async fn grand_livre(
                 (ui::vide("Aucune écriture.", None))
             } @else {
                 table {
-                    thead { tr { th { "Date" } th { "Journal" } th { "Compte" } th { "Libellé" } th .num { "Débit" } th .num { "Crédit" } } }
+                    thead { tr { th {(crate::langue::tr("Date")) } th {(crate::langue::tr("Journal")) } th {(crate::langue::tr("Compte")) } th {(crate::langue::tr("Libellé")) } th .num {(crate::langue::tr("Débit")) } th .num {(crate::langue::tr("Crédit")) } } }
                     tbody {
                         @for e in &ecritures {
                             tr {
@@ -4697,7 +4688,7 @@ async fn fec_page(State(app): State<App>, Query(q): Query<HashMap<String, String
         "Comptabilisation et FEC",
         html! {
             (message(q.get("ok")))
-            h1 { "Comptabilisation et FEC" }
+            h1 {(crate::langue::tr("Comptabilisation et FEC")) }
             p .sous-titre {
                 "Les écritures sont générées depuis les documents valides et écrites dans "
                 code { "llx_accounting_bookkeeping" } ". L'export suit le format FEC (art. A47 A-1 du LPF)."
@@ -4707,17 +4698,17 @@ async fn fec_page(State(app): State<App>, Query(q): Query<HashMap<String, String
                 form method="post" action="/comptabilite/fec" {
                     input type="date" name="debut" value=(debut) aria-label="Début";
                     input type="date" name="fin" value=(fin) aria-label="Fin";
-                    button type="submit" { "Générer les écritures" }
+                    button type="submit" {(crate::langue::tr("Générer les écritures")) }
                 }
                 @if nombre > 0 {
-                    a .bouton.secondaire href={ "/export/fec.txt?debut=" (debut) "&fin=" (fin) } { "Exporter le FEC" }
+                    a .bouton.secondaire href={ "/export/fec.txt?debut=" (debut) "&fin=" (fin) } {(crate::langue::tr("Exporter le FEC")) }
                 }
             }
 
             table {
                 tbody {
-                    tr { th { "Écritures en base" } td .num { (nombre) } }
-                    tr { th { "Journaux" } td { "VE (ventes) · AC (achats) · BQ (banque)" } }
+                    tr { th {(crate::langue::tr("Écritures en base")) } td .num { (nombre) } }
+                    tr { th {(crate::langue::tr("Journaux")) } td {(crate::langue::tr("VE (ventes) · AC (achats) · BQ (banque)")) } }
                 }
             }
 
@@ -4904,22 +4895,22 @@ async fn sauvegarde_page(Query(q): Query<HashMap<String, String>>) -> Res<Markup
                 p .flash { "Sauvegarde créée : " (fait) }
             }
             @if q.contains_key("echec") {
-                p .erreur { "La sauvegarde a échoué. Vérifiez que `mysqldump` est installé (variable DOLIBARR_MYSQLDUMP)." }
+                p .erreur {(crate::langue::tr("La sauvegarde a échoué. Vérifiez que `mysqldump` est installé (variable DOLIBARR_MYSQLDUMP).")) }
             }
-            h1 { "Sauvegarde" }
-            p .sous-titre { "Dump SQL complet + dossier documentaire, dans un dossier horodaté." }
+            h1 {(crate::langue::tr("Sauvegarde")) }
+            p .sous-titre {(crate::langue::tr("Dump SQL complet + dossier documentaire, dans un dossier horodaté.")) }
 
             form method="post" action="/parametres/sauvegarde" .actions {
-                button type="submit" { "Sauvegarder maintenant" }
+                button type="submit" {(crate::langue::tr("Sauvegarder maintenant")) }
                 span .sous-titre { "Dossier : " (racine) }
             }
 
-            h2 { "Sauvegardes existantes" }
+            h2 {(crate::langue::tr("Sauvegardes existantes")) }
             @if listes.is_empty() {
                 (ui::vide("Aucune sauvegarde pour l'instant.", None))
             } @else {
                 table {
-                    thead { tr { th { "Date" } th .num { "Fichiers" } } }
+                    thead { tr { th {(crate::langue::tr("Date")) } th .num {(crate::langue::tr("Fichiers")) } } }
                     tbody {
                         @for (nom, n) in &listes {
                             tr { td .ref { (nom) } td .num { (n) } }
@@ -4928,9 +4919,9 @@ async fn sauvegarde_page(Query(q): Query<HashMap<String, String>>) -> Res<Markup
                 }
             }
 
-            h2 { "Restaurer" }
-            p { "La restauration se fait en ligne de commande, c'est volontaire :" }
-            code { "mysql -h 127.0.0.1 -P 3307 -u root -p dolibarr < sauvegardes/<date>/base.sql" }
+            h2 {(crate::langue::tr("Restaurer")) }
+            p {(crate::langue::tr("La restauration se fait en ligne de commande, c'est volontaire :")) }
+            code {(crate::langue::tr("mysql -h 127.0.0.1 -P 3307 -u root -p dolibarr < sauvegardes/<date>/base.sql")) }
         },
     ))
 }
