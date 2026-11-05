@@ -55,6 +55,7 @@ pub mod relance;
 pub mod sauvegarde;
 pub mod sepa;
 pub mod situation;
+pub mod stats;
 pub mod stock;
 pub mod tables;
 pub mod ticket;

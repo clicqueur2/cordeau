@@ -26,6 +26,7 @@ mod plugin;
 mod pos_ecran;
 mod recur_ecran;
 mod sepa_ecran;
+mod stats_ecran;
 pub(crate) mod ui;
 
 use std::collections::HashMap;
@@ -201,6 +202,8 @@ async fn main() {
         .route("/factures/actions", post(actions_masse::factures))
         .route("/devises", get(devises_ecran::page))
         .route("/mrp", get(mrp_ecran::page))
+        .route("/statistiques", get(stats_ecran::statistiques))
+        .route("/echeancier", get(stats_ecran::echeancier))
         .route("/devises/figer", post(devises_ecran::figer))
         .route("/factures/:id", get(factures_fiche))
         .route("/factures/:id/pdf", get(factures_pdf))
