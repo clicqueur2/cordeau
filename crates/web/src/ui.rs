@@ -48,9 +48,9 @@ header form button { border-radius:0 2px 2px 0; padding:7px 13px; }
                border-right:1px solid var(--line); padding:12px 0 40px;
                position:sticky; top:0; align-self:flex-start;
                min-height:calc(100vh - 57px); }
-.menu-gauche .module-titre { font-size:11px; text-transform:uppercase; letter-spacing:.09em;
+.menu-gauche .module-titre { display:flex; align-items:center; font-size:11px; text-transform:uppercase; letter-spacing:.09em;
                              color:var(--muted); padding:10px 18px 6px; font-weight:600; }
-.menu-gauche a, .menu-gauche span.avenir { display:block; padding:7px 18px; font-size:14px;
+.menu-gauche a, .menu-gauche span.avenir { display:flex; align-items:center; padding:7px 18px; font-size:14px;
                              color:var(--ink); border-left:3px solid transparent; }
 .menu-gauche a.actif { background:var(--accent-clair); border-left-color:var(--accent);
                              color:var(--accent); font-weight:600; }
@@ -198,7 +198,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                 }
                 div .corps {
                     aside .menu-gauche {
-                        div .module-titre { (crate::langue::tr(module.libelle)) }
+                        div .module-titre { (crate::icones::du_module(module.cle)) (crate::langue::tr(module.libelle)) }
                         @for entree in module.entrees {
                             a class=(if entree.cle == actif { "actif" } else { "" })
                               href=(entree.lien) { (crate::langue::tr(entree.libelle)) }
@@ -206,7 +206,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                         hr;
                         div .module-titre { (crate::langue::tr("Tous les modules")) }
                         @for m in crate::menu::modules().into_iter().filter(|m| crate::menu::depuis_base() || crate::menu_actif::est_actif(m.code) || crate::manifeste::est_declare(m.code)) {
-                            a href=(lien_module(m)) { (crate::langue::tr(m.libelle)) }
+                            a href=(lien_module(m)) { (crate::icones::du_module(m.cle)) (crate::langue::tr(m.libelle)) }
                         }
                     }
                     main {

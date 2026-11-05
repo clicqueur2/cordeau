@@ -12,7 +12,8 @@ mod courriel;
 mod devises_ecran;
 mod entite;
 mod extrafields_ecran;
-pub(crate) mod journal_erreurs;
+pub(crate) mod icones;
+mod journal_erreurs;
 mod langue;
 mod livre_tenu;
 mod manifeste;
@@ -962,21 +963,93 @@ async fn recherche(
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
     let p = &app.pool;
-    let terme = q.get("q").cloned().unwrap_or_default();
-    let f = terme.to_lowercase();
+    let terme = q
+        .get("q")
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    let vide = terme.is_empty();
 
+    // Un seul mot suffit a chercher : le nom du tiers pour une facture, la
+    // reference pour une piece, le libelle pour un produit. Une recherche qui
+    // ne regarde qu'un champ par objet ne trouve que ce qu'on tape deja.
     let tiers: Vec<_> = db::party::list(p, entite::courante(), 500, 0)?
         .into_iter()
-        .filter(|t| f.is_empty() || t.nom.to_lowercase().contains(&f))
+        .filter(|t| {
+            vide || t.nom.to_lowercase().contains(&terme)
+                || t.code_client
+                    .as_deref()
+                    .map(|c| c.to_lowercase().contains(&terme))
+                    .unwrap_or(false)
+                || t.email
+                    .as_deref()
+                    .map(|c| c.to_lowercase().contains(&terme))
+                    .unwrap_or(false)
+        })
         .collect();
+
+    let produits: Vec<_> = db::product::list(p, entite::courante(), 500, 0)?
+        .into_iter()
+        .filter(|x| {
+            vide || x.ref_.to_lowercase().contains(&terme)
+                || x.label.to_lowercase().contains(&terme)
+        })
+        .collect();
+
     let devis: Vec<_> = db::proposal::list(p, entite::courante(), 200, 0)?
         .into_iter()
-        .filter(|d| f.is_empty() || d.ref_.to_lowercase().contains(&f))
+        .filter(|d| vide || d.ref_.to_lowercase().contains(&terme))
         .collect();
+
     let factures: Vec<_> = db::invoice::list(p, entite::courante(), 200, 0)?
         .into_iter()
-        .filter(|x| f.is_empty() || x.ref_.to_lowercase().contains(&f))
+        .filter(|x| vide || x.ref_.to_lowercase().contains(&terme))
         .collect();
+
+    let commandes: Vec<_> = db::commande::list(p, entite::courante(), 200, 0)?
+        .into_iter()
+        .filter(|c| vide || c.ref_.to_lowercase().contains(&terme))
+        .collect();
+
+    let projets: Vec<_> = db::projet::list(p, entite::courante(), 200, 0)?
+        .into_iter()
+        .filter(|x| {
+            vide || x.title.to_lowercase().contains(&terme)
+                || x.ref_.to_lowercase().contains(&terme)
+        })
+        .collect();
+
+    // La recherche porte aussi sur le **nom du client** : chercher « Dupont »
+    // doit sortir ses factures, pas seulement sa fiche.
+    let par_client: Vec<i64> = tiers.iter().map(|t| t.rowid).collect();
+    let devis: Vec<_> = if par_client.is_empty() {
+        devis
+    } else {
+        db::proposal::list(p, entite::courante(), 200, 0)?
+            .into_iter()
+            .filter(|d| {
+                (vide || d.ref_.to_lowercase().contains(&terme))
+                    || d.fk_soc.map(|s| par_client.contains(&s)).unwrap_or(false)
+            })
+            .collect()
+    };
+    let factures: Vec<_> = if par_client.is_empty() {
+        factures
+    } else {
+        db::invoice::list(p, entite::courante(), 200, 0)?
+            .into_iter()
+            .filter(|x| {
+                (vide || x.ref_.to_lowercase().contains(&terme))
+                    || x.fk_soc.map(|s| par_client.contains(&s)).unwrap_or(false)
+            })
+            .collect()
+    };
+
+    let total = tiers.len()
+        + produits.len()
+        + devis.len()
+        + factures.len()
+        + commandes.len()
+        + projets.len();
 
     Ok(ui::page(
         "",
@@ -984,24 +1057,87 @@ async fn recherche(
         "Recherche",
         html! {
             h1 { "Recherche" }
-            p .sous-titre { "« " (terme) " » — " (tiers.len() + devis.len() + factures.len()) " résultat(s)" }
+            form method="get" action="/recherche" {
+                div .actions {
+                    input type="search" name="q" value=(terme) placeholder="Nom, référence, e-mail…"
+                          style="width:320px" aria-label="Recherche" autofocus;
+                    button type="submit" { "Chercher" }
+                }
+            }
+            p .sous-titre {
+                @if vide {
+                    "Tapez un nom, une référence, un e-mail : la recherche porte sur les tiers, "
+                    "produits, devis, factures, commandes et chantiers."
+                } @else {
+                    (total.to_string()) " résultat(s) pour « " (terme) " »"
+                }
+            }
+
+            @if !vide && total == 0 {
+                (ui::vide("Rien ne correspond. Essayez le nom du client plutôt que sa référence, ou l'inverse.", None))
+            }
 
             @if !tiers.is_empty() {
-                h2 { "Tiers" }
+                h2 { "Tiers — " (tiers.len().to_string()) }
                 table { tbody { @for t in &tiers {
-                    tr { td { a href={ "/tiers/" (t.rowid) } { (t.nom) } } td { (t.code_client.clone().unwrap_or_default()) } }
+                    tr {
+                        td { a href={ "/tiers/" (t.rowid) } { (t.nom) } }
+                        td .ref { (t.code_client.clone().unwrap_or_default()) }
+                        td { (t.email.clone().unwrap_or_default()) }
+                    }
                 } } }
             }
+
+            @if !produits.is_empty() {
+                h2 { "Produits et services — " (produits.len().to_string()) }
+                table { tbody { @for x in &produits {
+                    tr {
+                        td .ref { (x.ref_) }
+                        td { (x.label) }
+                    }
+                } } }
+            }
+
             @if !devis.is_empty() {
-                h2 { "Devis" }
+                h2 { "Devis — " (devis.len().to_string()) }
                 table { tbody { @for d in &devis {
-                    tr { td { a .ref href={ "/devis/" (d.rowid) } { (d.ref_) } } td .num { (ui::euros(d.total_ttc.unwrap_or_default())) } }
+                    tr {
+                        td .ref { a href={ "/devis/" (d.rowid) } { (d.ref_) } }
+                        td { (nom_tiers(p, d.fk_soc)?) }
+                        td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
+                    }
                 } } }
             }
+
+            @if !commandes.is_empty() {
+                h2 { "Commandes — " (commandes.len().to_string()) }
+                table { tbody { @for c in &commandes {
+                    tr {
+                        td .ref { (c.ref_) }
+                        td { (nom_tiers(p, Some(c.fk_soc))?) }
+                        td .num { (ui::euros(c.total_ttc.unwrap_or_default())) }
+                    }
+                } } }
+            }
+
             @if !factures.is_empty() {
-                h2 { "Factures" }
+                h2 { "Factures — " (factures.len().to_string()) }
                 table { tbody { @for x in &factures {
-                    tr { td { a .ref href={ "/factures/" (x.rowid) } { (x.ref_) } } td .num { (ui::euros(x.total_ttc.unwrap_or_default())) } }
+                    tr {
+                        td .ref { a href={ "/factures/" (x.rowid) } { (x.ref_) } }
+                        td { (nom_tiers(p, x.fk_soc)?) }
+                        td .num { (ui::euros(x.total_ttc.unwrap_or_default())) }
+                    }
+                } } }
+            }
+
+            @if !projets.is_empty() {
+                h2 { "Chantiers — " (projets.len().to_string()) }
+                table { tbody { @for x in &projets {
+                    tr {
+                        td .ref { (x.ref_) }
+                        td { a href={ "/chantiers/" (x.rowid) } { (x.title) } }
+                    }
                 } } }
             }
         },
@@ -1203,16 +1339,59 @@ async fn produits(State(app): State<App>) -> Res<Markup> {
 
 // --- devis ------------------------------------------------------------------
 
-async fn devis(State(app): State<App>) -> Res<Markup> {
+async fn devis(State(app): State<App>, Query(q): Query<HashMap<String, String>>) -> Res<Markup> {
     let p = &app.pool;
-    let listes = db::proposal::list(p, entite::courante(), 200, 0)?;
+    let statut = q.get("statut").cloned().unwrap_or_default();
+    let filtre = q
+        .get("q")
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+
+    let tous = db::proposal::list(p, entite::courante(), 200, 0)?;
+    let total = tous.len();
+    let listes: Vec<_> = tous
+        .into_iter()
+        .filter(|d| {
+            let par_statut = match statut.as_str() {
+                "brouillon" => d.fk_statut == 0,
+                "valide" => d.fk_statut == 1,
+                "signe" => d.fk_statut == 2,
+                "perdu" => d.fk_statut == 3,
+                _ => true,
+            };
+            let par_texte = filtre.is_empty() || d.ref_.to_lowercase().contains(&filtre);
+            par_statut && par_texte
+        })
+        .collect();
+
     Ok(ui::page(
         "devis",
         "liste",
         "Devis",
         html! {
             h1 { "Devis" }
-            p .sous-titre { (listes.len()) " devis" }
+            form method="get" action="/devis" {
+                div .actions {
+                    select name="statut" aria-label="Statut" {
+                        option value="" selected[statut.is_empty()] { "Tous" }
+                        option value="brouillon" selected[statut == "brouillon"] { "Brouillons" }
+                        option value="valide" selected[statut == "valide"] { "Validés" }
+                        option value="signe" selected[statut == "signe"] { "Signés" }
+                        option value="perdu" selected[statut == "perdu"] { "Perdus" }
+                    }
+                    input type="search" name="q" value=(filtre) placeholder="Référence…" aria-label="Recherche";
+                    button type="submit" class="petit" { "Filtrer" }
+                    @if !statut.is_empty() || !filtre.is_empty() {
+                        a .bouton.secondaire.petit href="/devis" { "Tout voir" }
+                    }
+                }
+            }
+            p .sous-titre {
+                (listes.len()) " devis"
+                @if listes.len() != total {
+                    " sur " (total.to_string())
+                }
+            }
             // Le formulaire est declare a part et les cases s'y rattachent par
             // leur attribut `form` : un formulaire ne peut pas entourer une
             // partie de tableau, et on ne va pas imbriquer des tables.
@@ -1446,17 +1625,60 @@ async fn devis_facturer(State(app): State<App>, Path(id): Path<i64>) -> Res<Redi
 
 // --- factures ---------------------------------------------------------------
 
-async fn factures(State(app): State<App>) -> Res<Markup> {
+async fn factures(State(app): State<App>, Query(q): Query<HashMap<String, String>>) -> Res<Markup> {
     let p = &app.pool;
     let jour = aujourdhui(p)?;
-    let listes = db::invoice::list(p, entite::courante(), 200, 0)?;
+    let statut = q.get("statut").cloned().unwrap_or_default();
+    let filtre = q
+        .get("q")
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+
+    let toutes = db::invoice::list(p, entite::courante(), 200, 0)?;
+    let total = toutes.len();
+    let listes: Vec<_> = toutes
+        .into_iter()
+        .filter(|f| {
+            // Le statut vient d'une liste fermee : aucune valeur saisie n'arrive
+            // jusqu'ici, donc pas de condition composee a partir du texte.
+            let par_statut = match statut.as_str() {
+                "brouillon" => f.fk_statut == 0,
+                "validee" => f.fk_statut == 1 && f.paye == 0,
+                "payee" => f.paye == 1,
+                _ => true,
+            };
+            let par_texte = filtre.is_empty() || f.ref_.to_lowercase().contains(&filtre);
+            par_statut && par_texte
+        })
+        .collect();
+
     Ok(ui::page(
         "factures",
         "liste",
         "Factures",
         html! {
             h1 { "Factures" }
-            p .sous-titre { (listes.len()) " facture(s)" }
+            form method="get" action="/factures" {
+                div .actions {
+                    select name="statut" aria-label="Statut" {
+                        option value="" selected[statut.is_empty()] { "Toutes" }
+                        option value="brouillon" selected[statut == "brouillon"] { "Brouillons" }
+                        option value="validee" selected[statut == "validee"] { "Validées, non payées" }
+                        option value="payee" selected[statut == "payee"] { "Payées" }
+                    }
+                    input type="search" name="q" value=(filtre) placeholder="Référence…" aria-label="Recherche";
+                    button type="submit" class="petit" { "Filtrer" }
+                    @if !statut.is_empty() || !filtre.is_empty() {
+                        a .bouton.secondaire.petit href="/factures" { "Tout voir" }
+                    }
+                }
+            }
+            p .sous-titre {
+                (listes.len()) " facture(s)"
+                @if listes.len() != total {
+                    " sur " (total.to_string())
+                }
+            }
             form id="actions-factures" method="post" action="/factures/actions" {}
             div .actions {
                 button type="submit" form="actions-factures" name="action" value="valider" { "Valider la sélection" }
