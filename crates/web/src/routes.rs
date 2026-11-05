@@ -242,6 +242,16 @@ pub fn routes(app: App) -> Router {
         )
         .route("/livraisons/:id/valider", post(livraison_ecran::valider))
         .route("/livraisons/:id/livrer", post(livraison_ecran::livrer))
+        .route(
+            "/sites",
+            get(site_web_ecran::page).post(site_web_ecran::creer_site),
+        )
+        .route("/sites/:id", get(site_web_ecran::detail))
+        .route("/sites/:id/pages", post(site_web_ecran::creer_page))
+        .route("/sites/:id/supprimer", post(site_web_ecran::supprimer_site))
+        .route("/pages/:id/publier", post(site_web_ecran::publier))
+        .route("/pages/:id/depublier", post(site_web_ecran::depublier))
+        .route("/pages/:id/supprimer", post(site_web_ecran::supprimer_page))
         .route("/dons", get(dons_ecran::page).post(dons_ecran::creer))
         .route("/dons/:id", get(dons_ecran::detail))
         .route("/dons/:id/valider", post(dons_ecran::valider))

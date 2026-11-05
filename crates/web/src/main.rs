@@ -105,6 +105,7 @@ mod recur_ecran;
 mod routes;
 mod securite_ecran;
 mod sepa_ecran;
+mod site_web_ecran;
 mod stats_ecran;
 mod traduction_ecran;
 mod transfert_ecran;
