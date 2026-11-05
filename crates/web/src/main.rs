@@ -16,6 +16,7 @@ mod entite;
 mod expedition_ecran;
 mod extrafields_ecran;
 pub(crate) mod icones;
+mod interv_ecran;
 mod journal_erreurs;
 mod journaux_ecran;
 mod langue;
@@ -26,6 +27,7 @@ mod menu;
 mod menu_actif;
 mod modeles_ecran;
 mod mrp_ecran;
+mod note_frais_ecran;
 mod notifications_ecran;
 mod pages;
 mod pdf_modele_ecran;
@@ -33,6 +35,7 @@ mod planification_ecran;
 mod plugin;
 mod pos_ecran;
 mod rapprochement_ecran;
+mod reception_ecran;
 mod recur_ecran;
 mod securite_ecran;
 mod sepa_ecran;
@@ -299,6 +302,39 @@ async fn main() {
             axum::routing::post(pages::ticket_statut),
         )
         .route("/stock", get(pages::stock))
+        .route(
+            "/receptions",
+            get(reception_ecran::page).post(reception_ecran::creer),
+        )
+        .route("/receptions/:id", get(reception_ecran::detail))
+        .route("/receptions/:id/valider", post(reception_ecran::valider))
+        .route(
+            "/receptions/:id/receptionner",
+            post(reception_ecran::receptionner),
+        )
+        .route(
+            "/receptions/:id/supprimer",
+            post(reception_ecran::supprimer),
+        )
+        .route("/interventions", get(interv_ecran::page))
+        .route("/interventions/nouveau", post(interv_ecran::creer))
+        .route("/interventions/:id", get(interv_ecran::detail))
+        .route("/interventions/:id/valider", post(interv_ecran::valider))
+        .route("/interventions/:id/cloturer", post(interv_ecran::cloturer))
+        .route(
+            "/notes-frais",
+            get(note_frais_ecran::page).post(note_frais_ecran::creer),
+        )
+        .route("/notes-frais/:id", get(note_frais_ecran::detail))
+        .route(
+            "/notes-frais/:id/soumettre",
+            post(note_frais_ecran::soumettre),
+        )
+        .route(
+            "/notes-frais/:id/approuver",
+            post(note_frais_ecran::approuver),
+        )
+        .route("/notes-frais/:id/refuser", post(note_frais_ecran::refuser))
         .route("/expeditions", get(expedition_ecran::page))
         .route(
             "/expeditions/depuis-commande",
