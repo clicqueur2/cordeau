@@ -212,6 +212,11 @@ pub const MODULES: &[Module] = &[
             e("inventaires", "Inventaires", "/inventaires"),
             e("dons", "Dons", "/dons"),
             e("transferts", "Transferts de stock", "/transferts"),
+            e(
+                "achats-fournisseur",
+                "Achats fournisseurs",
+                "/achats-fournisseur",
+            ),
             e("immobilisations", "Immobilisations", "/immobilisations"),
             e("conges", "Congés", "/liste/Holiday"),
             e("salaires", "Salaires", "/liste/Salaries"),
