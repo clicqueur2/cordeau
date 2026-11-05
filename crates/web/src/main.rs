@@ -15,6 +15,7 @@ mod extrafields_ecran;
 pub(crate) mod icones;
 mod journal_erreurs;
 mod langue;
+mod lettrage_ecran;
 mod livre_tenu;
 mod manifeste;
 mod menu;
@@ -327,6 +328,11 @@ async fn main() {
         )
         .route("/comptabilite", get(comptabilite))
         .route("/comptabilite/grand-livre", get(grand_livre))
+        .route("/comptabilite/lettrage", get(lettrage_ecran::page))
+        .route(
+            "/comptabilite/lettrage/:compte",
+            post(lettrage_ecran::lettrer),
+        )
         .route("/comptabilite/livre-tenu", get(livre_tenu::page))
         .route("/comptabilite/fec", get(fec_page).post(fec_generer))
         .route("/comptabilite/analytique", get(analytique_ecran::page))

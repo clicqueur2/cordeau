@@ -36,6 +36,7 @@ pub mod impex;
 pub mod installation;
 pub mod invoice;
 pub mod journal;
+pub mod lettrage;
 pub mod menu;
 pub mod module;
 pub mod mrp;
