@@ -156,6 +156,8 @@ pub const MODULES: &[Module] = &[
             ),
             e("grand-livre", "Grand livre", "/comptabilite/grand-livre"),
             e("lettrage", "Lettrage", "/comptabilite/lettrage"),
+            e("statistiques", "Statistiques", "/statistiques"),
+            e("echeancier", "Échéancier", "/echeancier"),
             e("fec", "Comptabilisation et FEC", "/comptabilite/fec"),
             e("cloture", "Clôture d'exercice", "/comptabilite/cloture"),
             e(
