@@ -375,6 +375,23 @@ fn map_row(row: &Row) -> Conge {
 /// Rend un `Result` comme toutes les listes du noyau, bien que la signature
 /// attendue fût `Vec<Conge>` : une panne MySQL doit remonter, pas se traduire
 /// par une liste vide qu'on croirait complète.
+/// Les types de conge proposes a la saisie.
+///
+/// Seuls les types actifs sortent : un type desactive reste dans le
+/// dictionnaire pour ne pas casser les demandes deja posees, mais il ne doit
+/// plus apparaitre dans un formulaire. Les lignes d'entite 0 sont les
+/// dictionnaires partages, comme partout chez Dolibarr.
+pub fn types(pool: &Pool, entity: i64) -> Result<Vec<(i64, String)>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let rows: Vec<(i64, String)> = conn.exec(
+        "SELECT rowid, label FROM llx_c_holiday_types \
+         WHERE entity IN (0, :entity) AND active = 1 \
+         ORDER BY sortorder ASC, rowid ASC",
+        params! { "entity" => entity },
+    )?;
+    Ok(rows)
+}
+
 pub fn list(
     pool: &Pool,
     entity: i64,

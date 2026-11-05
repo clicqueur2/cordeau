@@ -9,6 +9,7 @@ mod api;
 mod campagnes;
 mod categories_ecran;
 mod cloture_ecran;
+mod conges_ecran;
 mod constantes_ecran;
 mod courriel;
 mod devises_ecran;
@@ -34,6 +35,7 @@ mod pdf_modele_ecran;
 mod planification_ecran;
 mod plugin;
 mod pos_ecran;
+mod pret_ecran;
 mod rapprochement_ecran;
 mod reception_ecran;
 mod recur_ecran;
@@ -316,6 +318,14 @@ async fn main() {
             "/receptions/:id/supprimer",
             post(reception_ecran::supprimer),
         )
+        .route("/prets", get(pret_ecran::page).post(pret_ecran::creer))
+        .route("/prets/:id", get(pret_ecran::detail))
+        .route("/prets/:id/regler", post(pret_ecran::regler))
+        .route("/conges", get(conges_ecran::page).post(conges_ecran::creer))
+        .route("/conges/:id/valider", post(conges_ecran::valider))
+        .route("/conges/:id/approuver", post(conges_ecran::approuver))
+        .route("/conges/:id/refuser", post(conges_ecran::refuser))
+        .route("/conges/:id/annuler", post(conges_ecran::annuler))
         .route("/interventions", get(interv_ecran::page))
         .route("/interventions/nouveau", post(interv_ecran::creer))
         .route("/interventions/:id", get(interv_ecran::detail))
