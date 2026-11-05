@@ -74,7 +74,7 @@ pub async fn page(
         "analytique",
         "Comptabilité analytique",
         html! {
-            h1 { "Comptabilité analytique" }
+            h1 {(crate::langue::tr("Comptabilité analytique")) }
             p .sous-titre {
                 "Un axe, des comptes — les chantiers —, et la part de chaque ligne d'écriture "
                 "qui leur revient. La marge est la somme des contributions, produits moins charges."
@@ -84,12 +84,12 @@ pub async fn page(
             @if ok == Some("compte") { (ui::flash("Compte analytique créé.")) }
             @if ok == Some("affecte") { (ui::flash("Ligne affectée.")) }
 
-            h2 { "Axes et comptes" }
+            h2 {(crate::langue::tr("Axes et comptes")) }
             @if axes.is_empty() {
                 (ui::vide("Aucun axe analytique sur cette entité.", None))
             } @else {
                 table {
-                    thead { tr { th { "Axe" } th { "Code" } th { "Comptes" } } }
+                    thead { tr { th {(crate::langue::tr("Axe")) } th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Comptes")) } } }
                     tbody {
                         @for a in &axes {
                             tr {
@@ -117,7 +117,7 @@ pub async fn page(
                 form method="post" action="/comptabilite/analytique/axe" style="display:flex;gap:8px" {
                     input type="text" name="code" placeholder="CHANTIERS" size="12" required;
                     input type="text" name="libelle" placeholder="Chantiers" size="18" required;
-                    button type="submit" class="petit" { "Créer l'axe" }
+                    button type="submit" class="petit" {(crate::langue::tr("Créer l'axe")) }
                 }
             }
             @if !axes.is_empty() {
@@ -128,17 +128,17 @@ pub async fn page(
                         }
                         input type="text" name="code" placeholder="CH-2026-014" size="14" required;
                         input type="text" name="libelle" placeholder="Rue des Vignes" size="20" required;
-                        button type="submit" class="petit" { "Créer le compte" }
+                        button type="submit" class="petit" {(crate::langue::tr("Créer le compte")) }
                     }
                 }
             }
 
-            h2 { "Marge par chantier" }
+            h2 {(crate::langue::tr("Marge par chantier")) }
             form method="get" action="/comptabilite/analytique" {
                 div .actions {
                     "Du " input type="text" name="debut" value=(debut) size="12";
                     " au " input type="text" name="fin" value=(fin) size="12";
-                    button type="submit" { "Recalculer" }
+                    button type="submit" {(crate::langue::tr("Recalculer")) }
                 }
             }
 
@@ -170,10 +170,10 @@ pub async fn page(
                 table {
                     thead {
                         tr {
-                            th { "Compte" }
-                            th { "Chantier" }
-                            th .num { "Lignes" }
-                            th .num { "Marge" }
+                            th {(crate::langue::tr("Compte")) }
+                            th {(crate::langue::tr("Chantier")) }
+                            th .num {(crate::langue::tr("Lignes")) }
+                            th .num {(crate::langue::tr("Marge")) }
                         }
                     }
                     tbody {
@@ -189,7 +189,7 @@ pub async fn page(
                 }
             }
 
-            h2 { "Affecter une ligne" }
+            h2 {(crate::langue::tr("Affecter une ligne")) }
             p style="color:#78736c;font-size:13.5px" {
                 "Le numéro de ligne est le " code { "rowid" } " dans "
                 code { "llx_accounting_bookkeeping" } ". Format : "
@@ -200,7 +200,7 @@ pub async fn page(
                 div .actions {
                     input type="number" name="ligne" placeholder="Ligne" size="8" required;
                     input type="text" name="parts" placeholder="3:70, 4:30" size="24" required;
-                    button type="submit" class="petit" { "Affecter" }
+                    button type="submit" class="petit" {(crate::langue::tr("Affecter")) }
                 }
             }
         },

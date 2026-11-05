@@ -63,7 +63,7 @@ pub async fn page(
         "mrp",
         "Besoins et ordres proposés",
         html! {
-            h1 { "Besoins et ordres proposés" }
+            h1 {(crate::langue::tr("Besoins et ordres proposés")) }
             p .sous-titre {
                 "Demande = lignes de commandes clients validées, non expédiées. "
                 "Besoin net = demande − stock. Ce qui est en stock ne s'achète pas deux fois."
@@ -73,19 +73,19 @@ pub async fn page(
                 table {
                     tbody {
                         tr {
-                            th { "Lot d'achat" }
+                            th {(crate::langue::tr("Lot d'achat")) }
                             td { input type="text" name="lot" value=(lot.normalize().to_string()) size="6"; }
-                            th { "Minimum" }
+                            th {(crate::langue::tr("Minimum")) }
                             td { input type="text" name="minimum" value=(minimum.normalize().to_string()) size="6"; }
-                            th { "Délai (jours)" }
+                            th {(crate::langue::tr("Délai (jours)")) }
                             td { input type="number" name="delai" value=(delai.to_string()) size="4"; }
-                            th { "Date de besoin" }
+                            th {(crate::langue::tr("Date de besoin")) }
                             td { input type="date" name="date" value=(date_besoin) ; }
                         }
                     }
                 }
                 div .actions {
-                    button type="submit" { "Recalculer" }
+                    button type="submit" {(crate::langue::tr("Recalculer")) }
                 }
             }
 
@@ -113,12 +113,12 @@ pub async fn page(
                 table {
                     thead {
                         tr {
-                            th { "Produit" }
-                            th .num { "Demande" }
-                            th .num { "Stock" }
-                            th .num { "Besoin net" }
-                            th .num { "Proposé" }
-                            th { "Lancer le" }
+                            th {(crate::langue::tr("Produit")) }
+                            th .num {(crate::langue::tr("Demande")) }
+                            th .num {(crate::langue::tr("Stock")) }
+                            th .num {(crate::langue::tr("Besoin net")) }
+                            th .num {(crate::langue::tr("Proposé")) }
+                            th {(crate::langue::tr("Lancer le")) }
                         }
                     }
                     tbody {
@@ -152,7 +152,7 @@ pub async fn page(
 
             p style="color:#78736c;font-size:13.5px;margin-top:16px" {
                 "Ce que le calcul ne déduit pas encore : les "
-                strong { "entrées attendues" }
+                strong {(crate::langue::tr("entrées attendues")) }
                 " (commandes fournisseurs en cours, ordres de fabrication). Elles sont donc "
                 "comptées comme nulles, et le besoin net est majoré d'autant. Le lot, le minimum "
                 "et le délai sont des hypothèses saisies ici : la fiche produit du schéma du cœur "

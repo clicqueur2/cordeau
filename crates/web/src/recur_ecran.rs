@@ -19,7 +19,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
         "recurrences",
         "Récurrences",
         html! {
-            h1 { "Récurrences" }
+            h1 {(crate::langue::tr("Récurrences")) }
             p .sous-titre {
                 "Séries Dolibarr (llx_facture_rec) dont l'échéance est tombée. "
                 "La génération produit un "
@@ -32,8 +32,8 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                 table {
                     thead {
                         tr {
-                            th { "Source" } th { "N° série" } th { "Échéance" }
-                            th .num { "Déjà émise" }
+                            th {(crate::langue::tr("Source")) } th {(crate::langue::tr("N° série")) } th {(crate::langue::tr("Échéance")) }
+                            th .num {(crate::langue::tr("Déjà émise")) }
                         }
                     }
                     tbody {
@@ -54,14 +54,14 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                 }
                 div .actions {
                     form method="post" action="/recurrences/generer" style="display:inline" {
-                        button type="submit" { "Générer les brouillons" }
+                        button type="submit" {(crate::langue::tr("Générer les brouillons")) }
                     }
                 }
             }
             p style="color:#78736c;font-size:13px" {
                 "Date du jour : " (aujourd_hui)
                 ". Un seul document par série et par échéance : la clé "
-                code { "PA-RECUR-…" }
+                code {(crate::langue::tr("PA-RECUR-…")) }
                 " empêche le doublon, même si le traitement passe deux fois."
             }
         },

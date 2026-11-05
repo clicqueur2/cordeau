@@ -1,0 +1,16 @@
+# Traductions anglaises, troisieme serie : les phrases longues et les messages.
+#
+# Trois chaines restent volontairement en francais, en bas de ce fichier : une
+# ligne de commande, un nom d'en-tete HTTP et des codes de journal. Les
+# traduire n'aurait aucun sens.
+
+CSV séparé par « ; » ou par « , », avec une ligne d'entête. Les colonnes sont reconnues par leur nom.=CSV separated by ";" or ",", with a header line. Columns are recognised by their name.
+Fournisseurs et factures fournisseurs (llx_societe fournisseur à 1, llx_facture_fourn).=Suppliers and supplier invoices (llx_societe fournisseur at 1, llx_facture_fourn).
+Imprimées en bas de chaque devis et facture. Une ligne fait un paragraphe.=Printed at the bottom of every proposal and invoice. One line makes one paragraph.
+La restauration se fait en ligne de commande, c'est volontaire :=Restoring is done from the command line, on purpose:
+La sauvegarde a échoué. Vérifiez que `mysqldump` est installé (variable DOLIBARR_MYSQLDUMP).=The backup failed. Check that `mysqldump` is installed (DOLIBARR_MYSQLDUMP variable).
+Les droits ci-dessus sont accordés par le groupe : pour les retirer, il faut modifier le groupe.=The permissions above are granted by the group: to remove them, change the group.
+Tous les encaissements enregistres. Un reglement se saisit depuis la fiche de la facture concerne.=All recorded receipts. A payment is entered from the card of the invoice concerned.
+Un administrateur a tous les droits. Pour les autres comptes, chaque case ouvre un ecran.=An administrator has every permission. For other accounts, each box opens a screen.
+code client, nom, adresse, CP, ville, e-mail, téléphone, SIRET, TVA=customer code, name, address, postcode, city, email, phone, SIRET, VAT
+référence, libellé, prix HT, taux de TVA, type=reference, label, price excl. tax, VAT rate, type

@@ -28,20 +28,20 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
         "devises",
         "Devises",
         html! {
-            h1 { "Devises" }
+            h1 {(crate::langue::tr("Devises")) }
             p .sous-titre {
                 "Le taux est figé sur la pièce, jamais dans une table de marché : "
                 "une facture de mars 2026 garde le taux de mars. Les montants de base restent "
                 "en monnaie de la société ; la devise est une traduction."
             }
 
-            h2 { "Figer un taux" }
+            h2 {(crate::langue::tr("Figer un taux")) }
             form method="post" action="/devises/figer" {
                 div .actions {
                     select name="document" aria-label="Type de document" {
-                        option value="facture" { "Facture" }
-                        option value="devis" { "Devis" }
-                        option value="commande" { "Commande" }
+                        option value="facture" {(crate::langue::tr("Facture")) }
+                        option value="devis" {(crate::langue::tr("Devis")) }
+                        option value="commande" {(crate::langue::tr("Commande")) }
                     }
                     input type="number" name="id" placeholder="N° du document" size="8" required;
                     select name="code" aria-label="Devise" {
@@ -50,7 +50,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                         }
                     }
                     input type="text" name="taux" placeholder="1,08" size="8" required;
-                    button type="submit" class="petit" { "Figer" }
+                    button type="submit" class="petit" {(crate::langue::tr("Figer")) }
                 }
                 p style="color:#78736c;font-size:13.5px;margin:0" {
                     "Le taux est le nombre d'unités de devise pour 1 €. "
@@ -59,18 +59,18 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            h2 { "Factures en devise" }
+            h2 {(crate::langue::tr("Factures en devise")) }
             @if factures.is_empty() {
                 (ui::vide("Aucune facture ne porte de devise.", None))
             } @else {
                 table {
                     thead {
                         tr {
-                            th { "N°" }
-                            th { "Réf." }
-                            th { "Devise" }
-                            th .num { "Taux" }
-                            th .num { "TTC devise" }
+                            th {(crate::langue::tr("N°")) }
+                            th {(crate::langue::tr("Réf.")) }
+                            th {(crate::langue::tr("Devise")) }
+                            th .num {(crate::langue::tr("Taux")) }
+                            th .num {(crate::langue::tr("TTC devise")) }
                             th { "" }
                         }
                     }
@@ -89,18 +89,18 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            h2 { "Devis en devise" }
+            h2 {(crate::langue::tr("Devis en devise")) }
             @if devis.is_empty() {
                 (ui::vide("Aucun devis ne porte de devise.", None))
             } @else {
                 table {
                     thead {
                         tr {
-                            th { "N°" }
-                            th { "Réf." }
-                            th { "Devise" }
-                            th .num { "Taux" }
-                            th .num { "TTC devise" }
+                            th {(crate::langue::tr("N°")) }
+                            th {(crate::langue::tr("Réf.")) }
+                            th {(crate::langue::tr("Devise")) }
+                            th .num {(crate::langue::tr("Taux")) }
+                            th .num {(crate::langue::tr("TTC devise")) }
                         }
                     }
                     tbody {
@@ -117,9 +117,9 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            h2 { "Devises connues" }
+            h2 {(crate::langue::tr("Devises connues")) }
             table {
-                thead { tr { th { "Code" } th { "Libellé" } th .num { "Décimales" } } }
+                thead { tr { th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Libellé")) } th .num {(crate::langue::tr("Décimales")) } } }
                 tbody {
                     @for d in &devises {
                         tr {

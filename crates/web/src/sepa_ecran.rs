@@ -43,7 +43,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
         "sepa",
         "Virements SEPA",
         html! {
-            h1 { "Virements SEPA" }
+            h1 {(crate::langue::tr("Virements SEPA")) }
             p .sous-titre {
                 (factures.len().to_string()) " facture(s) fournisseur à payer, "
                 (crate::ui::euros(rust_decimal::Decimal::new(total, 2)))
@@ -62,8 +62,8 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                 table {
                     thead {
                         tr {
-                            th { "Réf." } th { "Fournisseur" } th { "Échéance" }
-                            th { "IBAN" } th .num { "Reste à payer" }
+                            th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Fournisseur")) } th {(crate::langue::tr("Échéance")) }
+                            th {(crate::langue::tr("IBAN")) } th .num {(crate::langue::tr("Reste à payer")) }
                         }
                     }
                     tbody {
@@ -87,7 +87,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                 }
             }
             div .actions {
-                a .bouton href="/achats/sepa/fichier" { "Télécharger le fichier SEPA" }
+                a .bouton href="/achats/sepa/fichier" {(crate::langue::tr("Télécharger le fichier SEPA")) }
             }
         },
     ))

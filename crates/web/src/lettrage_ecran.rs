@@ -22,7 +22,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
         "lettrage",
         "Lettrage",
         html! {
-            h1 { "Lettrage" }
+            h1 {(crate::langue::tr("Lettrage")) }
             p .sous-titre {
                 "Rapprocher la créance de son encaissement. Le calcul est FIFO : le débit le plus "
                 "ancien mange le crédit le plus ancien. Ce n'est pas un rapprochement intelligent — "
@@ -38,9 +38,9 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 table {
                     thead {
                         tr {
-                            th { "Compte" }
-                            th .num { "Solde non lettré" }
-                            th .num { "Lignes" }
+                            th {(crate::langue::tr("Compte")) }
+                            th .num {(crate::langue::tr("Solde non lettré")) }
+                            th .num {(crate::langue::tr("Lignes")) }
                             th { "" }
                         }
                     }
@@ -52,7 +52,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                                 td .num { (n.to_string()) }
                                 td {
                                     form method="post" action={ "/comptabilite/lettrage/" (compte) } {
-                                        button type="submit" class="petit" { "Lettrer" }
+                                        button type="submit" class="petit" {(crate::langue::tr("Lettrer")) }
                                     }
                                 }
                             }
@@ -106,13 +106,13 @@ pub async fn lettrer(State(app): State<App>, Path(compte): Path<String>) -> Res<
                     None,
                 ))
             } @else {
-                h2 { "Paires" }
+                h2 {(crate::langue::tr("Paires")) }
                 table {
                     thead {
                         tr {
-                            th .num { "Débit (ligne)" }
-                            th .num { "Crédit (ligne)" }
-                            th .num { "Montant" }
+                            th .num {(crate::langue::tr("Débit (ligne)")) }
+                            th .num {(crate::langue::tr("Crédit (ligne)")) }
+                            th .num {(crate::langue::tr("Montant")) }
                         }
                     }
                     tbody {
@@ -128,15 +128,15 @@ pub async fn lettrer(State(app): State<App>, Path(compte): Path<String>) -> Res<
             }
 
             @if !bilan.restes.is_empty() {
-                h2 { "Ce qui reste ouvert" }
+                h2 {(crate::langue::tr("Ce qui reste ouvert")) }
                 table {
                     thead {
                         tr {
-                            th { "Ligne" }
-                            th { "Date" }
-                            th { "Libellé" }
-                            th .num { "Débit" }
-                            th .num { "Crédit" }
+                            th {(crate::langue::tr("Ligne")) }
+                            th {(crate::langue::tr("Date")) }
+                            th {(crate::langue::tr("Libellé")) }
+                            th .num {(crate::langue::tr("Débit")) }
+                            th .num {(crate::langue::tr("Crédit")) }
                         }
                     }
                     tbody {
@@ -162,7 +162,7 @@ pub async fn lettrer(State(app): State<App>, Path(compte): Path<String>) -> Res<
             }
 
             div .actions {
-                a .bouton href="/comptabilite/lettrage" { "Retour au lettrage" }
+                a .bouton href="/comptabilite/lettrage" {(crate::langue::tr("Retour au lettrage")) }
             }
         },
     ))

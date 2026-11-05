@@ -343,9 +343,9 @@ fn choix_moyen(modes: &[ModePaiement]) -> Markup {
             @if modes.is_empty() {
                 // Dictionnaire vide : les trois moyens qu'une caisse utilise
                 // vraiment, pour que l'écran reste utilisable.
-                option value="especes" { "Espèces" }
-                option value="cb" { "Carte bancaire" }
-                option value="cheque" { "Chèque" }
+                option value="especes" {(crate::langue::tr("Espèces")) }
+                option value="cb" {(crate::langue::tr("Carte bancaire")) }
+                option value="cheque" {(crate::langue::tr("Chèque")) }
             } @else {
                 @for mode in modes {
                     option value=(mode.id) { (libelle_moyen(mode)) }
@@ -384,7 +384,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
     };
 
     let contenu = html! {
-        h1 { "Caisse" }
+        h1 {(crate::langue::tr("Caisse")) }
         (etat_scelle_pour(&app).await?)
         p .sous-titre {
             "Encaissement au comptoir. Aujourd'hui : "
@@ -414,7 +414,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
             "Client de passage : " (texte_comptoir)
         }
 
-        h2 { "Panier en cours" }
+        h2 {(crate::langue::tr("Panier en cours")) }
         @if panier.est_vide() {
             (crate::ui::vide(
                 "Panier vide : ajoutez un article depuis le catalogue, ou passez par la vente directe.",
@@ -424,10 +424,10 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
             table {
                 thead {
                     tr {
-                        th { "Article" }
-                        th { "Réf." }
-                        th .num { "Qté" }
-                        th .num { "Total TTC" }
+                        th {(crate::langue::tr("Article")) }
+                        th {(crate::langue::tr("Réf.")) }
+                        th .num {(crate::langue::tr("Qté")) }
+                        th .num {(crate::langue::tr("Total TTC")) }
                     }
                 }
                 tbody {
@@ -442,7 +442,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                 }
                 tfoot {
                     tr {
-                        td colspan="3" { "Total à payer" }
+                        td colspan="3" {(crate::langue::tr("Total à payer")) }
                         td .num { (crate::ui::euros(panier.total_ttc())) }
                     }
                 }
@@ -456,21 +456,19 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                           style="padding:14px 16px;font-size:16px";
                 }))
                 div {
-                    button type="submit" style="padding:18px 22px;font-size:16px" {
-                        "Encaisser le panier"
+                    button type="submit" style="padding:18px 22px;font-size:16px" {(crate::langue::tr("Encaisser le panier"))
                     }
                 }
             }
             form method="post" action="/caisse/vider" style="margin-top:10px" {
                 button type="submit"
                        style="background:#fff;color:#1c1b19;border:1px solid #e6e2dc;\
-                              padding:12px 18px;font-size:15px" {
-                    "Vider le panier"
+                              padding:12px 18px;font-size:15px" {(crate::langue::tr("Vider le panier"))
                 }
             }
         }
 
-        h2 { "Catalogue" }
+        h2 {(crate::langue::tr("Catalogue")) }
         @if vendables.is_empty() {
             (crate::ui::vide(
                 "Aucun produit proposé à la vente dans cette société.",
@@ -488,8 +486,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                         form method="post" action="/caisse/ajouter" style="margin-top:12px" {
                             input type="hidden" name="produit" value=(produit.rowid);
                             button type="submit"
-                                   style="padding:18px 22px;font-size:16px;width:100%" {
-                                "+ Ajouter au panier"
+                                   style="padding:18px 22px;font-size:16px;width:100%" {(crate::langue::tr("+ Ajouter au panier"))
                             }
                         }
                     }
@@ -497,7 +494,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
             }
         }
 
-        h2 { "Vente directe" }
+        h2 {(crate::langue::tr("Vente directe")) }
         p style="color:#78736c;font-size:13.5px;margin:0 0 12px" {
             "Un article, une quantité, un encaissement : la vente part en une ligne, \
              sans passer par le panier."
@@ -528,8 +525,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                           style="width:100%;padding:12px 14px;font-size:16px";
                 }))
                 div {
-                    button type="submit" style="padding:18px 22px;font-size:16px;width:100%" {
-                        "Encaisser"
+                    button type="submit" style="padding:18px 22px;font-size:16px;width:100%" {(crate::langue::tr("Encaisser"))
                     }
                 }
             }
@@ -670,10 +666,10 @@ pub async fn etat_scelle_pour(app: &crate::App) -> crate::Res<maud::Markup> {
         None => maud::html! {
             div .carte {
                 div .libelle { "Scelle du " (jour) }
-                div .valeur { "non pose" }
+                div .valeur {(crate::langue::tr("non pose")) }
                 div .note { (scelle.ventes.to_string()) " vente(s) a sceller." }
                 form method="post" action="/caisse/sceller" style="margin-top:10px" {
-                    button type="submit" { "Sceller la journee" }
+                    button type="submit" {(crate::langue::tr("Sceller la journee")) }
                 }
             }
         },
@@ -686,21 +682,19 @@ pub async fn etat_scelle_pour(app: &crate::App) -> crate::Res<maud::Markup> {
                     (crate::ui::euros(scelle.total)) " - empreinte "
                     code { (scelle.empreinte.chars().take(12).collect::<String>()) }
                 }
-                a .bouton.secondaire href={ "/caisse/archive?date=" (jour) } style="margin-top:10px" {
-                    "Telecharger l'archive"
+                a .bouton.secondaire href={ "/caisse/archive?date=" (jour) } style="margin-top:10px" {(crate::langue::tr("Telecharger l'archive"))
                 }
             }
         },
         Some(false) => maud::html! {
             div .carte.alerte {
                 div .libelle { "Scelle du " (jour) }
-                div .valeur { "FALSIFIE" }
+                div .valeur {(crate::langue::tr("FALSIFIE")) }
                 div .note {
                     "Les ventes ne correspondent plus au scelle pose : une ligne a ete "
                     "modifiee, ajoutee ou supprimee."
                 }
-                a .bouton.secondaire href={ "/caisse/archive?date=" (jour) } style="margin-top:10px" {
-                    "Voir l'archive"
+                a .bouton.secondaire href={ "/caisse/archive?date=" (jour) } style="margin-top:10px" {(crate::langue::tr("Voir l'archive"))
                 }
             }
         },
