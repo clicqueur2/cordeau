@@ -236,6 +236,12 @@ pub fn routes(app: App) -> Router {
             "/achats-fournisseur/commande",
             post(achats_fournisseur_ecran::commande),
         )
+        .route(
+            "/livraisons",
+            get(livraison_ecran::page).post(livraison_ecran::creer),
+        )
+        .route("/livraisons/:id/valider", post(livraison_ecran::valider))
+        .route("/livraisons/:id/livrer", post(livraison_ecran::livrer))
         .route("/dons", get(dons_ecran::page).post(dons_ecran::creer))
         .route("/dons/:id", get(dons_ecran::detail))
         .route("/dons/:id/valider", post(dons_ecran::valider))
