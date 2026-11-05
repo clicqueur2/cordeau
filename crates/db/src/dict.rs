@@ -104,6 +104,41 @@ pub struct CodeExoneration {
     pub libelle: Option<String>,
 }
 
+/// Refuse une ligne a 0 % de TVA si le dictionnaire ne porte aucun motif.
+///
+/// La regle vient de la norme, pas de nous : dans EN 16931, une operation a
+/// 0 % doit porter un code d'exoneration (BT-120) ou un texte (BT-121). Un
+/// document muet est refuse par les plateformes agreees — et on ne le decouvre
+/// qu'a l'envoi, quand le client attend sa facture.
+///
+/// Le motif se regle **une fois**, dans le dictionnaire des taux de TVA
+/// (`llx_c_tva.einvoice_vatex`), pas ligne par ligne : c'est la nature du taux
+/// qui est exoneree, pas la ligne.
+///
+/// `lignes` porte les taux des lignes a creer. Un taux nul sans motif leve une
+/// erreur qui dit quoi faire.
+pub fn exiger_motif_tva_zero(
+    pool: &Pool,
+    entity: i64,
+    taux: &[Decimal],
+) -> Result<(), Box<dyn Error>> {
+    if !taux.contains(&Decimal::ZERO) {
+        return Ok(());
+    }
+    // Pays 0 : on interroge les taux communs (`fk_pays IS NULL`), ceux qu'un
+    // document porte par defaut. Un taux propre a un pays n'a pas de sens ici.
+    match exoneration_tva(pool, entity, 0, Decimal::ZERO)? {
+        Some(code) if !code.code.trim().is_empty() => Ok(()),
+        _ => Err(
+            "une ligne à 0 % de TVA exige un motif d'exonération : renseignez le code \
+             VATEX du taux 0 % dans le dictionnaire des taux de TVA \
+             (Paramètres > Dictionnaires > Taux de TVA). Sans lui, la facture sera \
+             refusée par la plateforme de facturation électronique."
+                .into(),
+        ),
+    }
+}
+
 /// Taux de TVA actifs pour un pays et une entite (`llx_c_tva`).
 ///
 /// Dolibarr stocke un jeu de taux par pays ; `fk_pays` peut etre nul pour les
