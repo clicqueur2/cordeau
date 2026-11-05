@@ -252,6 +252,7 @@ fn is_duplicate(e: &mysql::Error) -> bool {
 }
 
 /// Textes d'un site validés, prêts à être écrits.
+#[derive(Debug)]
 struct SiteValide {
     reference: String,
     description: Option<String>,
@@ -313,6 +314,7 @@ fn valider_site(new: &NewSite) -> Result<SiteValide, Box<dyn Error>> {
 }
 
 /// Textes d'une page validés, prêts à être écrits.
+#[derive(Debug)]
 struct PageValide {
     adresse: String,
     titre: Option<String>,

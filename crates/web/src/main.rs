@@ -83,6 +83,7 @@ mod journal_erreurs;
 mod journaux_ecran;
 mod langue;
 mod lettrage_ecran;
+mod livraison_ecran;
 mod livre_tenu;
 mod mailing_ecran;
 mod manifeste;
