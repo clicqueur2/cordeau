@@ -303,8 +303,8 @@ fn cree_une_immobilisation_et_persiste_son_plan() -> Result<(), Box<dyn Error>> 
     assert_eq!(actif.date_mise_en_service, "2026-01-01");
     assert_eq!(
         actif.valeur_nette,
-        Decimal::ZERO,
-        "tout est amorti dès l'écriture du plan"
+        dec("10000.00"),
+        "un bien neuf n'a rien amorti : le plan est une projection"
     );
     assert!(actif.date_cession.is_none());
 
@@ -411,43 +411,37 @@ fn la_valeur_nette_decroit_a_mesure_que_les_dotations_s_ajoutent() -> Result<(),
 
     let plan = immobilisation::plan_en_base(&pool, ENTITY, fk_asset)?;
     assert_eq!(plan.len(), 3);
+
+    // Le plan est une **projection** : tant que la date d'une dotation n'est
+    // pas echue, elle n'est pas comptabilisee. Un bien mis en service
+    // aujourd'hui vaut donc sa valeur d'acquisition, pas zero.
     assert_eq!(
         immobilisation::valeur_nette(&pool, ENTITY, fk_asset)?,
-        Decimal::ZERO,
-        "plan complet : plus rien à amortir"
+        dec("1000.00"),
+        "aucune dotation n'est encore echue"
     );
 
+    // On fait passer les exercices en antidatant les annuites, une par une.
     let mut conn = pool.get_conn()?;
-    // Retrait de la dernière annuité : il ne reste que 333,33 + 333,33 amortis.
-    conn.exec_drop(
-        "DELETE FROM llx_asset_depreciation WHERE rowid = :rowid",
-        params! { "rowid" => plan[2].rowid },
-    )?;
-    assert_eq!(
-        immobilisation::valeur_nette(&pool, ENTITY, fk_asset)?,
-        dec("333.34"),
-        "valeur nette = la dotation du dernier exercice"
-    );
-
-    // Retrait de la deuxième : seule la première dotation subsiste.
-    conn.exec_drop(
-        "DELETE FROM llx_asset_depreciation WHERE rowid = :rowid",
-        params! { "rowid" => plan[1].rowid },
-    )?;
+    echeance_passee(&mut conn, plan[0].rowid, "2020-01-01")?;
     assert_eq!(
         immobilisation::valeur_nette(&pool, ENTITY, fk_asset)?,
         dec("666.67"),
-        "valeur nette = valeur − dotation du premier exercice"
+        "valeur nette = valeur - dotation de l'exercice 1"
     );
 
-    // Plus aucune dotation : la valeur nette est la valeur d'acquisition.
-    conn.exec_drop(
-        "DELETE FROM llx_asset_depreciation WHERE fk_asset = :asset",
-        params! { "asset" => fk_asset },
-    )?;
+    echeance_passee(&mut conn, plan[1].rowid, "2021-01-01")?;
     assert_eq!(
         immobilisation::valeur_nette(&pool, ENTITY, fk_asset)?,
-        dec("1000.00")
+        dec("333.34"),
+        "deux exercices amortis : il reste le reliquat"
+    );
+
+    echeance_passee(&mut conn, plan[2].rowid, "2022-01-01")?;
+    assert_eq!(
+        immobilisation::valeur_nette(&pool, ENTITY, fk_asset)?,
+        Decimal::ZERO,
+        "trois exercices amortis : plus rien"
     );
 
     // Un actif inconnu se refuse au lieu de rendre zéro en silence.
@@ -459,6 +453,22 @@ fn la_valeur_nette_decroit_a_mesure_que_les_dotations_s_ajoutent() -> Result<(),
     );
 
     nettoyer(&pool, fk_asset)?;
+    Ok(())
+}
+
+/// Antidate une annuite : c'est ainsi qu'on fait passer un exercice sans
+/// attendre trois ans. La valeur nette ne bouge pas parce qu'on supprime une
+/// ligne, mais parce que sa date devient passee.
+fn echeance_passee(
+    conn: &mut mysql::PooledConn,
+    rowid: i64,
+    date: &str,
+) -> Result<(), Box<dyn Error>> {
+    use mysql::prelude::Queryable;
+    conn.exec_drop(
+        "UPDATE llx_asset_depreciation SET depreciation_date = :date WHERE rowid = :rowid",
+        params! { "date" => date, "rowid" => rowid },
+    )?;
     Ok(())
 }
 
@@ -521,7 +531,11 @@ fn une_immobilisation_cedee_reste_au_registre() -> Result<(), Box<dyn Error>> {
     let actif = immobilisation::get(&pool, ENTITY, fk_asset)?.expect("actif cédé relu");
     assert_eq!(actif.date_cession.as_deref(), Some("2026-09-15"));
     assert_eq!(actif.valeur, dec("10000.00"), "la valeur ne bouge pas");
-    assert_eq!(actif.valeur_nette, Decimal::ZERO, "le plan reste en place");
+    assert_eq!(
+        actif.valeur_nette,
+        dec("10000.00"),
+        "le plan reste en place, mais aucune dotation n'est encore echue"
+    );
 
     // Le plan est intact : quatre annuités, somme inchangée.
     let plan = immobilisation::plan_en_base(&pool, ENTITY, fk_asset)?;

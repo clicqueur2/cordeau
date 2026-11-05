@@ -289,7 +289,7 @@ const COLS: &str = "a.rowid, a.ref, COALESCE(a.label, ''), \
      CAST(COALESCE(a.acquisition_value_ht, 0) AS CHAR), \
      DATE_FORMAT(a.date_start, '%Y-%m-%d'), \
      CAST(COALESCE((SELECT SUM(d.depreciation_ht) FROM llx_asset_depreciation d \
-        WHERE d.fk_asset = a.rowid), 0) AS CHAR), \
+        WHERE d.fk_asset = a.rowid AND d.depreciation_date <= NOW()), 0) AS CHAR), \
      CAST((SELECT COUNT(*) FROM llx_asset_depreciation d \
         WHERE d.fk_asset = a.rowid) AS SIGNED), \
      DATE_FORMAT(a.disposal_date, '%Y-%m-%d')";
@@ -402,7 +402,7 @@ pub fn valeur_nette(pool: &Pool, entity: i64, fk_asset: i64) -> Result<Decimal, 
     let ligne: Option<Row> = conn.exec_first(
         "SELECT CAST(COALESCE(a.acquisition_value_ht, 0) AS CHAR), \
                 CAST(COALESCE((SELECT SUM(d.depreciation_ht) FROM llx_asset_depreciation d \
-                   WHERE d.fk_asset = a.rowid), 0) AS CHAR) \
+                   WHERE d.fk_asset = a.rowid AND d.depreciation_date <= NOW()), 0) AS CHAR) \
          FROM llx_asset a WHERE a.entity = :entity AND a.rowid = :asset",
         params! { "entity" => entity, "asset" => fk_asset },
     )?;
