@@ -240,6 +240,7 @@ pub const MODULES: &[Module] = &[
                 "/parametres/evenements",
             ),
             e("extrafields", "Champs libres", "/parametres/extrafields"),
+            e("categories", "Catégories", "/categories"),
             e("greffons", "Greffons", "/parametres/greffons"),
             e("modules", "Modules / Applications", "/parametres/modules"),
             e("affichage", "Affichage", "/parametres/reglage/affichage"),
