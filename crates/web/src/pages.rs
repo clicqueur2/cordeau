@@ -1285,12 +1285,29 @@ pub async fn tickets(
             @if liste.is_empty() {
                 (crate::ui::vide("Aucun ticket.", None))
             } @else {
+                form id="actions-tickets" method="post" action="/tickets/actions" {}
+                div .actions {
+                    button type="submit" form="actions-tickets" name="action" value="fermer" {
+                        (crate::langue::tr("Fermer la sélection"))
+                    }
+                    span style="color:#78736c;font-size:13.5px" {
+                        (crate::langue::tr("Fermer n'est pas supprimer : le ticket garde son historique."))
+                    }
+                }
                 table {
                     thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Sujet")) } th {(crate::langue::tr("Société")) } th {(crate::langue::tr("Date")) } th {(crate::langue::tr("Gravité")) } th { "État" } th { "" } } }
                     tbody {
                         @for t in &liste {
                             tr {
-                                td .ref { (t.ref_) }
+                                td .ref {
+                                    @if t.statut != 8 {
+                                        input type="checkbox" name={"id_" (t.rowid)} value="1"
+                                              form="actions-tickets"
+                                              aria-label=(crate::langue::tr("sélectionner ce ticket"));
+                                        " "
+                                    }
+                                    (t.ref_)
+                                }
                                 td { (t.sujet) }
                                 td { (t.tiers.clone().unwrap_or_default()) }
                                 td .ref { (app::fmt_date_fr(t.date.as_deref())) }

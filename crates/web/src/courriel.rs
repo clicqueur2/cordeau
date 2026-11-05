@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn une_adresse_ordinaire_passe() {
-        assert!(adresse_valide("contact@maconnerie-architecture.fr"));
+        assert!(adresse_valide("contact@exemple.fr"));
         assert!(adresse_valide("a.b+c@exemple.fr"));
         assert!(adresse_valide("  x@y.fr  "));
     }

@@ -101,6 +101,53 @@ pub async fn devis(State(app): State<App>, Form(f): Form<HashMap<String, String>
     Ok(resultat("Devis", &bilan, "/devis"))
 }
 
+/// Valide une selection de commandes clients.
+pub async fn commandes(
+    State(app): State<App>,
+    Form(f): Form<HashMap<String, String>>,
+) -> Res<Markup> {
+    let choix = ids(&f);
+    if choix.is_empty() {
+        return Err(Erreur("aucune commande sélectionnée".into()));
+    }
+    let action = f.get("action").map(|s| s.as_str()).unwrap_or("");
+    if action != "valider" {
+        return Err(Erreur(format!("action inconnue : « {action} »")));
+    }
+
+    let entity = entite::courante();
+    let mut bilan = Bilan::nouveau();
+    for id in choix {
+        bilan.ajouter(id, db::commande::validate(&app.pool, entity, id));
+    }
+    Ok(resultat("Commandes", &bilan, "/commandes"))
+}
+
+/// Ferme une selection de tickets.
+///
+/// Fermer n'est pas supprimer : la reclamation reste, avec sa date de cloture.
+/// Un ticket ferme peut etre rouvert depuis sa fiche.
+pub async fn tickets(
+    State(app): State<App>,
+    Form(f): Form<HashMap<String, String>>,
+) -> Res<Markup> {
+    let choix = ids(&f);
+    if choix.is_empty() {
+        return Err(Erreur("aucun ticket sélectionné".into()));
+    }
+    let action = f.get("action").map(|s| s.as_str()).unwrap_or("");
+    if action != "fermer" {
+        return Err(Erreur(format!("action inconnue : « {action} »")));
+    }
+
+    let entity = entite::courante();
+    let mut bilan = Bilan::nouveau();
+    for id in choix {
+        bilan.ajouter(id, db::ticket::fermer(&app.pool, entity, id));
+    }
+    Ok(resultat("Tickets", &bilan, "/tickets"))
+}
+
 /// Le compte rendu, plutot qu'une redirection muette.
 ///
 /// On ne renvoie pas un `?faits=3` : le motif d'un refus ne tient pas dans une

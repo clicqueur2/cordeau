@@ -201,6 +201,7 @@ async fn main() {
         .route("/devis/:id/situation", post(devis_situation))
         .route("/devis/:id/commander", post(devis_commander))
         .route("/commandes", get(commandes))
+        .route("/commandes/actions", post(actions_masse::commandes))
         .route("/commandes/:id", get(commande_fiche))
         .route("/commandes/:id/valider", post(commande_valider))
         .route("/commandes/:id/facturer", post(commande_facturer))
@@ -261,6 +262,7 @@ async fn main() {
         .route("/achats/facture/:id/valider", post(achat_facture_valider))
         .route("/achats/fournisseur", post(achat_fournisseur_creer))
         .route("/tickets", get(pages::tickets).post(pages::ticket_creer))
+        .route("/tickets/actions", post(actions_masse::tickets))
         .route(
             "/tickets/:id/fermer",
             axum::routing::post(pages::ticket_fermer),
@@ -431,6 +433,8 @@ async fn main() {
             get(devis_modifier).post(devis_enregistrer),
         )
         .route("/devis/:id/valider", post(devis_valider))
+        .route("/devis/:id/signer", post(devis_signer))
+        .route("/devis/:id/perdu", post(devis_perdu))
         .route(
             "/tiers/:id/modifier",
             get(tiers_modifier).post(tiers_enregistrer),
@@ -875,6 +879,8 @@ pub fn message(ok: Option<&String>) -> Markup {
         Some("societe") => ui::flash("Paramètres enregistrés."),
         Some("enregistre") => ui::flash("Modifications enregistrées."),
         Some("valide") => ui::flash("Devis validé."),
+        Some("signe") => ui::flash("Devis signé : la facturation est ouverte."),
+        Some("perdu") => ui::flash("Devis marqué perdu."),
         Some("compte") => ui::flash("Compte mis à jour."),
         Some("avoir") => ui::flash("Avoir créé : la facture d'origine est annulée comptablement."),
         _ => html! {},
@@ -1677,6 +1683,14 @@ async fn devis_fiche(
                     a .bouton.secondaire href={ "/devis/" (id) "/modifier" } {(crate::langue::tr("Modifier")) }
                     form method="post" action={ "/devis/" (id) "/valider" } {
                         button type="submit" {(crate::langue::tr("Valider le devis")) }
+                    }
+                }
+                @if d.fk_statut == 1 {
+                    form method="post" action={ "/devis/" (id) "/signer" } {
+                        button type="submit" {(crate::langue::tr("Signer le devis")) }
+                    }
+                    form method="post" action={ "/devis/" (id) "/perdu" } {
+                        button type="submit" class="secondaire" {(crate::langue::tr("Marquer perdu")) }
                     }
                 }
                 @if situations.is_empty() {
@@ -3297,12 +3311,29 @@ async fn commandes(
             @if liste.is_empty() {
                 (ui::vide("Aucune commande. Elle se crée depuis un devis validé.", Some(("/devis", "Voir les devis"))))
             } @else {
+                form id="actions-commandes" method="post" action="/commandes/actions" {}
+                div .actions {
+                    button type="submit" form="actions-commandes" name="action" value="valider" {
+                        (crate::langue::tr("Valider la sélection"))
+                    }
+                    span style="color:#78736c;font-size:13.5px" {
+                        (crate::langue::tr("Seules les commandes en brouillon sont cochables."))
+                    }
+                }
                 table {
                     thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th {(crate::langue::tr("Date")) } th .num {(crate::langue::tr("TTC")) } th { "État" } } }
                     tbody {
                         @for c in &liste {
                             tr {
-                                td .ref { a href={ "/commandes/" (c.rowid) } { (c.ref_) } }
+                                td .ref {
+                                    @if c.fk_statut == 0 {
+                                        input type="checkbox" name={"id_" (c.rowid)} value="1"
+                                              form="actions-commandes"
+                                              aria-label=(crate::langue::tr("sélectionner cette commande"));
+                                        " "
+                                    }
+                                    a href={ "/commandes/" (c.rowid) } { (c.ref_) }
+                                }
                                 td { (nom_tiers(p, Some(c.fk_soc))?) }
                                 td .ref { (app::fmt_date_fr(c.date_commande.as_deref())) }
                                 td .num { (ui::euros(c.total_ttc.unwrap_or_default())) }
@@ -4336,6 +4367,37 @@ async fn factures_recurrence(
     );
 
     Ok(Redirect::to(&format!("/factures/{id}?ok=serie")))
+}
+
+/// Signe un devis : c'est le passage au statut 2, celui qui ouvre la
+/// facturation. Dolibarr ne connait que `close` pour cette transition.
+async fn devis_signer(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
+    db::proposal::cloturer(&app.pool, entite::courante(), id, 2)?;
+    if let Some(d) = db::proposal::get(&app.pool, entite::courante(), id)? {
+        tracer(
+            &app,
+            d.fk_soc,
+            elementtype_devis(),
+            id,
+            &format!("Devis {} signé", d.ref_),
+        );
+    }
+    Ok(Redirect::to(&format!("/devis/{id}?ok=signe")))
+}
+
+/// Marque un devis perdu (statut 3). Il reste consultable.
+async fn devis_perdu(State(app): State<App>, Path(id): Path<i64>) -> Res<Redirect> {
+    db::proposal::cloturer(&app.pool, entite::courante(), id, 3)?;
+    if let Some(d) = db::proposal::get(&app.pool, entite::courante(), id)? {
+        tracer(
+            &app,
+            d.fk_soc,
+            elementtype_devis(),
+            id,
+            &format!("Devis {} marqué perdu", d.ref_),
+        );
+    }
+    Ok(Redirect::to(&format!("/devis/{id}?ok=perdu")))
 }
 
 fn elementtype_devis() -> &'static str {

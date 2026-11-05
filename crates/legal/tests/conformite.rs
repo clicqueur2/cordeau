@@ -17,7 +17,7 @@ fn societe_artisan() -> Societe {
         forme_juridique: Some("SAS".into()),
         capital: Some("10 000 EUR".into()),
         rcs: Some("RCS Lyon 123 456 789".into()),
-        adresse: Some("12 rue des Peupliers".into()),
+        adresse: Some("1 rue de l'Exemple".into()),
         code_postal: Some("69005".into()),
         ville: Some("Lyon".into()),
         pays: Some("FR".into()),
@@ -25,7 +25,7 @@ fn societe_artisan() -> Societe {
         siren: Some("123456789".into()),
         tva_intra: Some("FR12345678900".into()),
         email: Some("contact@exemple.fr".into()),
-        telephone: Some("06 15 49 13 71".into()),
+        telephone: Some("06 00 00 00 00".into()),
         regime_tva: RegimeTva::Assujetti,
         assurance: Some(Assurance {
             assureur: "AXA Assurances".into(),
@@ -37,7 +37,7 @@ fn societe_artisan() -> Societe {
 
 fn client_pro() -> Client {
     Client {
-        nom: "SARL Sanchez".into(),
+        nom: "SARL Exemple".into(),
         siret: Some("98765432100019".into()),
         tva_intra: Some("FR98765432100".into()),
         est_professionnel: true,

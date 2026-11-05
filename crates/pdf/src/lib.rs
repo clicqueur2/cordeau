@@ -45,7 +45,7 @@
 //!     },
 //!     customer: PartyView {
 //!         legal_line: None,
-//!         name: "M. et Mme Martin".into(),
+//!         name: "M. et Mme Dupont".into(),
 //!         address: None,
 //!         zip: None,
 //!         town: None,
@@ -782,7 +782,7 @@ mod tests_gabarits {
             },
             customer: PartyView {
                 legal_line: None,
-                name: "M. et Mme Martin".into(),
+                name: "M. et Mme Dupont".into(),
                 address: Some("12 rue des Lilas".into()),
                 zip: Some("69370".into()),
                 town: Some("Saint-Didier-au-Mont-d'Or".into()),

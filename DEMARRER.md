@@ -31,10 +31,10 @@ référence (pays, devises, taux de TVA, moyens de paiement).
 ```powershell
 $env:DOLIBARR_DSN = "mysql://root:root@127.0.0.1:3306/dolibarr_testus"
 $env:DOLIBARR_DOCUMENTS = "$PWD\documents"
-cargo run -p dolibarr-rs --bin dolibarr-web
+cargo run -q -p web
 ```
 
-Si le paquet n'est pas trouvé : `cargo run --bin dolibarr-web`.
+Si le paquet n'est pas trouvé : `cargo run -q -p web`.
 
 ## 3. Ouvrir
 
@@ -54,7 +54,7 @@ base Dolibarr.
 ```powershell
 $env:DOLIBARR_LECTURE_SEULE = "1"     # toute écriture répond 403
 $env:DOLIBARR_DSN = "mysql://user:motdepasse@127.0.0.1:3306/ma_base_dolibarr"
-cargo run -p dolibarr-rs --bin dolibarr-web
+cargo run -q -p web
 ```
 
 Les comptes existants fonctionnent : Dolibarr stocke les mots de passe en bcrypt

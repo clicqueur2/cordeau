@@ -58,7 +58,7 @@ fn example(rows: usize) -> DocumentView {
         seller: PartyView {
             legal_line: None,
             name: "Pierre Angulaire".to_string(),
-            address: Some("12 rue des Peupliers".to_string()),
+            address: Some("1 rue de l'Exemple".to_string()),
             zip: Some("69450".to_string()),
             town: Some("Lyon".to_string()),
             siret: Some("123 456 789 00016".to_string()),
@@ -66,7 +66,7 @@ fn example(rows: usize) -> DocumentView {
         },
         customer: PartyView {
             legal_line: None,
-            name: "M. et Mme Martin".to_string(),
+            name: "M. et Mme Dupont".to_string(),
             address: Some("12 rue des Lilas".to_string()),
             zip: Some("69370".to_string()),
             town: Some("Saint-Didier-au-Mont-d'Or".to_string()),
