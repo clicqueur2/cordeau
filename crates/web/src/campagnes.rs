@@ -216,53 +216,12 @@ pub async fn envoyer(
         ));
     }
 
-    let const_ou = |cle: &str| {
-        db::company::get_const(&app.pool, cle)
-            .ok()
-            .flatten()
-            .unwrap_or_default()
+    // La configuration SMTP est construite au meme endroit que pour l'envoi
+    // d'une facture : deux copies d'un reglage finissent par diverger.
+    let config = match crate::courriel::config(&app.pool) {
+        Ok(c) => c,
+        Err(motif) => return Ok(retour("erreur", &motif)),
     };
-    let hote = const_ou("DOLIBARR_RS_SMTP_HOST");
-    if hote.trim().is_empty() {
-        return Ok(retour(
-            "erreur",
-            "serveur SMTP non renseigne (Parametres > Reglage des e-mails)",
-        ));
-    }
-    let port = const_ou("DOLIBARR_RS_SMTP_PORT")
-        .parse::<u16>()
-        .unwrap_or(587);
-    let mut mot_de_passe = const_ou("DOLIBARR_RS_SMTP_MOTDEPASSE");
-    // L'environnement l'emporte : un secret n'a pas a trainer en base quand le
-    // serveur peut le fournir.
-    if let Ok(v) = std::env::var("DOLIBARR_SMTP_PASSWORD") {
-        if !v.is_empty() {
-            mot_de_passe = v;
-        }
-    }
-
-    let config = mail::Config {
-        hote: hote.trim().to_string(),
-        port,
-        utilisateur: const_ou("DOLIBARR_RS_SMTP_UTILISATEUR").trim().to_string(),
-        mot_de_passe,
-        expediteur: const_ou("DOLIBARR_RS_EMAIL_EXPEDITEUR").trim().to_string(),
-        nom_expediteur: const_ou("MAIN_INFO_SOCIETE_NOM").trim().to_string(),
-        securite: match const_ou("DOLIBARR_RS_SMTP_SECURITE").trim() {
-            "aucune" => mail::Securite::Aucune,
-            "directe" => mail::Securite::Directe,
-            "starttls" => mail::Securite::Starttls,
-            // Par defaut : 465 direct, tout le reste en STARTTLS.
-            _ => mail::Config::securite_pour(port),
-        },
-        delai: 20,
-    };
-    if config.expediteur.is_empty() {
-        return Ok(retour(
-            "erreur",
-            "adresse d'expedition non renseignee (Parametres > Reglage des e-mails)",
-        ));
-    }
 
     let message = mail::Message::texte(&config.expediteur, &[test.as_str()], &sujet, &corps);
 

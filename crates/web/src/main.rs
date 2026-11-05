@@ -8,6 +8,7 @@ mod analytique_ecran;
 mod api;
 mod campagnes;
 mod cloture_ecran;
+mod courriel;
 mod devises_ecran;
 mod entite;
 mod extrafields_ecran;
@@ -202,6 +203,7 @@ async fn main() {
         .route("/factures/:id", get(factures_fiche))
         .route("/factures/:id/pdf", get(factures_pdf))
         .route("/factures/:id/valider", post(factures_valider))
+        .route("/factures/:id/envoyer", post(courriel::facture))
         .route("/factures/:id/reglement", post(factures_reglement))
         .route("/factures/:id/avoir", post(factures_avoir))
         .route(
@@ -801,7 +803,13 @@ fn pluriel(n: usize, singulier: &str, pluriel: &str) -> String {
     }
 }
 
-fn tracer(app: &App, fk_soc: Option<i64>, elementtype: &str, fk_element: i64, label: &str) {
+pub(crate) fn tracer(
+    app: &App,
+    fk_soc: Option<i64>,
+    elementtype: &str,
+    fk_element: i64,
+    label: &str,
+) {
     if let Ok(mut conn) = app.pool.get_conn() {
         let _ = db::journal::noter(
             &mut conn,
@@ -818,6 +826,17 @@ pub fn message(ok: Option<&String>) -> Markup {
     match ok.map(|s| s.as_str()) {
         Some("reglement") => ui::flash("Règlement enregistré."),
         Some("validee") => ui::flash("Facture validée."),
+        Some("envoyee") => ui::flash("Facture envoyée par e-mail, PDF joint."),
+        Some("echec-adresse") => ui::echec("Adresse e-mail invalide : rien n'a été envoyé."),
+        Some("echec-pdf") => {
+            ui::echec("Aucun PDF dans la GED pour cette facture : validez-la d'abord.")
+        }
+        Some("echec-config") => {
+            ui::echec("Serveur SMTP non configuré : voir Paramètres > E-mails.")
+        }
+        Some("echec-envoi") => {
+            ui::echec("L'envoi a échoué : le motif est dans le journal des erreurs.")
+        }
         Some("facture") => ui::flash("Devis transformé en facture."),
         Some("supprime") => ui::flash("Supprimé."),
         Some("societe") => ui::flash("Paramètres enregistrés."),
@@ -1497,6 +1516,22 @@ async fn factures_fiche(
             .map(|c| c.libelle_fr())
             .filter(|l| !l.trim().is_empty());
 
+    // Le courriel propose : l'adresse du tiers, un objet qui porte la reference,
+    // et un corps court. L'utilisateur garde la main, mais il n'a rien a taper.
+    let courriel_tiers = match f.fk_soc {
+        Some(soc) => db::party::get(p, entite::courante(), soc)?
+            .and_then(|t| t.email)
+            .unwrap_or_default(),
+        None => String::new(),
+    };
+    let courriel_sujet = format!("Votre facture {} — Pierre Angulaire", f.ref_);
+    let courriel_corps = format!(
+        "Bonjour,\n\nVeuillez trouver ci-joint la facture {} d'un montant de {} €.\n\n\
+         Bien cordialement,\n",
+        f.ref_,
+        f.total_ttc.unwrap_or_default().round_dp(2)
+    );
+
     Ok(ui::page(
         "factures",
         "liste",
@@ -1533,6 +1568,37 @@ async fn factures_fiche(
                 @if f.fk_statut >= 1 && f.type_ != 2 {
                     form method="post" action={ "/factures/" (id) "/avoir" } {
                         button type="submit" class="secondaire" { "Créer un avoir" }
+                    }
+                }
+            }
+
+            @if !f.est_brouillon() {
+                h2 { "Envoyer par e-mail" }
+                form method="post" action={ "/factures/" (id) "/envoyer" } {
+                    table {
+                        tbody {
+                            tr {
+                                th { "Destinataire" }
+                                td {
+                                    input type="email" name="destinataire" value=(courriel_tiers)
+                                          required style="width:300px";
+                                }
+                            }
+                            tr {
+                                th { "Objet" }
+                                td { input type="text" name="sujet" value=(courriel_sujet) style="width:100%"; }
+                            }
+                            tr {
+                                th { "Message" }
+                                td { textarea name="corps" rows="5" style="width:100%" { (courriel_corps) } }
+                            }
+                        }
+                    }
+                    div .actions {
+                        button type="submit" { "Envoyer la facture" }
+                        span style="color:#78736c;font-size:13.5px" {
+                            "Le PDF archivé part en pièce jointe. L'envoi est tracé."
+                        }
                     }
                 }
             }
