@@ -817,6 +817,16 @@ pub fn marge_ht(ligne: &LigneMarge) -> Decimal {
     round_money((ligne.prix_vente_ht - ligne.prix_achat_ht) * ligne.quantite)
 }
 
+/// La marge d'**une** unite : le prix de vente moins le prix d'achat, sans
+/// quantite.
+///
+/// C'est la grandeur sur laquelle se calculent les deux taux. Diviser une marge
+/// totale par un prix unitaire donnerait un pourcentage qui double avec la
+/// quantite — un taux de 133 % au lieu de 66 % sur deux pieces.
+pub fn marge_unitaire(ligne: &LigneMarge) -> Decimal {
+    round_money(ligne.prix_vente_ht - ligne.prix_achat_ht)
+}
+
 /// Taux de marge au sens du cahier des charges : `marge / prix de vente × 100`.
 ///
 /// **Ce n'est pas le « taux de marge » de Dolibarr**, qui divise par le prix
@@ -835,7 +845,7 @@ pub fn taux_marge(ligne: &LigneMarge) -> Option<Decimal> {
     if ligne.prix_vente_ht.is_zero() {
         return None;
     }
-    Some(taux_sur(ligne.prix_vente_ht, marge_ht(ligne)))
+    Some(taux_sur(ligne.prix_vente_ht, marge_unitaire(ligne)))
 }
 
 /// Taux de marge au sens de Dolibarr : `marge / prix d'achat × 100`.
@@ -851,7 +861,7 @@ pub fn taux_marge_dolibarr(ligne: &LigneMarge) -> Option<Decimal> {
     if ligne.prix_achat_ht.is_zero() {
         return None;
     }
-    Some(taux_sur(ligne.prix_achat_ht, marge_ht(ligne)))
+    Some(taux_sur(ligne.prix_achat_ht, marge_unitaire(ligne)))
 }
 
 /// `valeur / base × 100`, arrondi au centime — `price2num($x, 'MT')`.
@@ -923,6 +933,33 @@ mod tests {
             prix_vente_ht: dec(pv),
             prix_achat_ht: dec(pa),
         }
+    }
+
+    /// Un pourcentage ne doit pas dependre du nombre de pieces.
+    ///
+    /// Ce test existe parce que le calcul etait faux : la marge **totale** etait
+    /// divisee par un prix **unitaire**, si bien qu'une ligne de deux pieces
+    /// annoncait 133 % de taux de marge au lieu de 66 %. Les tests a quantite 1
+    /// ne pouvaient pas le voir.
+    #[test]
+    fn le_taux_ne_depend_pas_de_la_quantite() {
+        // `ligne(quantite, prix_vente, prix_achat)` : 400 de marge unitaire.
+        let une = ligne("1", "1000", "600");
+        let deux = ligne("2", "1000", "600");
+        let dix = ligne("10", "1000", "600");
+
+        // La marge, elle, suit la quantite : c'est normal.
+        assert_eq!(marge_ht(&deux), Decimal::from(800));
+
+        // Le taux, non.
+        assert_eq!(taux_marge(&une), taux_marge(&deux));
+        assert_eq!(taux_marge(&deux), taux_marge(&dix));
+        assert_eq!(taux_marge_dolibarr(&une), taux_marge_dolibarr(&dix));
+
+        // Les deux valeurs attendues, posees a la main : 400 de marge sur
+        // 1 000 de vente font 40 % de marque ; sur 600 d'achat, 66,67 %.
+        assert_eq!(taux_marge(&deux), Some(Decimal::from(40)));
+        assert_eq!(taux_marge_dolibarr(&deux), Some(dec("66.67")));
     }
 
     #[test]

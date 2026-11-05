@@ -279,6 +279,19 @@ pub fn routes(app: App) -> Router {
             "/partenariats/:id/annuler",
             post(partenariat_ecran::annuler),
         )
+        .route("/marges", get(marge_ecran::page).post(marge_ecran::creer))
+        .route("/marges/:id", get(marge_ecran::detail))
+        .route("/marges/:id/ligne", post(marge_ecran::ajouter_ligne))
+        .route("/marges/:id/valider", post(marge_ecran::valider))
+        .route(
+            "/nomenclatures",
+            get(nomenclature_ecran::page).post(nomenclature_ecran::creer),
+        )
+        .route("/nomenclatures/:id", get(nomenclature_ecran::detail))
+        .route(
+            "/nomenclatures/:id/valider",
+            post(nomenclature_ecran::valider),
+        )
         .route("/dons", get(dons_ecran::page).post(dons_ecran::creer))
         .route("/dons/:id", get(dons_ecran::detail))
         .route("/dons/:id/valider", post(dons_ecran::valider))
