@@ -206,6 +206,8 @@ pub const MODULES: &[Module] = &[
         entrees: &[
             e("frais", "Notes de frais", "/notes-frais"),
             e("conges", "Congés", "/conges"),
+            e("mailings", "Mailings", "/mailings"),
+            e("connaissances", "Base de connaissances", "/connaissances"),
             e("prets", "Prêts", "/prets"),
             e("immobilisations", "Immobilisations", "/immobilisations"),
             e("conges", "Congés", "/liste/Holiday"),

@@ -185,6 +185,30 @@ pub fn routes(app: App) -> Router {
             "/immobilisations/:id/ceder",
             post(immobilisation_ecran::ceder),
         )
+        .route(
+            "/mailings",
+            get(mailing_ecran::page).post(mailing_ecran::creer),
+        )
+        .route("/mailings/:id", get(mailing_ecran::detail))
+        .route("/mailings/:id/valider", post(mailing_ecran::valider))
+        .route("/mailings/:id/approuver", post(mailing_ecran::approuver))
+        .route(
+            "/mailings/:id/marquer-envoye",
+            post(mailing_ecran::marquer_envoye),
+        )
+        .route(
+            "/connaissances",
+            get(connaissances_ecran::page).post(connaissances_ecran::creer),
+        )
+        .route("/connaissances/:id", get(connaissances_ecran::detail))
+        .route(
+            "/connaissances/:id/publier",
+            post(connaissances_ecran::publier),
+        )
+        .route(
+            "/connaissances/:id/depublier",
+            post(connaissances_ecran::depublier),
+        )
         .route("/conges", get(conges_ecran::page).post(conges_ecran::creer))
         .route("/conges/:id/valider", post(conges_ecran::valider))
         .route("/conges/:id/approuver", post(conges_ecran::approuver))
