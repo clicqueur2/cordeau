@@ -252,6 +252,13 @@ pub fn routes(app: App) -> Router {
         .route("/pages/:id/publier", post(site_web_ecran::publier))
         .route("/pages/:id/depublier", post(site_web_ecran::depublier))
         .route("/pages/:id/supprimer", post(site_web_ecran::supprimer_page))
+        .route(
+            "/adherents",
+            get(adherent_ecran::page).post(adherent_ecran::creer),
+        )
+        .route("/adherents/:id/cotiser", post(adherent_ecran::cotiser))
+        .route("/adherents/:id/suspendre", post(adherent_ecran::suspendre))
+        .route("/adherents/:id/reactiver", post(adherent_ecran::reactiver))
         .route("/dons", get(dons_ecran::page).post(dons_ecran::creer))
         .route("/dons/:id", get(dons_ecran::detail))
         .route("/dons/:id/valider", post(dons_ecran::valider))

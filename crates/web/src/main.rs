@@ -4,6 +4,7 @@
 //! suivis d'une redirection ; le message de confirmation passe par `?ok=`.
 
 mod actions_masse;
+mod adherent_ecran;
 mod analytique_ecran;
 mod api;
 mod auth;
