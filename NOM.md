@@ -70,3 +70,29 @@ l'ouvrage utilisable.
 
 > Tant que ces quatre cases ne sont pas cochées, ce document propose des noms,
 > il n'en choisit aucun. Un nom non vérifié est un nom qu'on perdra.
+
+## Decision : Cordeau
+
+Le nom est **Cordeau**, retenu par Maxime le 5 novembre 2026.
+
+Un cordeau sert a tracer une ligne droite : on le tend, on le suit, et deux
+personnes obtiennent le meme trace. C'est ce que fait ce logiciel — il trace la
+ligne des comptes, et ne laisse pas de place a l'interpretation. Le nom est
+court, francais, et il ne commence pas par « Doli ».
+
+**Le nom vit a deux endroits, et c'est voulu :**
+
+| Ce qui change | Ou | Comment |
+|---|---|---|
+| Le nom affiche | `crates/app/src/lib.rs`, constante `PRODUIT` | une ligne |
+| Le nom dans les documents et les binaires | `tools/renommer.ps1 -Nom "..."` | une commande |
+
+Ce qui ne change jamais : `llx_*`, `DOLIBARR_DSN`, le schema. Ces noms-la sont
+la **compatibilite avec Dolibarr** — les changer casserait la base, et la
+promesse du projet avec elle.
+
+Et il ne faut pas confondre deux choses :
+
+- **Cordeau** est le produit ;
+- **Pierre Angulaire** est la societe qui l'edite, et c'est la base qui le dit
+  (`llx_societe`). Deux noms, deux sources, aucun melange.

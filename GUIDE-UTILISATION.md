@@ -18,7 +18,7 @@ Dans tout ce guide, un chemin de menu est donné avec son adresse réelle entre 
 
 ### Démarrer et installer
 
-Le serveur écoute par défaut sur `http://127.0.0.1:8090` (variable `DOLIBARR_WEB_ADDR`), et se connecte à la base par `DOLIBARR_DSN`. Le binaire s'appelle `dolibarr-web` : `cargo run -p dolibarr-rs --bin dolibarr-web`. La console affiche l'adresse retenue au démarrage, et c'est la première chose à lire si la page ne s'ouvre pas.
+Le serveur écoute par défaut sur `http://127.0.0.1:8090` (variable `DOLIBARR_WEB_ADDR`), et se connecte à la base par `DOLIBARR_DSN`. Le binaire s'appelle `cordeau-web` : `cargo run -p cordeau --bin cordeau-web`. La console affiche l'adresse retenue au démarrage, et c'est la première chose à lire si la page ne s'ouvre pas.
 
 Au premier démarrage, ouvrez `/installation`. Cette page ne répare rien : elle constate. Elle affiche le nombre de tables présentes sur les tables attendues, la présence d'un administrateur, le nombre d'utilisateurs, les modules semés, le nom de la société, l'origine de la barre de menus et l'état du serveur d'e-mail. Tant qu'il n'y a aucun administrateur, elle propose de le créer : identifiant, mot de passe d'au moins huit caractères, e-mail, nom de la société. Le compte est créé avec le hachage bcrypt de Dolibarr, donc il fonctionnera aussi dans Dolibarr.
 
@@ -111,7 +111,7 @@ Il n'y a pas d'écran « envoyer le devis ». Vous téléchargez le PDF et vous 
 C'est le point où il faut être précis, parce qu'il surprend. Le statut « signé » existe (c'est le statut 2 de Dolibarr), le filtre de la liste des devis le propose, mais **aucun bouton de l'interface ne fait passer un devis à signé**. Ce passage se fait par la ligne de commande du même logiciel :
 
 ```
-dolibarr-rs proposal close --id 42 --statut 2
+cordeau proposal close --id 42 --statut 2
 ```
 
 ou depuis Dolibarr lui-même, sur la même base, avec son module de signature.

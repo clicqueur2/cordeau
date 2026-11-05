@@ -40,7 +40,7 @@ if (-not $Mysql -or -not (Test-Path $Mysql)) {
 $racine = Split-Path -Parent $MyInvocation.MyCommand.Path
 foreach ($f in @("1_tables.sql", "2_keys.sql", "3_data.sql")) {
     if (-not (Test-Path (Join-Path $racine "sql-ready\$f"))) {
-        Write-Host "sql-ready\$f manquant. Regenerer avec : cargo run -p dolibarr-rs -- schema prepare --src <install/mysql>" -ForegroundColor Red
+        Write-Host "sql-ready\$f manquant. Regenerer avec : cargo run -p cordeau -- schema prepare --src <install/mysql>" -ForegroundColor Red
         exit 1
     }
 }

@@ -1,4 +1,4 @@
-# dolibarr-rs
+# cordeau
 
 > Pour contribuer : **[DEVELOPPEMENT.md](DEVELOPPEMENT.md)** — architecture, règles de code,
 > recettes pour ajouter un écran ou un module, et les pièges qui coûtent une heure.
@@ -23,12 +23,12 @@ Noyau Dolibarr réécrit en Rust, **sur le schéma de données officiel de Dolib
 ```bash
 export DOLIBARR_DSN="mysql://root:root@127.0.0.1:3307/dolibarr"
 
-cargo run -q -p dolibarr-rs -- party add --nom "M&Mme Roure" \
+cargo run -q -p cordeau -- party add --nom "M&Mme Roure" \
   --zip 69410 --town "Saint-Cyr-au-Mont-d'Or"
 # cree  rowid=17  code_client=CU2611-00003  M&Mme Roure
 
-cargo run -q -p dolibarr-rs -- party list --limit 10
-cargo run -q -p dolibarr-rs -- party show --id 17
+cargo run -q -p cordeau -- party list --limit 10
+cargo run -q -p cordeau -- party show --id 17
 ```
 
 Le code client suit le format de `mod_codeclient_leopard` (`CU` + `AAAMM` + `-` +
@@ -41,14 +41,14 @@ ignorés proprement sinon (la CI sans base reste verte).
 ## Produits et services
 
 ```bash
-cargo run -q -p dolibarr-rs -- product add --ref "BOR-030" \
+cargo run -q -p cordeau -- product add --ref "BOR-030" \
   --label "Bordure granit gris 30 cm" --prix 125.50 --tva 20 --unite M
 # cree  rowid=10  ref=BOR-030  Bordure granit gris 30 cm  prix=125.5  tva=20
 
-cargo run -q -p dolibarr-rs -- product add --ref "MO-MAC" \
+cargo run -q -p cordeau -- product add --ref "MO-MAC" \
   --label "Main d oeuvre macon" --prix 48 --tva 10 --service
 
-cargo run -q -p dolibarr-rs -- product list
+cargo run -q -p cordeau -- product list
 ```
 
 Les prix sont lus avec `CAST(price AS CHAR)` puis convertis en `Decimal` : le
@@ -59,7 +59,7 @@ flottant. `price_ttc` est calculé à l'écriture à partir de `tva_tx`.
 ## Devis et PDF
 
 ```bash
-cargo run -q -p dolibarr-rs -- proposal add --soc 17 \
+cargo run -q -p cordeau -- proposal add --soc 17 \
   --section "Dépose carrelage" \
   --ligne "32|28.50|10|Dépose carrelage existant et évacuation" \
   --ligne "32|42.00|10|Ragréage et préparation du support" \
@@ -67,9 +67,9 @@ cargo run -q -p dolibarr-rs -- proposal add --soc 17 \
   --ligne "1|1480.00|10|Reprise étanchéité sous carrelage"
 # cree  rowid=62  ref=PR2611-0002  total_ht=3736  total_ttc=4109.6
 
-cargo run -q -p dolibarr-rs -- proposal list
-cargo run -q -p dolibarr-rs -- proposal show --id 62
-cargo run -q -p dolibarr-rs -- proposal pdf --id 62 --out devis.pdf
+cargo run -q -p cordeau -- proposal list
+cargo run -q -p cordeau -- proposal show --id 62
+cargo run -q -p cordeau -- proposal pdf --id 62 --out devis.pdf
 # devis.pdf  1 pages  42215 octets
 ```
 
@@ -109,7 +109,7 @@ C:/Users/Maxime/.mariadb/server/bin/mysqld.exe \
   --defaults-file=C:/Users/Maxime/.mariadb/my.ini --port=3307 --console
 
 # 3. instructions SQL prêtes à charger
-cargo run -q -p dolibarr-rs -- schema prepare \
+cargo run -q -p cordeau -- schema prepare \
   --src "_vendor/dolibarr-src/htdocs/install/mysql" --out "sql-ready"
 
 # 4. chargement (ordre Dolibarr : tables, clés, dictionnaires)
@@ -120,7 +120,7 @@ mysql --force -h127.0.0.1 -P3307 -uroot -proot dolibarr < sql-ready/2_keys.sql
 mysql --force -h127.0.0.1 -P3307 -uroot -proot dolibarr < sql-ready/3_data.sql
 
 # 5. vérification
-cargo run -q -p dolibarr-rs -- schema verify \
+cargo run -q -p cordeau -- schema verify \
   --dsn mysql://root:root@127.0.0.1:3307/dolibarr --manifest schema-24.0.1.json
 ```
 
@@ -157,13 +157,13 @@ Le manifeste est généré, jamais édité. Le test
 ## Factures
 
 ```bash
-cargo run -q -p dolibarr-rs -- invoice from-proposal --devis 62
+cargo run -q -p cordeau -- invoice from-proposal --devis 62
 # cree  rowid=73  ref=FA2611-0001  total_ht=3736  total_ttc=4109.6
 
-cargo run -q -p dolibarr-rs -- invoice list
-cargo run -q -p dolibarr-rs -- invoice show --id 73
-cargo run -q -p dolibarr-rs -- invoice validate --id 73
-cargo run -q -p dolibarr-rs -- invoice pdf --id 73 --out facture.pdf
+cargo run -q -p cordeau -- invoice list
+cargo run -q -p cordeau -- invoice show --id 73
+cargo run -q -p cordeau -- invoice validate --id 73
+cargo run -q -p cordeau -- invoice pdf --id 73 --out facture.pdf
 ```
 
 La conversion reprend les lignes du devis, recalcule les totaux avec `money`
@@ -188,14 +188,14 @@ Les documents sont remplis depuis la fiche société stockée dans `llx_const`,
 dans Dolibarr est donc reprise telle quelle, et inversement.
 
 ```bash
-cargo run -q -p dolibarr-rs -- company set \
+cargo run -q -p cordeau -- company set \
   --nom "Pierre Angulaire" --forme "SAS" --capital "10 000 EUR" \
   --rcs "RCS Lyon 123 456 789" --adresse "17 chemin du Grimpillon" \
   --cp 69410 --ville "Saint-Cyr-au-Mont-d'Or" \
   --siret 12345678900012 --tva-intra FR12345678900 \
   --email contact@maconnerie-architecture.fr --delai 30
 
-cargo run -q -p dolibarr-rs -- company show
+cargo run -q -p cordeau -- company show
 # conformite     complete
 ```
 
@@ -235,17 +235,17 @@ Un devis incomplet passe, avec un avertissement sur la sortie d'erreur.
 ## Règlements et lettrage
 
 ```bash
-cargo run -q -p dolibarr-rs -- invoice validate --id 73
-cargo run -q -p dolibarr-rs -- payment add --facture 73 --montant 1000 \
+cargo run -q -p cordeau -- invoice validate --id 73
+cargo run -q -p cordeau -- payment add --facture 73 --montant 1000 \
   --mode virement --num "VIR-2026-11"
 # reglement rowid=6  total TTC=4109.6  regle=1000  reste=3109.6
 
-cargo run -q -p dolibarr-rs -- payment add --facture 73 --montant 3109.60 \
+cargo run -q -p cordeau -- payment add --facture 73 --montant 3109.60 \
   --mode cheque --num "CHQ-1042"
 # reglement rowid=7  regle=4109.6  reste=0  FACTURE SOLDEE
 
-cargo run -q -p dolibarr-rs -- payment list --facture 73
-cargo run -q -p dolibarr-rs -- invoice show --id 73
+cargo run -q -p cordeau -- payment list --facture 73
+cargo run -q -p cordeau -- invoice show --id 73
 ```
 
 Modes : `virement`, `cheque`, `especes`, `carte`, `prelevement` (identifiants de
@@ -263,7 +263,7 @@ ne pèse sur cette numérotation, contrairement à celle des factures.
 
 ```bash
 cargo run -q -p web
-# dolibarr-web sur http://127.0.0.1:8090
+# cordeau-web sur http://127.0.0.1:8090
 ```
 
 Rendu côté serveur (maud), sans JavaScript. Les actions sont des formulaires
@@ -343,7 +343,7 @@ ouvre une section : c'est ainsi qu'on met « Reprise étanchéité » à part.
 ## Avoirs
 
 ```bash
-cargo run -q -p dolibarr-rs -- invoice avoir --id 73
+cargo run -q -p cordeau -- invoice avoir --id 73
 # avoir  rowid=278  ref=AV2611-0001  total_ttc=-4109.6
 ```
 
@@ -405,10 +405,10 @@ relance manuelle.
 Pas de démon, pas de cron PHP : **un binaire et un planificateur système**.
 
 ```bash
-dolibarr-rs tache relances            # liste les factures échues
-dolibarr-rs tache relances --noter    # + un événement d'agenda par facture
-dolibarr-rs tache sauvegarde          # dump SQL + documents
-dolibarr-rs tache purge --jours 90    # supprime les vieilles sauvegardes
+cordeau tache relances            # liste les factures échues
+cordeau tache relances --noter    # + un événement d'agenda par facture
+cordeau tache sauvegarde          # dump SQL + documents
+cordeau tache purge --jours 90    # supprime les vieilles sauvegardes
 ```
 
 ```
@@ -420,7 +420,7 @@ Planification sous Windows (tous les jours à 8 h) :
 
 ```powershell
 schtasks /create /tn "Dolibarr relances" /sc daily /st 08:00 ^
-  /tr "dolibarr-rs.exe tache relances --noter"
+  /tr "cordeau.exe tache relances --noter"
 ```
 
 Sous Linux, une unité `systemd` + `OnCalendar=*-*-* 08:00:00`.

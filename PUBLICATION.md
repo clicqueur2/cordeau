@@ -39,7 +39,7 @@ embarqué, outillage de vérification. Ce n'est pas un dépôt nu.
 
 | Élément | État réel | Preuve |
 |---|---|---|
-| **Nom du produit** | **non tranché**. `NOM.md` propose 8 noms, recommande « Cordeau » puis « Giron », et laisse 4 cases non cochées : domaine `.fr`/`.com`, recherche INPI classe 9/42, comptes GitHub, registre de paquets. En parallèle, tout le dépôt utilise `dolibarr-rs` — le préfixe « Doli » que `NOM.md:8-22` qualifie lui-même de « plus mauvais des choix possibles » (risque de confusion avec la famille Dolibarr). | `NOM.md:61-72` ; `Cargo.toml`, `crates/cli/Cargo.toml:2` (`name = "dolibarr-rs"`) |
+| **Nom du produit** | **non tranché**. `NOM.md` propose 8 noms, recommande « Cordeau » puis « Giron », et laisse 4 cases non cochées : domaine `.fr`/`.com`, recherche INPI classe 9/42, comptes GitHub, registre de paquets. En parallèle, tout le dépôt utilise `cordeau` — le préfixe « Doli » que `NOM.md:8-22` qualifie lui-même de « plus mauvais des choix possibles » (risque de confusion avec la famille Dolibarr). | `NOM.md:61-72` ; `Cargo.toml`, `crates/cli/Cargo.toml:2` (`name = "cordeau"`) |
 | **Dépôt distant** | aucun. Pas d'`origin`, aucun tag, aucune release. | `git remote -v`, `git tag` (vides) |
 | **CI** | **absente** : pas de dossier `.github` (vérifié : `Test-Path .github` → `False`), aucun workflow. Et `tools/verifier.ps1` ne peut pas servir de CI tel quel (§4, point 4). | disque |
 | **Captures d'écran** | **aucune** : `git ls-files` ne contient aucune image (`.png`, `.jpg`, `.jpeg`, `.svg`, `.webp`, `.gif` → 0 résultat). Un projet avec 30 écrans et zéro capture ne se fait pas cliquer. | `git ls-files` |
@@ -71,13 +71,13 @@ modifie aucun fichier existant)
    le formulaire de création d'administrateur.
 3. **Commande de lancement fausse, deux endroits.**
    `DEMARRER.md:34` et `installer.ps1:89` donnent
-   `cargo run -p dolibarr-rs --bin dolibarr-web`. Le binaire `dolibarr-web`
+   `cargo run -p cordeau --bin cordeau-web`. Le binaire `cordeau-web`
    appartient au paquet **`web`** (`crates/web/Cargo.toml`, `[[bin]] name =
-   "dolibarr-web"`), pas au paquet `dolibarr-rs` (`crates/cli/Cargo.toml`,
-   `[[bin]] name = "dolibarr-rs"`). La forme utilisée ailleurs et cohérente avec
+   "cordeau-web"`), pas au paquet `cordeau` (`crates/cli/Cargo.toml`,
+   `[[bin]] name = "cordeau"`). La forme utilisée ailleurs et cohérente avec
    les manifestes est `cargo run -q -p web` (`README.md:265`,
    `tools/verifier.ps1:116`). Le repli proposé `DEMARRER.md:37`
-   (`cargo run --bin dolibarr-web`) n'a pas été testé — interdit ici.
+   (`cargo run --bin cordeau-web`) n'a pas été testé — interdit ici.
 4. **Import Linux sans `--force`.** `DEMARRER.md:21-23` importe `2_keys.sql` et
    `3_data.sql` sans `--force`, alors que `README.md:118-120` et
    `installer.ps1:64-74` expliquent que ces deux fichiers contiennent des
@@ -113,7 +113,7 @@ Réponse honnête : **presque, et pas avec la commande écrite.**
 |---|---|
 | Prérequis : Rust (`rustup`) + MariaDB/MySQL | OK, documenté (`DEMARRER.md:7-9`). Version de Rust non précisée : aucune `rust-toolchain.toml`. |
 | 1. Créer et importer la base | **OK sous Windows** : `installer.ps1` trouve le client `mysql` dans le PATH ou dans 3 chemins Windows connus, refuse d'écraser, importe les 3 fichiers avec `--force`. **Casse sous Linux/macOS** : la variante manuelle (`DEMARRER.md:19-24`) n'a pas `--force` (point 3.4). |
-| 2. Poser `DOLIBARR_DSN` et `DOLIBARR_DOCUMENTS`, puis lancer | **ÉCHEC** : la commande `cargo run -p dolibarr-rs --bin dolibarr-web` ne peut pas aboutir, le binaire appartient au paquet `web` (point 3.3). Un lecteur qui applique le repli de la ligne 37 est dans l'inconnu. |
+| 2. Poser `DOLIBARR_DSN` et `DOLIBARR_DOCUMENTS`, puis lancer | **ÉCHEC** : la commande `cargo run -p cordeau --bin cordeau-web` ne peut pas aboutir, le binaire appartient au paquet `web` (point 3.3). Un lecteur qui applique le repli de la ligne 37 est dans l'inconnu. |
 | 3. Ouvrir `/installation` | **OK, et mieux que documenté** : la page liste schéma / administrateurs / utilisateurs / modules / SMTP et propose le formulaire de création de l'administrateur (login `admin` pré-rempli, mot de passe ≥ 8). Après validation, redirection vers `/connexion?ok=installe`. |
 | 4. Se connecter | OK une fois l'admin créé : `db::user::authentifier` vérifie le bcrypt `$2y$` de Dolibarr. |
 | 5. Utiliser l'application | OK sur une base fraîche (dictionnaires importés par `3_data.sql`). |
@@ -135,7 +135,7 @@ l'auteur, pas une installation reproductible. Il devrait renvoyer à
 Trois blocages indépendants :
 
 1. **`tools/verifier.ps1:21`** force
-   `$env:CARGO_TARGET_DIR = "C:/Users/Maxime/.cargo-target/dolibarr-rs"` — un
+   `$env:CARGO_TARGET_DIR = "C:/Users/Maxime/.cargo-target/cordeau"` — un
    chemin qui n'existe pas chez un autre utilisateur, et que cargo tentera de
    créer sous `C:\Users\Maxime` (échec de droits probable). Idem
    `tools/pre-commit.ps1:22`.
