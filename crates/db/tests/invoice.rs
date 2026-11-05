@@ -279,3 +279,43 @@ fn l_echeance_se_deduit_de_la_condition_de_reglement() -> Result<(), Box<dyn Err
     nettoyer(&pool, nom)?;
     Ok(())
 }
+
+/// Une ligne sans fiche produit : `fk_product = 0`, la facon dont Dolibarr
+/// ecrit une prestation hors catalogue.
+///
+/// Ce cas a ete refuse par le noyau : la validation cherchait le produit 0 dans
+/// `llx_product`, ne le trouvait pas, et rendait « le produit 0 n'existe pas ».
+/// Consequence : aucune facture sans article ne pouvait etre creee, donc aucune
+/// serie recurrente de prestation non plus.
+#[test]
+fn une_ligne_sans_fiche_produit_est_acceptee() -> Result<(), Box<dyn Error>> {
+    let Some(pool) = pool_or_skip() else {
+        return Ok(());
+    };
+    let nom = "Test ligne libre";
+    nettoyer(&pool, nom)?;
+    let fk_soc = tiers(&pool, nom)?;
+
+    let mut f = NewInvoice::new(fk_soc);
+    // `Some(0)` et non `None` : c'est ce que Dolibarr stocke.
+    f.lines = vec![NewInvoiceLine {
+        fk_product: Some(0),
+        ..NewInvoiceLine::new("Prestation hors catalogue", dec("1"), dec("100"), dec("20"))
+    }];
+    let id = db::invoice::create(&pool, ENTITY, &f)?;
+
+    let facture = db::invoice::get(&pool, ENTITY, id)?.expect("facture creee");
+    assert_eq!(facture.total_ht, Some(dec("100")));
+    // `product_type = 0` : ni produit fini ni service, une ligne libre.
+    let lignes = db::invoice::lines(&pool, ENTITY, id)?;
+    assert_eq!(lignes.len(), 1);
+    assert_eq!(
+        lignes[0].product_type, 0,
+        "une ligne libre ne doit pas etre typee"
+    );
+    assert_eq!(lignes[0].fk_product, Some(0));
+
+    db::invoice::delete(&pool, ENTITY, id)?;
+    nettoyer(&pool, nom)?;
+    Ok(())
+}

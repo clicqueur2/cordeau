@@ -435,6 +435,11 @@ fn create_sous_verrou(
                 )?;
                 match pt {
                     Some(v) => v as i16,
+                    // `fk_product = 0` n'est pas un produit absent : c'est une
+                    // **ligne libre**, la facon dont Dolibarr ecrit une
+                    // prestation sans fiche article. La refuser rendrait toute
+                    // facture sans catalogue impossible.
+                    None if id <= 0 => 0i16,
                     None => {
                         return Err(format!(
                             "le produit {} n'existe pas dans l'entite {}",

@@ -321,8 +321,9 @@ fn generer_tout_marque_l_echeance_honoree() -> Result<(), Box<dyn Error>> {
         &[("Entretien annuel", "1", "450", "20", None)],
     )?;
 
-    let faites = db::recur_generation::generer_tout(&pool, entity, JOUR, 500)?;
-    let trouvee = faites
+    let bilan = db::recur_generation::generer_tout(&pool, entity, JOUR, 500)?;
+    let trouvee = bilan
+        .creees
         .iter()
         .find(|(source, id, _)| source == "facture_rec" && *id == garde.id_serie)
         .ok_or("la serie due n'a pas ete traitee")?;
@@ -350,6 +351,7 @@ fn generer_tout_marque_l_echeance_honoree() -> Result<(), Box<dyn Error>> {
     let encore = db::recur_generation::generer_tout(&pool, entity, JOUR, 500)?;
     assert!(
         !encore
+            .creees
             .iter()
             .any(|(source, id, _)| source == "facture_rec" && *id == garde.id_serie),
         "la serie est encore rendue apres marquage"
@@ -387,7 +389,10 @@ fn generer_respecte_l_entite() -> Result<(), Box<dyn Error>> {
 
     let traitees = db::recur_generation::generer_tout(&pool, ailleurs, JOUR, 500)?;
     assert!(
-        !traitees.iter().any(|(_, id, _)| *id == garde.id_serie),
+        !traitees
+            .creees
+            .iter()
+            .any(|(_, id, _)| *id == garde.id_serie),
         "la serie fuit hors de son entite"
     );
     assert_eq!(

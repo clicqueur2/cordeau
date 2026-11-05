@@ -69,8 +69,12 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let pool = db::pool("mysql://root:root@127.0.0.1:3306/dolibarr")?;
 //! let jour = db::aujourdhui(&pool)?;
-//! for (source, serie, facture) in db::recur_generation::generer_tout(&pool, 1, &jour, 100)? {
+//! let bilan = db::recur_generation::generer_tout(&pool, 1, &jour, 100)?;
+//! for (source, serie, facture) in &bilan.creees {
 //!     println!("{source} {serie} -> brouillon n° {facture}");
+//! }
+//! for e in &bilan.echecs {
+//!     eprintln!("{source} {serie} refuse : {motif}", source = e.source, serie = e.serie, motif = e.motif);
 //! }
 //! # Ok(())
 //! # }
@@ -112,6 +116,41 @@ const MAX_SERIES_DUES: usize = 10_000;
 
 /// Ce que [`generer_tout`] a produit : `(source, id_serie, id_facture)`.
 pub type Emission = (String, i64, i64);
+
+/// Une serie qui n'a pas pu etre facturee, et pourquoi.
+///
+/// Une serie due qui echoue **ne disparait pas** : sans cette trace, une
+/// facture mensuelle refusee chaque nuit resterait invisible jusqu'a ce que le
+/// client s'en apercoive. C'est exactement le defaut qui a laisse passer un
+/// devis signe sans facture.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Echec {
+    pub source: String,
+    pub serie: i64,
+    pub motif: String,
+}
+
+/// Ce qu'un passage a produit : les brouillons crees, et les refus.
+///
+/// Un bilan vide au deux sens veut dire « rien n'etait due » ; un bilan avec
+/// des echecs veut dire « il y avait du travail, et il n'a pas ete fait ».
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Bilan {
+    pub creees: Vec<Emission>,
+    pub echecs: Vec<Echec>,
+}
+
+impl Bilan {
+    /// Vrai si rien n'etait due et rien n'a echoue.
+    pub fn rien_a_faire(&self) -> bool {
+        self.creees.is_empty() && self.echecs.is_empty()
+    }
+
+    /// Vrai si au moins une serie due n'a pas ete facturee.
+    pub fn a_des_echecs(&self) -> bool {
+        !self.echecs.is_empty()
+    }
+}
 
 /// Une ligne de modele, telle qu'elle sera recopiee dans la facture.
 #[derive(Debug, Clone, PartialEq)]
@@ -482,9 +521,9 @@ pub fn generer_tout(
     entity: i64,
     aujourd_hui: &str,
     max: usize,
-) -> Result<Vec<Emission>, Box<dyn Error>> {
+) -> Result<Bilan, Box<dyn Error>> {
     let series = recurrence::a_emettre(pool, entity, aujourd_hui, max)?;
-    let mut faites = Vec::new();
+    let mut bilan = Bilan::default();
 
     for serie in &series {
         match generer(pool, entity, &serie.source, serie.id, aujourd_hui) {
@@ -492,24 +531,31 @@ pub fn generer_tout(
                 if let Err(erreur) =
                     recurrence::marquer_emise(pool, entity, &serie.source, serie.id, aujourd_hui)
                 {
+                    // Le document existe mais son echeance n'est pas marquee :
+                    // la garde par `ref_ext` empechera le doublon, donc ce n'est
+                    // pas un echec de facturation. On le dit quand meme.
                     eprintln!(
                         "[dolibarr-rs] serie {} {} : document emis, echeance non marquee : {erreur}",
                         serie.source, serie.id
                     );
                 }
                 if let Some(id) = id_facture {
-                    faites.push((serie.source.clone(), serie.id, id));
+                    bilan.creees.push((serie.source.clone(), serie.id, id));
                 }
             }
             Err(erreur) => {
-                eprintln!(
-                    "[dolibarr-rs] serie {} {} ignoree : {erreur}",
-                    serie.source, serie.id
-                );
+                // Un refus n'est pas un detail : il remonte dans le bilan, et
+                // c'est l'appelant qui decide quoi en faire (journal, ecran,
+                // code de sortie).
+                bilan.echecs.push(Echec {
+                    source: serie.source.clone(),
+                    serie: serie.id,
+                    motif: erreur.to_string(),
+                });
             }
         }
     }
-    Ok(faites)
+    Ok(bilan)
 }
 
 #[cfg(test)]

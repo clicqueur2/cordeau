@@ -49,9 +49,25 @@
 use std::fmt;
 
 /// Le pas d'une recurrence.
+///
+/// Dolibarr enregistre deux valeurs : `frequency` (un nombre) et
+/// `unit_frequency` (une lettre — `d`, `w`, `m`, `y`). Les quatre familles sont
+/// donc ici. Les variantes nommees (`Mensuelle`, `Trimestrielle`...) sont les
+/// presets de l'interface Dolibarr ; `Jours`, `Semaines` et `Mois` portent un
+/// pas quelconque, parce qu'une saisie libre existe dans le formulaire.
+///
+/// Une frequence en **jours** ne doit pas passer par les mois : « tous les
+/// 15 jours » n'est pas « tous les demi-mois », et une serie quotidienne qui
+/// tombe sur un mois de 31 jours ne doit pas deriver.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Frequence {
-    /// Tous les mois.
+    /// Tous les `n` jours.
+    Jours(u32),
+    /// Toutes les `n` semaines.
+    Semaines(u32),
+    /// Tous les `n` mois.
+    Mois(u32),
+    /// Chaque mois.
     Mensuelle,
     /// Tous les trois mois.
     Trimestrielle,
@@ -62,25 +78,48 @@ pub enum Frequence {
 }
 
 impl Frequence {
-    /// Nombre de mois entre deux occurrences consecutives.
+    /// Le pas en jours, `None` pour une frequence qui se compte en mois.
     #[must_use]
-    pub fn pas_en_mois(self) -> u32 {
+    pub fn pas_en_jours(self) -> Option<i64> {
         match self {
-            Frequence::Mensuelle => 1,
-            Frequence::Trimestrielle => 3,
-            Frequence::Semestrielle => 6,
-            Frequence::Annuelle => 12,
+            Frequence::Jours(n) => Some(i64::from(n)),
+            Frequence::Semaines(n) => i64::from(n).checked_mul(7),
+            _ => None,
         }
+    }
+
+    /// Le pas en mois, `None` pour une frequence qui se compte en jours.
+    #[must_use]
+    pub fn pas_en_mois(self) -> Option<u32> {
+        match self {
+            Frequence::Jours(_) | Frequence::Semaines(_) => None,
+            Frequence::Mois(n) => Some(n),
+            Frequence::Mensuelle => Some(1),
+            Frequence::Trimestrielle => Some(3),
+            Frequence::Semestrielle => Some(6),
+            Frequence::Annuelle => Some(12),
+        }
+    }
+
+    /// Vrai si le pas se compte en jours.
+    #[must_use]
+    pub fn en_jours(self) -> bool {
+        self.pas_en_jours().is_some()
     }
 
     /// Libelle pour un ecran de saisie.
     #[must_use]
-    pub fn libelle(self) -> &'static str {
+    pub fn libelle(self) -> String {
         match self {
-            Frequence::Mensuelle => "Mensuelle",
-            Frequence::Trimestrielle => "Trimestrielle",
-            Frequence::Semestrielle => "Semestrielle",
-            Frequence::Annuelle => "Annuelle",
+            Frequence::Jours(1) => "Quotidienne".to_string(),
+            Frequence::Jours(n) => format!("Tous les {n} jours"),
+            Frequence::Semaines(1) => "Hebdomadaire".to_string(),
+            Frequence::Semaines(n) => format!("Toutes les {n} semaines"),
+            Frequence::Mois(1) | Frequence::Mensuelle => "Mensuelle".to_string(),
+            Frequence::Mois(3) | Frequence::Trimestrielle => "Trimestrielle".to_string(),
+            Frequence::Mois(6) | Frequence::Semestrielle => "Semestrielle".to_string(),
+            Frequence::Mois(12) | Frequence::Annuelle => "Annuelle".to_string(),
+            Frequence::Mois(n) => format!("Tous les {n} mois"),
         }
     }
 }
@@ -172,7 +211,7 @@ pub fn prochaine(regle: &Regle, apres: &str) -> Result<Option<String>, Erreur> {
     let (debut, fin) = regle.verifier()?;
     let apres = Date::analyser(apres)?;
     let limite = regle.limite_occurrences.map(u64::from);
-    let mut indice = indice_de_depart(debut, apres, regle.frequence.pas_en_mois());
+    let mut indice = indice_de_depart(debut, apres, regle.frequence);
     loop {
         if limite.is_some_and(|l| indice >= l) {
             return Ok(None);
@@ -274,9 +313,23 @@ fn occurrence(regle: &Regle, debut: Date, indice: u64) -> Option<Date> {
     if indice == 0 {
         return Some(debut);
     }
+    let rang = i64::try_from(indice).ok()?;
+
+    // Frequence en jours : on ajoute un nombre de jours, sans passer par les
+    // mois. « Tous les 15 jours » reste a 15 jours en fevrier comme en mars.
+    if let Some(pas) = regle.frequence.pas_en_jours() {
+        let decalage = rang.checked_mul(pas)?;
+        let jours = debut.jours.checked_add(decalage)?;
+        let (annee, _, _) = civil_depuis_jours(jours);
+        if !(1..=9999).contains(&annee) {
+            return None;
+        }
+        return Some(Date { jours });
+    }
+
     let (annee_debut, mois_debut, _) = debut.pieces();
-    let pas = i64::from(regle.frequence.pas_en_mois());
-    let decalage = i64::try_from(indice).ok()?.checked_mul(pas)?;
+    let pas = i64::from(regle.frequence.pas_en_mois()?);
+    let decalage = rang.checked_mul(pas)?;
     let total = annee_debut
         .checked_mul(12)?
         .checked_add(i64::from(mois_debut) - 1)?
@@ -297,12 +350,23 @@ fn occurrence(regle: &Regle, debut: Date, indice: u64) -> Option<Date> {
 ///
 /// Sans cette estimation, chercher « la prochaine apres dans dix ans » ferait
 /// cent vingt tours de boucle.
-fn indice_de_depart(debut: Date, apres: Date, pas: u32) -> u64 {
+fn indice_de_depart(debut: Date, apres: Date, frequence: Frequence) -> u64 {
+    if let Some(pas) = frequence.pas_en_jours().filter(|pas| *pas > 0) {
+        let ecart = apres.jours - debut.jours;
+        if ecart <= 0 {
+            return 0;
+        }
+        return (ecart / pas) as u64;
+    }
+    // Une frequence en mois dont le pas serait nul ne peut pas exister : la
+    // regle est verifiee avant. On retombe sur un mois plutot que de diviser
+    // par zero.
+    let pas = i64::from(frequence.pas_en_mois().unwrap_or(1).max(1));
     let ecart = apres.mois_absolu() - debut.mois_absolu();
     if ecart <= 0 {
         return 0;
     }
-    (ecart / i64::from(pas)) as u64
+    (ecart / pas) as u64
 }
 
 /// Une date civile, portee comme un nombre de jours depuis le 1er janvier 1970.
@@ -741,11 +805,80 @@ mod tests {
     }
 
     #[test]
+    fn une_serie_quotidienne_ne_passe_pas_par_les_mois() {
+        // 15 jours : fevrier ne doit pas raccourcir le pas.
+        let regle = Regle {
+            frequence: Frequence::Jours(15),
+            debut: "2026-01-20".to_string(),
+            fin: None,
+            limite_occurrences: None,
+            jour: 20,
+        };
+        assert_eq!(
+            serie(&regle, "2026-03-06", 10),
+            ["2026-01-20", "2026-02-04", "2026-02-19", "2026-03-06"]
+        );
+    }
+
+    #[test]
+    fn une_serie_hebdomadaire_tombe_le_meme_jour_de_la_semaine() {
+        let regle = Regle {
+            frequence: Frequence::Semaines(1),
+            debut: "2026-01-05".to_string(),
+            fin: None,
+            limite_occurrences: None,
+            jour: 5,
+        };
+        // 5 janvier 2026 est un lundi : les suivants aussi.
+        assert_eq!(
+            serie(&regle, "2026-01-27", 10),
+            ["2026-01-05", "2026-01-12", "2026-01-19", "2026-01-26"]
+        );
+    }
+
+    #[test]
+    fn un_pas_libre_en_mois_est_honore() {
+        // Tous les deux mois : ce que l'interface Dolibarr permet de saisir.
+        let regle = Regle {
+            frequence: Frequence::Mois(2),
+            debut: "2026-01-31".to_string(),
+            fin: None,
+            limite_occurrences: None,
+            jour: 31,
+        };
+        assert_eq!(
+            serie(&regle, "2026-07-31", 10),
+            ["2026-01-31", "2026-03-31", "2026-05-31", "2026-07-31"]
+        );
+    }
+
+    #[test]
+    fn une_frequence_en_jours_n_a_pas_de_pas_en_mois() {
+        assert_eq!(Frequence::Jours(3).pas_en_jours(), Some(3));
+        assert_eq!(Frequence::Semaines(2).pas_en_jours(), Some(14));
+        assert_eq!(Frequence::Jours(3).pas_en_mois(), None);
+        assert_eq!(Frequence::Mensuelle.pas_en_jours(), None);
+        assert_eq!(Frequence::Mois(4).pas_en_mois(), Some(4));
+        assert!(Frequence::Semaines(1).en_jours());
+        assert!(!Frequence::Annuelle.en_jours());
+    }
+
+    #[test]
+    fn les_libelles_de_frequence_sont_lisibles() {
+        assert_eq!(Frequence::Jours(1).libelle(), "Quotidienne");
+        assert_eq!(Frequence::Jours(15).libelle(), "Tous les 15 jours");
+        assert_eq!(Frequence::Semaines(1).libelle(), "Hebdomadaire");
+        assert_eq!(Frequence::Semaines(3).libelle(), "Toutes les 3 semaines");
+        assert_eq!(Frequence::Mois(4).libelle(), "Tous les 4 mois");
+        assert_eq!(Frequence::Mensuelle.libelle(), "Mensuelle");
+    }
+
+    #[test]
     fn les_frequences_donnent_leur_pas_en_mois() {
-        assert_eq!(Frequence::Mensuelle.pas_en_mois(), 1);
-        assert_eq!(Frequence::Trimestrielle.pas_en_mois(), 3);
-        assert_eq!(Frequence::Semestrielle.pas_en_mois(), 6);
-        assert_eq!(Frequence::Annuelle.pas_en_mois(), 12);
+        assert_eq!(Frequence::Mensuelle.pas_en_mois(), Some(1));
+        assert_eq!(Frequence::Trimestrielle.pas_en_mois(), Some(3));
+        assert_eq!(Frequence::Semestrielle.pas_en_mois(), Some(6));
+        assert_eq!(Frequence::Annuelle.pas_en_mois(), Some(12));
         assert_eq!(Frequence::Trimestrielle.libelle(), "Trimestrielle");
     }
 
