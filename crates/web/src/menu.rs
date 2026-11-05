@@ -155,6 +155,7 @@ pub const MODULES: &[Module] = &[
                 "/comptabilite/journal?sens=achats",
             ),
             e("grand-livre", "Grand livre", "/comptabilite/grand-livre"),
+            e("lettrage", "Lettrage", "/comptabilite/lettrage"),
             e("fec", "Comptabilisation et FEC", "/comptabilite/fec"),
             e("cloture", "Clôture d'exercice", "/comptabilite/cloture"),
             e(
