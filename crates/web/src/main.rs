@@ -9,6 +9,7 @@ mod api;
 mod campagnes;
 mod categories_ecran;
 mod cloture_ecran;
+mod constantes_ecran;
 mod courriel;
 mod devises_ecran;
 mod entite;
@@ -336,6 +337,10 @@ async fn main() {
         .route("/recurrences", get(recur_ecran::page))
         .route("/recurrences/generer", post(recur_ecran::generer))
         .route("/parametres/greffons", get(pages::greffons_page))
+        .route(
+            "/parametres/constantes",
+            get(constantes_ecran::page).post(constantes_ecran::ecrire),
+        )
         .route("/parametres/tables", get(pages::tables_page))
         .route("/parametres/tables/:nom", get(pages::table_page))
         .route("/parametres/evenements", get(pages::evenements_page))

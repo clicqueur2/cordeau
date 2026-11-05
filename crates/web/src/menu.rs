@@ -241,6 +241,7 @@ pub const MODULES: &[Module] = &[
             e("taxes", "Taux de TVA", "/liste/Tax"),
             e("nouveau-taux", "Nouveau taux", "/liste/Tax/nouveau"),
             e("base", "Base de données", "/parametres/base"),
+            e("constantes", "Constantes", "/parametres/constantes"),
             e("tables", "Tables de la base", "/parametres/tables"),
             e(
                 "evenements",
