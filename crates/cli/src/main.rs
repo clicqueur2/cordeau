@@ -362,6 +362,46 @@ fn tache_cmd(cmd: &str, args: &[String]) -> ExitCode {
             }
             Ok(())
         }
+        "recurrences" => {
+            // Le moteur etait ecrit, rien ne le declenchait. Il rend les
+            // brouillons crees : ni validation, ni envoi, comme le reste.
+            let jour = if let Some(j) = flag(args, "--jour") {
+                j.to_string()
+            } else {
+                db::aujourdhui(&pool)?
+            };
+            let max: usize = flag(args, "--max")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(100);
+
+            let bilan = db::recur_generation::generer_tout(&pool, entity, &jour, max)?;
+
+            if bilan.rien_a_faire() {
+                println!("Aucune echeance due au {jour}.");
+                return Ok(());
+            }
+            if !bilan.creees.is_empty() {
+                println!("{} brouillon(s) cree(s) au {jour} :", bilan.creees.len());
+                for (source, serie, facture) in &bilan.creees {
+                    println!("  serie {source} {serie} -> facture {facture}");
+                }
+                println!("Aucune validation, aucun envoi : les brouillons sont a relire.");
+            }
+            if bilan.a_des_echecs() {
+                // Dire, et sortir en erreur : une serie refusee chaque nuit
+                // doit alerter, pas s'enterrer dans un journal.
+                eprintln!("{} serie(s) refusee(s) :", bilan.echecs.len());
+                for e in &bilan.echecs {
+                    eprintln!("  serie {} {} : {}", e.source, e.serie, e.motif);
+                }
+                return Err(format!(
+                    "{} serie(s) due(s) n'ont pas pu etre facturees",
+                    bilan.echecs.len()
+                )
+                .into());
+            }
+            Ok(())
+        }
         "sauvegarde" => {
             let racine =
                 std::env::var("DOLIBARR_SAUVEGARDES").unwrap_or_else(|_| "sauvegardes".to_string());

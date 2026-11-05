@@ -78,12 +78,44 @@ pub async fn generer(State(app): State<crate::App>) -> crate::Res<Redirect> {
         200,
     )?;
 
-    if faits.is_empty() {
+    if faits.a_des_echecs() {
+        // Le motif voyage dans l'adresse : l'ecran le montre, l'utilisateur
+        // sait quoi corriger sans ouvrir de journal.
+        let motif = faits
+            .echecs
+            .first()
+            .map(|e| e.motif.clone())
+            .unwrap_or_default();
+        let motif: String = motif.chars().take(180).collect();
+        Ok(Redirect::to(&format!(
+            "/recurrences?ko={}",
+            urlencode(&motif)
+        )))
+    } else if faits.creees.is_empty() {
         Ok(Redirect::to("/recurrences?ok=rien"))
     } else {
-        let n = faits.len();
+        let n = faits.creees.len();
         Ok(Redirect::to(&format!("/recurrences?ok={n}")))
     }
+}
+
+/// Encode un texte pour une adresse : seuls les caracteres surs passent tels
+/// quels, le reste devient `%XX`.
+fn urlencode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for octet in s.as_bytes() {
+        match octet {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b' ' => {
+                if *octet == b' ' {
+                    out.push('+');
+                } else {
+                    out.push(*octet as char);
+                }
+            }
+            _ => out.push_str(&format!("%{octet:02X}")),
+        }
+    }
+    out
 }
 
 /// Date du jour au format `AAAA-MM-JJ`, sans dependance de calendrier.

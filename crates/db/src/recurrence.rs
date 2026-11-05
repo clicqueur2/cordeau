@@ -208,19 +208,39 @@ fn jour_du_mois(date: &str) -> Option<u32> {
 /// `unit_frequency` vaut `'d'`, `'w'`, `'m'` ou `'y'` dans Dolibarr ; le defaut
 /// du schema est `'m'`. Une unite absente est donc mensuelle.
 ///
-/// Rend `None` pour tout ce que le moteur ne sait pas exprimer : jours,
-/// semaines, et multiples non prevus (2 mois, 4 mois, 2 ans). Ces series sont
-/// ecartees, jamais approximees.
+/// **Tout ce que Dolibarr accepte est traduit.** Une unite inconnue ou un pas
+/// nul rend `None`, et la serie est ecartee : mieux vaut ne rien emettre qu'un
+/// document a une date inventee. Mais ecarter `'d'`, `'w'` et les pas libres
+/// (2 mois, 4 mois, 2 ans) revenait a faire disparaitre en silence les series
+/// quotidiennes et hebdomadaires, qui sont les plus courantes en entretien.
 fn frequence(frequency: Option<i32>, unit_frequency: Option<&str>) -> Option<Frequence> {
     let pas = u32::try_from(frequency?).ok()?;
+    if pas == 0 {
+        return None;
+    }
     let unite = unit_frequency.unwrap_or("m");
-    match (unite, pas) {
-        ("m", 1) => Some(Frequence::Mensuelle),
-        ("m", 3) => Some(Frequence::Trimestrielle),
-        ("m", 6) => Some(Frequence::Semestrielle),
-        ("m", 12) => Some(Frequence::Annuelle),
-        ("y", 1) => Some(Frequence::Annuelle),
+    match unite {
+        "d" => Some(Frequence::Jours(pas)),
+        "w" => Some(Frequence::Semaines(pas)),
+        "m" => Some(mois(pas)),
+        // Douze mois font un an : on ramene pour que le pas reste en mois.
+        "y" => pas.checked_mul(12).map(mois),
         _ => None,
+    }
+}
+
+/// Le pas en mois, avec les presets de l'interface Dolibarr nommes.
+///
+/// `Mois(1)` et `Mensuelle` calculent pareil ; garder les variantes nommees
+/// evite qu'une regle relue en base porte une forme que l'ecran ne produit
+/// jamais, et qu'un test de coherence compare deux choses identiques.
+fn mois(pas: u32) -> Frequence {
+    match pas {
+        1 => Frequence::Mensuelle,
+        3 => Frequence::Trimestrielle,
+        6 => Frequence::Semestrielle,
+        12 => Frequence::Annuelle,
+        n => Frequence::Mois(n),
     }
 }
 
@@ -733,18 +753,30 @@ mod tests {
     }
 
     #[test]
-    fn les_pas_que_le_moteur_ne_sait_pas_sont_ecartes() {
-        // Jours et semaines : le moteur ne compte qu'en mois.
-        assert_eq!(frequence(Some(1), Some("d")), None);
-        assert_eq!(frequence(Some(2), Some("w")), None);
-        // Multiples non prevus.
-        assert_eq!(frequence(Some(2), Some("m")), None);
-        assert_eq!(frequence(Some(4), Some("m")), None);
-        assert_eq!(frequence(Some(2), Some("y")), None);
-        // Pas absurdes.
+    fn les_jours_et_les_semaines_sont_traduits() {
+        // Le formulaire Dolibarr accepte d/w/m/y. Une serie quotidienne ou
+        // hebdomadaire ecartee en silence ne serait jamais facturee.
+        assert_eq!(frequence(Some(1), Some("d")), Some(Frequence::Jours(1)));
+        assert_eq!(frequence(Some(15), Some("d")), Some(Frequence::Jours(15)));
+        assert_eq!(frequence(Some(2), Some("w")), Some(Frequence::Semaines(2)));
+    }
+
+    #[test]
+    fn les_multiples_libres_en_mois_sont_traduits() {
+        // Deux mois, quatre mois, deux ans : saisissables dans l'interface.
+        assert_eq!(frequence(Some(2), Some("m")), Some(Frequence::Mois(2)));
+        assert_eq!(frequence(Some(4), Some("m")), Some(Frequence::Mois(4)));
+        assert_eq!(frequence(Some(2), Some("y")), Some(Frequence::Mois(24)));
+    }
+
+    #[test]
+    fn les_pas_absurdes_sont_ecartes() {
+        // Un pas nul boucherait la serie a l'infini ; une unite inconnue
+        // n'a pas de sens traduit.
         assert_eq!(frequence(Some(0), Some("m")), None);
         assert_eq!(frequence(Some(-1), Some("m")), None);
         assert_eq!(frequence(None, Some("m")), None);
+        assert_eq!(frequence(Some(1), Some("z")), None);
     }
 
     #[test]

@@ -61,6 +61,13 @@ pub const TACHES: &[Tache] = &[
         frequence: 86_400,
     },
     Tache {
+        code: "recurrences",
+        libelle: "Factures recurrentes dues",
+        description: "Emet les brouillons des series dont l'echeance est tombee, une seule fois par echeance.",
+        commande: "cordeau tache recurrences",
+        frequence: 86_400,
+    },
+    Tache {
         code: "purge",
         libelle: "Purge des sessions et du journal",
         description: "Retire les lignes perimees des tables techniques.",
@@ -198,7 +205,7 @@ mod tests {
 
     #[test]
     fn les_trois_taches_sont_decrites() {
-        assert_eq!(TACHES.len(), 4);
+        assert_eq!(TACHES.len(), 5);
         for t in TACHES {
             assert!(!t.libelle.trim().is_empty(), "{}", t.code);
             assert!(!t.description.trim().is_empty(), "{}", t.code);
