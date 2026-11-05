@@ -251,6 +251,11 @@ pub fn flash(message: &str) -> Markup {
     html! { p .flash { (message) } }
 }
 
+/// Un message d'echec, dans le style rouge de la coque.
+pub fn echec(message: &str) -> Markup {
+    html! { p .erreur { (message) } }
+}
+
 pub fn pastille(statut: i16, paye: i16, en_retard: bool) -> Markup {
     if en_retard {
         html! { span .pastille.p-retard { "en retard" } }
