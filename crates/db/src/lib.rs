@@ -57,6 +57,7 @@ pub mod sepa;
 pub mod situation;
 pub mod stats;
 pub mod stock;
+pub mod tableau;
 pub mod tables;
 pub mod ticket;
 pub mod tva_npr;

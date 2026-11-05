@@ -864,102 +864,178 @@ pub fn message(ok: Option<&String>) -> Markup {
 
 async fn accueil(State(app): State<App>) -> Res<Markup> {
     let p = &app.pool;
+    let entity = entite::courante();
     let jour = aujourdhui(p)?;
 
-    let factures = db::invoice::list(p, entite::courante(), 500, 0)?;
-    let devis_liste = db::proposal::list(p, entite::courante(), 500, 0)?;
+    let chiffres = db::tableau::chiffres(p, entity)?;
+    let retard = db::tableau::en_retard(p, entity, &jour, 8)?;
+    let sans_reponse = db::tableau::devis_sans_reponse(p, entity, &jour, 15, 6)?;
+    let stock = db::tableau::stock_bas(p, entity)?;
+    let total_retard = db::tableau::total_retard(&retard);
 
-    let mut facture_total = Decimal::ZERO;
-    let mut encaisse = Decimal::ZERO;
-    let mut retard = Decimal::ZERO;
-    let mut nb_retard = 0;
-    for f in &factures {
-        if f.fk_statut < db::invoice::STATUT_VALIDEE {
-            continue;
-        }
-        let solde = db::payment::balance(p, entite::courante(), f.rowid)?;
-        facture_total += f.total_ttc.unwrap_or_default();
-        encaisse += solde.regle;
-        if en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour) {
-            retard += solde.reste;
-            nb_retard += 1;
-        }
-    }
-    let reste = facture_total - encaisse;
-
-    let recentes: Vec<_> = factures.iter().take(6).collect();
-    let devis_en_cours: Vec<_> = devis_liste
+    let factures = db::invoice::list(p, entity, 6, 0)?;
+    let recentes: Vec<_> = factures
         .iter()
-        .filter(|d| d.fk_statut == 0)
-        .take(5)
+        .filter(|f| f.fk_statut >= db::invoice::STATUT_VALIDEE)
         .collect();
+
+    // Le nombre d'alertes en tete : c'est ce qui dit s'il y a quelque chose a
+    // faire avant de regarder autre chose.
+    let alertes = retard.len() + sans_reponse.len() + stock.len();
 
     Ok(ui::page(
         "accueil",
         "",
         "Tableau de bord",
         html! {
-            h1 {(crate::langue::tr("Tableau de bord")) }
-            p .sous-titre { "Exercice en cours — " (jour) }
+            h1 { (crate::langue::tr("Tableau de bord")) }
+            p .sous-titre { (crate::langue::tr("Exercice en cours")) " — " (jour.clone()) }
 
+            @if alertes > 0 {
+                h2 { (crate::langue::tr("À traiter aujourd'hui")) }
+                div .cartes {
+                    (ui::carte(
+                        "Factures en retard",
+                        &retard.len().to_string(),
+                        Some(&ui::euros(total_retard)),
+                        !retard.is_empty(),
+                    ))
+                    (ui::carte(
+                        "Devis sans réponse",
+                        &sans_reponse.len().to_string(),
+                        Some("depuis plus de 15 jours"),
+                        !sans_reponse.is_empty(),
+                    ))
+                    (ui::carte(
+                        "Stock sous le seuil",
+                        &stock.len().to_string(),
+                        Some("produits à réapprovisionner"),
+                        !stock.is_empty(),
+                    ))
+                }
+            } @else {
+                (ui::flash("Rien en attente : aucune facture en retard, aucun devis oublié, aucun stock bas."))
+            }
+
+            h2 { (crate::langue::tr("Chiffres")) }
             div .cartes {
-                (ui::carte("Facturé", &ui::euros(facture_total), Some(&pluriel(factures.iter().filter(|f| f.fk_statut >= 1).count(), "facture", "factures")), false))
-                (ui::carte("Encaissé", &ui::euros(encaisse), None, false))
-                (ui::carte("Reste à encaisser", &ui::euros(reste), None, false))
                 (ui::carte(
-                    "En retard",
-                    &ui::euros(retard),
-                    Some(&pluriel(nb_retard, "facture", "factures")),
-                    nb_retard > 0,
+                    "Facturé",
+                    &ui::euros(chiffres.facture),
+                    Some(&pluriel(chiffres.nb_factures as usize, "facture validée", "factures validées")),
+                    false,
+                ))
+                (ui::carte("Encaissé", &ui::euros(chiffres.encaisse), None, false))
+                (ui::carte(
+                    "Reste à encaisser",
+                    &ui::euros(chiffres.reste),
+                    Some("encours client"),
+                    chiffres.reste > Decimal::ZERO,
                 ))
             }
 
-            h2 {(crate::langue::tr("Accès rapides")) }
-            div .cartes {
-                @for m in crate::menu::modules() {
-                    div .carte {
-                        div .libelle { (m.libelle) }
-                        @for e in m.entrees {
-                            a href=(e.lien) style="display:block;margin-top:4px" { (e.libelle) }
+            @if !retard.is_empty() {
+                h2 { (crate::langue::tr("Factures en retard")) }
+                table {
+                    thead {
+                        tr {
+                            th { (crate::langue::tr("Réf.")) }
+                            th { (crate::langue::tr("Client")) }
+                            th { (crate::langue::tr("Échéance")) }
+                            th .num { (crate::langue::tr("Retard")) }
+                            th .num { (crate::langue::tr("Reste dû")) }
                         }
                     }
-                }
-            }
-
-            h2 {(crate::langue::tr("Dernières factures")) }
-            @if recentes.is_empty() {
-                (ui::vide("Aucune facture pour l'instant.", Some(("/devis", "Partir d'un devis"))))
-            } @else {
-                table {
-                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th {(crate::langue::tr("Échéance")) } th .num {(crate::langue::tr("TTC")) } th .num {(crate::langue::tr("Reste dû")) } th {(crate::langue::tr("Statut")) } } }
                     tbody {
-                        @for f in &recentes {
+                        @for f in &retard {
                             tr {
-                                td { a .ref href={ "/factures/" (f.rowid) } { (f.ref_) } }
-                                td { (nom_tiers(p, f.fk_soc)?) }
-                                td { (f.date_lim_reglement.clone().unwrap_or_default()) }
-                                td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
-                                td .num { (ui::euros(db::payment::balance(p, entite::courante(), f.rowid)?.reste)) }
-                                td { (ui::pastille(f.fk_statut, f.paye, en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour))) }
+                                td .ref { a href={ "/factures/" (f.rowid) } { (f.reference.clone()) } }
+                                td { (f.tiers.clone()) }
+                                td .ref { (f.echeance.clone()) }
+                                td .num {
+                                    span .pastille.p-retard { (f.jours.to_string()) " j" }
+                                }
+                                td .num { (ui::euros(f.reste)) }
                             }
                         }
                     }
                 }
             }
 
-            h2 {(crate::langue::tr("Devis en attente")) }
-            @if devis_en_cours.is_empty() {
-                (ui::vide("Aucun devis en attente.", None))
+            @if !sans_reponse.is_empty() {
+                h2 { (crate::langue::tr("Devis sans réponse")) }
+                table {
+                    thead {
+                        tr {
+                            th { (crate::langue::tr("Réf.")) }
+                            th { (crate::langue::tr("Client")) }
+                            th { (crate::langue::tr("Envoyé le")) }
+                            th .num { (crate::langue::tr("Depuis")) }
+                            th .num { (crate::langue::tr("TTC")) }
+                        }
+                    }
+                    tbody {
+                        @for d in &sans_reponse {
+                            tr {
+                                td .ref { a href={ "/devis/" (d.rowid) } { (d.reference.clone()) } }
+                                td { (d.tiers.clone()) }
+                                td .ref { (d.date.clone()) }
+                                td .num { (d.jours.to_string()) " j" }
+                                td .num { (ui::euros(d.montant)) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            @if !stock.is_empty() {
+                h2 { (crate::langue::tr("Stock sous le seuil")) }
+                table {
+                    thead {
+                        tr {
+                            th { (crate::langue::tr("Réf.")) }
+                            th { (crate::langue::tr("Produit")) }
+                            th .num { (crate::langue::tr("Stock")) }
+                            th .num { (crate::langue::tr("Seuil")) }
+                        }
+                    }
+                    tbody {
+                        @for s in &stock {
+                            tr {
+                                td .ref { (s.reference.clone()) }
+                                td { (s.libelle.clone()) }
+                                td .num { (s.stock.normalize().to_string()) }
+                                td .num { (s.seuil.normalize().to_string()) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            h2 { (crate::langue::tr("Dernières factures")) }
+            @if recentes.is_empty() {
+                (ui::vide("Aucune facture pour l'instant.", Some(("/devis", "Partir d'un devis"))))
             } @else {
                 table {
-                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th .num {(crate::langue::tr("TTC")) } th { "" } } }
+                    thead {
+                        tr {
+                            th { (crate::langue::tr("Réf.")) }
+                            th { (crate::langue::tr("Client")) }
+                            th { (crate::langue::tr("Échéance")) }
+                            th .num { (crate::langue::tr("TTC")) }
+                            th .num { (crate::langue::tr("Reste dû")) }
+                            th { (crate::langue::tr("Statut")) }
+                        }
+                    }
                     tbody {
-                        @for d in &devis_en_cours {
+                        @for f in &recentes {
                             tr {
-                                td { a .ref href={ "/devis/" (d.rowid) } { (d.ref_) } }
-                                td { (nom_tiers(p, d.fk_soc)?) }
-                                td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
-                                td { a .bouton.petit.secondaire href={ "/devis/" (d.rowid) } {(crate::langue::tr("Ouvrir")) } }
+                                td .ref { a href={ "/factures/" (f.rowid) } { (f.ref_.clone()) } }
+                                td { (nom_tiers(p, f.fk_soc)?) }
+                                td { (f.date_lim_reglement.clone().unwrap_or_default()) }
+                                td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
+                                td .num { (ui::euros(db::payment::balance(p, entity, f.rowid)?.reste)) }
+                                td { (ui::pastille(f.fk_statut, f.paye, en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour))) }
                             }
                         }
                     }
