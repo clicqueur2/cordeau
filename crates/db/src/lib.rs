@@ -50,6 +50,7 @@ pub mod pos_ventes;
 pub mod product;
 pub mod projet;
 pub mod proposal;
+pub mod rapprochement;
 pub mod recur_generation;
 pub mod recurrence;
 pub mod reglement;

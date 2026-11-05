@@ -132,6 +132,11 @@ pub const MODULES: &[Module] = &[
                 "Rapprochement bancaire",
                 "/banques#rapprochement",
             ),
+            e(
+                "rapprochement-bancaire",
+                "Pointer un encaissement",
+                "/banques/rapprochement",
+            ),
             e("virements", "Virements", "/liste/PaymentByBankTransfer"),
             e("prelevements", "Prélèvements", "/liste/Prelevement"),
             e("prets", "Prêts", "/liste/Loan"),

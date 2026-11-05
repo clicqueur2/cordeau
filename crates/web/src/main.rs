@@ -26,6 +26,7 @@ mod mrp_ecran;
 mod pages;
 mod plugin;
 mod pos_ecran;
+mod rapprochement_ecran;
 mod recur_ecran;
 mod sepa_ecran;
 mod stats_ecran;
@@ -176,6 +177,11 @@ async fn main() {
         .route("/tiers", get(tiers))
         .route("/tiers/:id", get(tiers_fiche))
         .route("/produits", get(produits))
+        .route("/banques/rapprochement", get(rapprochement_ecran::page))
+        .route(
+            "/banques/rapprochement/pointer",
+            post(rapprochement_ecran::pointer),
+        )
         .route("/caisse", get(pos_ecran::page))
         .route("/caisse/ajouter", post(pos_ecran::ajouter))
         .route("/caisse/vider", post(pos_ecran::vider))
