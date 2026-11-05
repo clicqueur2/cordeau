@@ -20,6 +20,7 @@ pub mod cloture;
 pub mod commande;
 pub mod company;
 pub mod compta;
+pub mod constantes;
 pub mod contact;
 pub mod contrat;
 pub mod dict;
