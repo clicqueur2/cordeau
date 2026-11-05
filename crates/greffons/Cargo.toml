@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "greffons"
 description = "Greffons charges a chaud par ABI C"
 version.workspace = true

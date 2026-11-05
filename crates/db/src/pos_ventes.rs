@@ -1,4 +1,4 @@
-﻿//! Ventes de caisse : de la memoire a la base.
+//! Ventes de caisse : de la memoire a la base.
 //!
 //! [`pos::Panier`] vit en memoire : une vente disparait avec le processus, et
 //! rien ne permet de la retrouver, de l'imprimer ni de la comptabiliser. Ce

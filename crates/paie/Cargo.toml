@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "paie"
 description = "Moteur paie du noyau Dolibarr en Rust"
 version.workspace = true

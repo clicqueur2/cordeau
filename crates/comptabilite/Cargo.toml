@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "comptabilite"
 description = "Moteur comptabilite du noyau Dolibarr en Rust"
 version.workspace = true

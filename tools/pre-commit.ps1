@@ -1,4 +1,4 @@
-# Vérification avant commit (appelée par .git/hooks/pre-commit).
+﻿# Vérification avant commit (appelée par .git/hooks/pre-commit).
 #
 #   .\tools\pre-commit.ps1            # formatage + clippy + tests (base MySQL locale)
 #   .\tools\pre-commit.ps1 -Rapide    # formatage + clippy seulement

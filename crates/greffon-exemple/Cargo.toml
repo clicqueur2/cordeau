@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "greffon-exemple"
 description = "Greffon d'exemple pour la frontiere C ABI"
 version.workspace = true

@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "recurrence"
 description = "Moteur recurrence du noyau Dolibarr en Rust"
 version.workspace = true

@@ -1,4 +1,4 @@
-# Installe une base de test Dolibarr 24.0.1 pour le noyau Rust.
+﻿# Installe une base de test Dolibarr 24.0.1 pour le noyau Rust.
 #
 #   .\installer.ps1 -Base dolibarr_testus -Utilisateur root -MotDePasse root
 #

@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "pos"
 description = "Moteur pos du noyau Dolibarr en Rust"
 version.workspace = true

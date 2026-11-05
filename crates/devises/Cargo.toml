@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "devises"
 description = "Moteur devises du noyau Dolibarr en Rust"
 version.workspace = true
