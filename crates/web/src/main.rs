@@ -17,6 +17,7 @@ mod entite;
 mod expedition_ecran;
 mod extrafields_ecran;
 pub(crate) mod icones;
+mod immobilisation_ecran;
 mod interv_ecran;
 mod journal_erreurs;
 mod journaux_ecran;
@@ -44,6 +45,7 @@ mod sepa_ecran;
 mod stats_ecran;
 mod traduction_ecran;
 pub(crate) mod ui;
+mod utilisateur;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -321,6 +323,15 @@ async fn main() {
         .route("/prets", get(pret_ecran::page).post(pret_ecran::creer))
         .route("/prets/:id", get(pret_ecran::detail))
         .route("/prets/:id/regler", post(pret_ecran::regler))
+        .route(
+            "/immobilisations",
+            get(immobilisation_ecran::page).post(immobilisation_ecran::creer),
+        )
+        .route("/immobilisations/:id", get(immobilisation_ecran::detail))
+        .route(
+            "/immobilisations/:id/ceder",
+            post(immobilisation_ecran::ceder),
+        )
         .route("/conges", get(conges_ecran::page).post(conges_ecran::creer))
         .route("/conges/:id/valider", post(conges_ecran::valider))
         .route("/conges/:id/approuver", post(conges_ecran::approuver))
@@ -808,9 +819,15 @@ async fn garde(
 
     let mut req = req;
     req.extensions_mut().insert(courant.clone());
-    // Toute la requete travaille dans l'entite de la session.
+    // Toute la requete travaille dans l'entite de la session, et dans le
+    // contexte de la personne connectee : un ecran qui ecrit une piece doit
+    // pouvoir dire qui l'a creee sans le deviner.
     let entite_courante = entite_de_session(&app, req.headers()).unwrap_or(1);
-    entite::avec(entite_courante, next.run(req)).await
+    entite::avec(
+        entite_courante,
+        utilisateur::avec(courant.login.clone(), next.run(req)),
+    )
+    .await
 }
 
 /// Entite portee par le cookie de session, 1 si inconnue.
