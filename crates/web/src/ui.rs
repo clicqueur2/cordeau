@@ -177,12 +177,12 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
             head {
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1";
-                title { (titre) " — Pierre Angulaire" }
+                title { (titre) " — " (app::PRODUIT) }
                 style { (CSS) }
             }
             body {
                 header {
-                    span .marque { "Pierre " span {(crate::langue::tr("Angulaire")) } }
+                    span .marque { (app::PRODUIT) }
                     nav {
                         @for m in crate::menu::modules().into_iter().filter(|m| crate::menu::depuis_base() || crate::menu_actif::est_actif(m.code) || crate::manifeste::est_declare(m.code)) {
                             a class=(if m.cle == module.cle { "actif" } else { "" })

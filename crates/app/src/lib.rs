@@ -9,6 +9,20 @@ use std::error::Error;
 use db::Pool;
 use rust_decimal::Decimal;
 
+/// Le nom du produit, **defini une seule fois**.
+///
+/// Tout ce qui l'affiche — le titre des pages, la banniere du binaire — lit
+/// cette constante. Changer le nom du logiciel, c'est changer cette ligne ; les
+/// documents se renomment avec `tools/renommer.ps1`.
+///
+/// A ne pas confondre avec la **societe** : le produit s'appelle Cordeau, la
+/// societe qui l'edite s'appelle Pierre Angulaire, et c'est la base qui le dit
+/// (`llx_societe`). Deux choses, deux sources.
+pub const PRODUIT: &str = "Cordeau";
+
+/// La mention affichee sous le nom : ce que le produit est, en trois mots.
+pub const SOUS_TITRE: &str = "gestion et facturation";
+
 pub fn fmt_dec(d: Option<Decimal>) -> String {
     d.map(|x| x.normalize().to_string()).unwrap_or_default()
 }

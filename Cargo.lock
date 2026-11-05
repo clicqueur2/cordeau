@@ -620,6 +620,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cordeau"
+version = "0.1.0"
+dependencies = [
+ "annuaire",
+ "app",
+ "db",
+ "legal",
+ "money",
+ "pdf",
+ "rust_decimal",
+ "schema",
+ "serde_json",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -827,21 +842,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
-]
-
-[[package]]
-name = "dolibarr-rs"
-version = "0.1.0"
-dependencies = [
- "annuaire",
- "app",
- "db",
- "legal",
- "money",
- "pdf",
- "rust_decimal",
- "schema",
- "serde_json",
 ]
 
 [[package]]

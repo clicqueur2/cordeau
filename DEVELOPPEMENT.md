@@ -1,4 +1,4 @@
-# Développer sur dolibarr-rs
+# Développer sur cordeau
 
 Ce document dit comment le code est organisé, quelles règles ne se négocient pas,
 et comment ajouter un écran ou un module sans rien casser.
@@ -170,14 +170,14 @@ Contournement assumé et tracé : `git commit --no-verify`.
 
 **Une seule suite de tests à la fois.** Les tests écrivent dans la vraie base :
 deux exécutions simultanées se marchent dessus (références de facture, tiers,
-identifiants). Le hook prend un verrou (`%TEMP%\dolibarr-rs-tests.lock`) et
+identifiants). Le hook prend un verrou (`%TEMP%\cordeau-tests.lock`) et
 attend son tour ; ne pas lancer `cargo test` à la main pendant qu'un hook tourne.
 
 À la main :
 
 ```powershell
 $env:DOLIBARR_DSN="mysql://root:root@127.0.0.1:3307/dolibarr"
-$env:CARGO_TARGET_DIR="C:/Users/Maxime/.cargo-target/dolibarr-rs"
+$env:CARGO_TARGET_DIR="C:/Users/Maxime/.cargo-target/cordeau"
 cargo test --workspace
 ```
 
@@ -288,7 +288,7 @@ C:/Users/Maxime/.mariadb/server/bin/mysqld.exe `
   --defaults-file=C:/Users/Maxime/.mariadb/my.ini --port=3307 --console
 
 # 2. vérifier que la base est bien celle qu'on attend
-cargo run -q -p dolibarr-rs -- schema verify --dsn mysql://root:root@127.0.0.1:3307/dolibarr
+cargo run -q -p cordeau -- schema verify --dsn mysql://root:root@127.0.0.1:3307/dolibarr
 
 # 3. tests
 cargo test --workspace
@@ -306,10 +306,10 @@ tout ce que tu écriras sera faux.
 
 ## API REST et serveur MCP
 
-### API REST (`dolibarr-web`, prefixe `/api`)
+### API REST (`cordeau-web`, prefixe `/api`)
 
 Authentification par en-tete **`DOLAPIKEY`**. La cle vient de la variable
-d'environnement `DOLIBARR_API_KEY` (defaut : `dolibarr-rs`). L'API ne passe
+d'environnement `DOLIBARR_API_KEY` (defaut : `cordeau`). L'API ne passe
 **pas** par la session du navigateur : le middleware de session est applique
 aux ecrans seulement.
 
@@ -338,7 +338,7 @@ curl -H "DOLAPIKEY: cle" -H "Content-Type: application/json" \
 
 Les montants sortent en **chaines decimales** (`"4109.6"`), jamais en flottants.
 
-### Serveur MCP (`crates/mcp`, binaire `dolibarr-mcp`)
+### Serveur MCP (`crates/mcp`, binaire `cordeau-mcp`)
 
 JSON-RPC 2.0 sur stdin/stdout — 13 outils :
 
@@ -356,7 +356,7 @@ Declaration dans opencode (`~/.config/opencode/opencode.json`) :
   "mcp": {
     "dolibarr": {
       "type": "local",
-      "command": ["C:/Users/Maxime/.cargo-target/dolibarr-rs/debug/dolibarr-mcp.exe"],
+      "command": ["C:/Users/Maxime/.cargo-target/cordeau/debug/cordeau-mcp.exe"],
       "environment": { "DOLIBARR_DSN": "mysql://root:root@127.0.0.1:3307/dolibarr" },
       "enabled": true
     }
@@ -367,5 +367,5 @@ Declaration dans opencode (`~/.config/opencode/opencode.json`) :
 Test rapide sans client :
 
 ```powershell
-'{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | & dolibarr-mcp.exe
+'{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | & cordeau-mcp.exe
 ```

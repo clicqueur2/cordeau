@@ -1,4 +1,4 @@
-﻿# Vérification complète de dolibarr-rs.
+﻿# Vérification complète de cordeau.
 #
 #   .\tools\verifier.ps1                 # tout, sauf le réseau
 #   .\tools\verifier.ps1 -Reseau         # + les appels aux API de l'État
@@ -18,7 +18,7 @@ $racine = Split-Path -Parent $PSScriptRoot
 Set-Location $racine
 
 $env:DOLIBARR_DSN = $Base
-$env:CARGO_TARGET_DIR = "C:/Users/Maxime/.cargo-target/dolibarr-rs"
+$env:CARGO_TARGET_DIR = "C:/Users/Maxime/.cargo-target/cordeau"
 if ($Reseau) { $env:DOLIBARR_ANNUAIRE_TEST = "1" }
 
 $echecs = @()
@@ -61,33 +61,33 @@ $sortie = & cargo test --workspace -- --test-threads=1 2>&1 | Out-String -Stream
 
 # --- 4. Conformité du schéma ------------------------------------------------
 Etape "Schéma (empreinte Dolibarr 24.0.1)" {
-    cargo run -q -p dolibarr-rs -- schema verify --dsn $Base | Select-Object -Last 1
+    cargo run -q -p cordeau -- schema verify --dsn $Base | Select-Object -Last 1
     if ($LASTEXITCODE -ne 0) { throw "schéma incompatible" }
 }
 
 # --- 5. Chaîne de bout en bout (système) ------------------------------------
 Etape "Chaîne métier (devis → facture → règlement → PDF)" {
-    $d = cargo run -q -p dolibarr-rs -- party add --nom "Verif Bout-en-Bout" 2>&1
+    $d = cargo run -q -p cordeau -- party add --nom "Verif Bout-en-Bout" 2>&1
     $soc = [regex]::Match($d, 'rowid=(\d+)').Groups[1].Value
-    $p = cargo run -q -p dolibarr-rs -- proposal add --soc $soc --ligne "1|1000|20|Verification" 2>&1
+    $p = cargo run -q -p cordeau -- proposal add --soc $soc --ligne "1|1000|20|Verification" 2>&1
     $dev = [regex]::Match($p, 'rowid=(\d+)').Groups[1].Value
     # Un devis se valide puis se cloture (statut 2 = signe) avant facturation,
     # comme dans Dolibarr : c'est la lecon des extractions du 4 novembre.
-    cargo run -q -p dolibarr-rs -- proposal validate --id $dev 2>&1 | Out-Null
-    cargo run -q -p dolibarr-rs -- proposal close --id $dev --statut 2 2>&1 | Out-Null
-    $f = cargo run -q -p dolibarr-rs -- invoice from-proposal --devis $dev 2>&1
+    cargo run -q -p cordeau -- proposal validate --id $dev 2>&1 | Out-Null
+    cargo run -q -p cordeau -- proposal close --id $dev --statut 2 2>&1 | Out-Null
+    $f = cargo run -q -p cordeau -- invoice from-proposal --devis $dev 2>&1
     $fac = [regex]::Match($f, 'rowid=(\d+)').Groups[1].Value
     Write-Host "    tiers=$soc devis=$dev facture=$fac"
-    cargo run -q -p dolibarr-rs -- invoice validate --id $fac | Out-Null
-    cargo run -q -p dolibarr-rs -- payment add --facture $fac --montant 1200 --mode virement 2>&1 | Select-Object -First 1 | ForEach-Object { Write-Host "    $_" }
-    cargo run -q -p dolibarr-rs -- invoice pdf --id $fac --out "$env:TEMP\verif.pdf" 2>&1 | ForEach-Object { Write-Host "    $_" }
+    cargo run -q -p cordeau -- invoice validate --id $fac | Out-Null
+    cargo run -q -p cordeau -- payment add --facture $fac --montant 1200 --mode virement 2>&1 | Select-Object -First 1 | ForEach-Object { Write-Host "    $_" }
+    cargo run -q -p cordeau -- invoice pdf --id $fac --out "$env:TEMP\verif.pdf" 2>&1 | ForEach-Object { Write-Host "    $_" }
     $taille = (Get-Item "$env:TEMP\verif.pdf").Length
     Write-Host "    PDF : $taille octets"
     if ($taille -lt 2000) { throw "PDF suspect (trop petit)" }
     # ménage
-    cargo run -q -p dolibarr-rs -- invoice delete --id $fac | Out-Null
-    cargo run -q -p dolibarr-rs -- proposal delete --id $dev | Out-Null
-    cargo run -q -p dolibarr-rs -- party delete --id $soc | Out-Null
+    cargo run -q -p cordeau -- invoice delete --id $fac | Out-Null
+    cargo run -q -p cordeau -- proposal delete --id $dev | Out-Null
+    cargo run -q -p cordeau -- party delete --id $soc | Out-Null
     Remove-Item "$env:TEMP\verif.pdf" -ErrorAction SilentlyContinue
 }
 

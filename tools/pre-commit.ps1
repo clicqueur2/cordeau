@@ -19,7 +19,7 @@ $ErrorActionPreference = "Continue"
 $racine = Split-Path -Parent $PSScriptRoot
 Set-Location $racine
 
-$env:CARGO_TARGET_DIR = "C:/Users/Maxime/.cargo-target/dolibarr-rs"
+$env:CARGO_TARGET_DIR = "C:/Users/Maxime/.cargo-target/cordeau"
 $env:DOLIBARR_DSN = $Base
 
 $echecs = @()
@@ -49,7 +49,7 @@ function BaseJoignable($dsn) {
     } catch { return $false }
 }
 
-Write-Host "Verification avant commit (dolibarr-rs)" -ForegroundColor Cyan
+Write-Host "Verification avant commit (cordeau)" -ForegroundColor Cyan
 
 Etape "formatage (cargo fmt)" {
     cargo fmt --all -- --check
@@ -68,7 +68,7 @@ if ($Complet) {
         Etape "tests (cargo test --workspace)" {
             # Les tests ecrivent dans la vraie base : deux suites en parallele se
             # marchent dessus (references, identifiants, tiers). On serialise.
-            $verrou = Join-Path $env:TEMP "dolibarr-rs-tests.lock"
+            $verrou = Join-Path $env:TEMP "cordeau-tests.lock"
             $flux = $null
             $attente = [Diagnostics.Stopwatch]::StartNew()
             while (-not $flux) {

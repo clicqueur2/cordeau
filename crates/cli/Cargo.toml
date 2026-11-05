@@ -1,12 +1,12 @@
 [package]
-name = "dolibarr-rs"
+name = "cordeau"
 description = "Noyau Dolibarr en Rust, compatible schema et modules"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "dolibarr-rs"
+name = "cordeau"
 path = "src/main.rs"
 
 [dependencies]
