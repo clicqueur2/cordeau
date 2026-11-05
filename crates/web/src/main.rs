@@ -33,6 +33,7 @@ mod plugin;
 mod pos_ecran;
 mod rapprochement_ecran;
 mod recur_ecran;
+mod securite_ecran;
 mod sepa_ecran;
 mod stats_ecran;
 pub(crate) mod ui;
@@ -341,6 +342,10 @@ async fn main() {
         .route("/recurrences", get(recur_ecran::page))
         .route("/recurrences/generer", post(recur_ecran::generer))
         .route("/parametres/greffons", get(pages::greffons_page))
+        .route(
+            "/parametres/securite",
+            get(securite_ecran::page).post(securite_ecran::enregistrer),
+        )
         .route("/parametres/journaux", get(journaux_ecran::page))
         .route(
             "/parametres/notifications",
@@ -465,7 +470,13 @@ async fn main() {
             "/tiers/:id/modifier",
             get(tiers_modifier).post(tiers_enregistrer),
         )
-        .layer(axum::middleware::from_fn_with_state(app.clone(), garde));
+        .layer(axum::middleware::from_fn_with_state(app.clone(), garde))
+        // Posé en dernier, donc en couche extérieure : les en-têtes partent
+        // aussi avec les redirections vers la connexion.
+        .layer(axum::middleware::from_fn_with_state(
+            app.clone(),
+            entetes_securite,
+        ));
 
     // L'API a sa propre authentification (en-tete DOLAPIKEY) : elle ne passe
     // pas par la session du navigateur.
@@ -552,6 +563,89 @@ async fn changer_entite(
     // La barre de menus et les modules dependent de l'entite.
     let _ = menu_actif::charger(&app.pool, entity);
     Ok(Redirect::to("/"))
+}
+
+/// La politique de sécurité, relue au plus toutes les trente secondes.
+///
+/// Une base lue à chaque requête ferait une requête SQL par image et par page.
+/// Une valeur figée au démarrage ignorerait un changement fait depuis
+/// l'interface PHP de Dolibarr, qui écrit dans la même table. Trente secondes
+/// est le compromis : un réglage prend effet sans redémarrer le serveur.
+fn politique(app: &App, req: &axum::extract::Request) -> db::securite::Config {
+    use std::time::{Duration, Instant};
+
+    // L'entite vient de la session, pas de `entite::courante()` : ce middleware
+    // est pose en couche *exterieure* a `garde`, donc avant que le contexte
+    // d'entite ne soit etabli. Lire `courante()` ici renverrait toujours 1, et
+    // une politique reglee sur l'entite 7 resterait invisible.
+    let entity = lire_cookie(req.headers())
+        .and_then(|j| app.sessions.lock().unwrap().get(&j).map(|s| s.entity))
+        .unwrap_or(1);
+
+    let mut garde = cache_politique().lock().unwrap();
+    if let Some((quand, cache_entity, config)) = garde.as_ref() {
+        if *cache_entity == entity && quand.elapsed() < Duration::from_secs(30) {
+            return config.clone();
+        }
+    }
+    let config = db::securite::config(&app.pool, entity).unwrap_or_default();
+    *garde = Some((Instant::now(), entity, config.clone()));
+    config
+}
+
+/// Le cache lui-même, pour pouvoir l'oublier.
+fn cache_politique(
+) -> &'static std::sync::Mutex<Option<(std::time::Instant, i64, db::securite::Config)>> {
+    use std::sync::{Mutex, OnceLock};
+    static CACHE: OnceLock<Mutex<Option<(std::time::Instant, i64, db::securite::Config)>>> =
+        OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(None))
+}
+
+/// Oublie la politique en cache.
+///
+/// Appelé après un enregistrement depuis l'écran : sans cela, un réglage
+/// prendrait effet jusqu'à trente secondes plus tard, et l'utilisateur
+/// conclurait que le formulaire ne marche pas.
+pub(crate) fn oublier_politique() {
+    *cache_politique().lock().unwrap() = None;
+}
+
+/// L'adresse de l'instance, pour l'en-tête CORS.
+///
+/// Déduite de l'en-tête `Host` : c'est la seule source qui ne se trompe pas
+/// derrière un reverse proxy.
+fn origine(req: &axum::extract::Request) -> String {
+    req.headers()
+        .get(axum::http::header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .map(|h| format!("http://{h}"))
+        .unwrap_or_else(|| "http://localhost".to_string())
+}
+
+/// Les en-têtes de sécurité, sur chaque réponse.
+///
+/// Posé en couche extérieure, donc il couvre aussi la page de connexion et les
+/// redirections. Une requête sans session n'a pas d'entité : elle reçoit la
+/// politique de l'entité 1, qui est celle d'une installation neuve.
+async fn entetes_securite(
+    State(app): State<App>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let origine = origine(&req);
+    let config = politique(&app, &req);
+    let mut reponse = next.run(req).await;
+    let entetes = reponse.headers_mut();
+    for (nom, valeur) in db::securite::entetes(&config, &origine) {
+        if let (Ok(nom), Ok(valeur)) = (
+            axum::http::HeaderName::try_from(nom),
+            axum::http::HeaderValue::try_from(valeur),
+        ) {
+            entetes.insert(nom, valeur);
+        }
+    }
+    reponse
 }
 
 async fn garde(
