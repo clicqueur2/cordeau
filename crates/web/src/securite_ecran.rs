@@ -148,7 +148,7 @@ pub async fn enregistrer(
         .map_err(|e| Erreur(e.to_string()))?;
     // Le cache de la politique est oublie : sinon les en-tetes changeraient
     // jusqu'a trente secondes plus tard, et l'ecran semblerait sans effet.
-    crate::oublier_politique();
+    crate::garde::oublier_politique();
 
     Ok(Redirect::to("/parametres/securite"))
 }

@@ -251,8 +251,8 @@ pub async fn cloturer(
                 "cloture exercice {exercice} du {debut} au {fin} : resultat {}",
                 apercu.resultat.normalize()
             ),
-            ip: &crate::ip_client(&headers),
-            agent: crate::agent_client(&headers).as_deref(),
+            ip: &crate::auth::ip_client(&headers),
+            agent: crate::auth::agent_client(&headers).as_deref(),
             fk_object: None,
             methode: None,
         },
