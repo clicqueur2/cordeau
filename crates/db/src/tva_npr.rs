@@ -1,4 +1,4 @@
-﻿//! TVA non deductible (`tva_npr`) : saisie d'un taux suffixe d'une etoile.
+//! TVA non deductible (`tva_npr`) : saisie d'un taux suffixe d'une etoile.
 //!
 //! Dolibarr n'a pas de colonne « taux non deductible » : le drapeau vit dans
 //! `llx_*det.info_bits`, bit 0, et le taux stocke (`tva_tx`) reste le taux nu.

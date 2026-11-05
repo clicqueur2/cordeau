@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "i18n"
 description = "Moteur i18n du noyau Dolibarr en Rust"
 version.workspace = true

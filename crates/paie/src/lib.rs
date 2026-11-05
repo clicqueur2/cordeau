@@ -1,4 +1,4 @@
-﻿//! Moteur paie : application d'un bareme de cotisations a un brut.
+//! Moteur paie : application d'un bareme de cotisations a un brut.
 //!
 //! # Ce crate ne contient aucun droit social
 //!

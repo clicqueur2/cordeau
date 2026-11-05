@@ -1,4 +1,4 @@
-﻿//! Chargement des vrais fichiers de traduction de Dolibarr.
+//! Chargement des vrais fichiers de traduction de Dolibarr.
 //!
 //! Dolibarr range ses traductions dans `htdocs/langs/<langue>/*.lang`, un
 //! dossier par langue (`fr_FR`, `en_US`, `es_ES`...) et un fichier par module

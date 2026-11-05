@@ -1,4 +1,4 @@
-# Renomme le produit partout, en une commande.
+﻿# Renomme le produit partout, en une commande.
 #
 # Le nom du logiciel est defini a deux endroits seulement :
 #   1. `crates/app/src/lib.rs`  -> const PRODUIT (l'interface)

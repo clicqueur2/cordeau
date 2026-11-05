@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "facturx"
 description = "Factur-X : XML CII conforme EN 16931"
 version.workspace = true

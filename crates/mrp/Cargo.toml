@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "mrp"
 description = "Explosion des nomenclatures (BOM) du noyau"
 version.workspace = true

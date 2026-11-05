@@ -1,4 +1,4 @@
-# Installe les hooks git de ce dépôt (pre-commit + pre-push).
+﻿# Installe les hooks git de ce dépôt (pre-commit + pre-push).
 #
 #   .\tools\installer-hooks.ps1
 #
