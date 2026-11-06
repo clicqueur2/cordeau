@@ -302,12 +302,39 @@ pub fn get(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Salaire>, Box<
 ///
 /// Les deux premières colonnes de date écrites sont `datep` et `datev` ; la
 /// période de paie (`datesp`/`dateep`) reste vide, faute de la connaître.
+/// Le moyen de paiement par defaut : le virement s'il existe, sinon le premier
+/// actif, sinon le premier tout court.
+///
+/// La colonne est obligatoire et porte une cle etrangere : il faut **un
+/// identifiant qui existe**. Renvoyer 0 ferait echouer la base (1452), ce qui
+/// est pire qu'un defaut explicite — au moins celui-ci se corrige au versement.
+fn moyen_par_defaut(tx: &mut mysql::Transaction<'_>) -> Result<i64, Box<dyn Error>> {
+    let virement: Option<i64> = tx.exec_first(
+        "SELECT id FROM llx_c_paiement WHERE code = 'VIR' ORDER BY id LIMIT 1",
+        (),
+    )?;
+    if let Some(id) = virement {
+        return Ok(id);
+    }
+    let actif: Option<i64> = tx.exec_first(
+        "SELECT id FROM llx_c_paiement WHERE active = 1 ORDER BY position, id LIMIT 1",
+        (),
+    )?;
+    let premier: Option<i64> =
+        tx.exec_first("SELECT id FROM llx_c_paiement ORDER BY id LIMIT 1", ())?;
+    premier
+        .or(actif)
+        .ok_or_else(|| "aucun moyen de paiement dans llx_c_paiement".into())
+}
+
 pub fn creer(pool: &Pool, entity: i64, new: &NouveauSalaire) -> Result<i64, Box<dyn Error>> {
     let libelle = new.label.trim();
     if libelle.is_empty() {
-        return Err("le libellé du salaire est obligatoire : c'est lui qui dit à \
+        return Err(
+            "le libellé du salaire est obligatoire : c'est lui qui dit à \
                     quoi se rapporte le montant"
-            .into());
+                .into(),
+        );
     }
     if new.amount < Decimal::ZERO {
         return Err(format!(
@@ -318,10 +345,12 @@ pub fn creer(pool: &Pool, entity: i64, new: &NouveauSalaire) -> Result<i64, Box<
         .into());
     }
     if new.paye {
-        return Err("un salaire ne se crée pas déjà payé : utilisez `payer`, qui \
+        return Err(
+            "un salaire ne se crée pas déjà payé : utilisez `payer`, qui \
                     enregistre la date et le compte du versement dans \
                     llx_payment_salary"
-            .into());
+                .into(),
+        );
     }
 
     let debut = new.datep.trim();
@@ -358,16 +387,25 @@ pub fn creer(pool: &Pool, entity: i64, new: &NouveauSalaire) -> Result<i64, Box<
 
     let mut conn = pool.get_conn()?;
     let mut tx = conn.start_transaction(TxOpts::default())?;
+
+    // `fk_typepayment` est NOT NULL **et** porte une cle etrangere vers
+    // `llx_c_paiement` : ecrire 0 est refuse par la base (erreur 1452). On met
+    // le virement — le moyen le plus courant pour un salaire — et `payer` le
+    // remplacera par le moyen reel du versement. Lu **avant** l'instruction :
+    // emprunter `tx` deux fois ne compile pas, et c'est heureux — la seconde
+    // lecture verrait un etat a moitie ecrit.
+    let moyen = moyen_par_defaut(&mut tx)?;
     tx.exec_drop(
         // `fk_user_author` n'est pas écrite : aucune session n'est ouverte ici,
         // et recopier le salarié donnerait un auteur faux — il n'a pas créé sa
-        // propre fiche. `fk_typepayment` vaut 0 : le moyen de paiement se choisit
-        // au versement, pas à l'ouverture (colonne NOT NULL sans défaut).
+        // propre fiche. `fk_typepayment` reçoit le virement par défaut : la
+        // colonne est NOT NULL et porte une clé étrangère, donc 0 est refusé par
+        // la base. `payer` le remplacera par le moyen réel du versement.
         "INSERT INTO llx_salary \
          (entity, fk_user, datep, datev, amount, label, fk_projet, \
           fk_typepayment, paye, datec) \
          VALUES (:entity, :salarie, :datep, :datev, :montant, :libelle, :projet, \
-          0, :paye, NOW())",
+          :moyen, :paye, NOW())",
         params! {
             "entity" => entity,
             "salarie" => new.fk_user,
@@ -376,6 +414,7 @@ pub fn creer(pool: &Pool, entity: i64, new: &NouveauSalaire) -> Result<i64, Box<
             "montant" => new.amount.to_string(),
             "libelle" => libelle,
             "projet" => new.fk_project,
+            "moyen" => moyen,
             "paye" => STATUT_NON_PAYE,
         },
     )?;
@@ -384,10 +423,10 @@ pub fn creer(pool: &Pool, entity: i64, new: &NouveauSalaire) -> Result<i64, Box<
     // La référence EST le rowid (cf. doc du module) : on l'écrit pour que la
     // liste ne montre pas une colonne vide, et l'index unique
     // `uk_salary_ref (ref, entity)` ne peut plus être pris en défaut.
-    let reference = rowid.to_string();
+    let ref_texte = rowid.to_string();
     tx.exec_drop(
         "UPDATE llx_salary SET ref = :reference WHERE rowid = :rowid",
-        params! { "reference" => reference.as_str(), "rowid" => rowid },
+        params! { "reference" => ref_texte.as_str(), "rowid" => rowid },
     )?;
 
     tx.commit()?;
