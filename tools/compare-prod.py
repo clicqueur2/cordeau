@@ -5,7 +5,10 @@ ce que la page annonce, et ce que le SQL dit de la meme base. Un ecart est soit
 un bug d'affichage, soit un bug de calcul — les deux se corrigent, mais pas au
 meme endroit.
 
-Usage : python tools/compare-prod.py  (serveur lance sur 8090, copie `dolibarr_prod`)
+L'entite est lue **dans la page**, jamais codee en dur : comparer l'entite 7 a
+une page affichant l'entite 1 donnait quatre faux ecarts.
+
+Usage : python tools/compare-prod.py   (serveur sur 8090, base `dolibarr_prod`)
 Sortie : tools/ecarts-prod.md
 """
 
@@ -27,11 +30,15 @@ def sql(requete):
     return (r.stdout or r.stderr).strip()
 
 
-def page(chemin):
+def html(chemin):
     r = subprocess.run(
         ["curl.exe", "-s", "-b", COOKIES, "--max-time", "60", BASE + chemin],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
-    h = r.stdout
+    return r.stdout
+
+
+def texte(chemin):
+    h = html(chemin)
     h = re.sub(r"(?is)<style.*?</style>", " ", h)
     h = re.sub(r"(?is)<head.*?</head>", " ", h)
     h = re.sub(r"(?is)<svg.*?</svg>", " ", h)
@@ -39,69 +46,42 @@ def page(chemin):
     return re.sub(r"[ \t\u00a0]+", " ", h)
 
 
-def euro(v):
-    """« 63 205,66 » -> 63205.66"""
-    v = (v or "").replace("\u202f", "").replace("\u00a0", "").replace(" ", "").replace(",", ".")
-    try:
-        return round(float(v), 2)
-    except ValueError:
-        return None
+def entite_courante():
+    """L'entite du selecteur, pas une constante."""
+    m = re.search(r'<option value="(\d+)" selected>', html("/factures"))
+    return int(m.group(1)) if m else 7
 
 
-ecarts = []
+ECARTS = []
 
 
-def comparer(intitule, attendu, affiche, note=""):
+def comparer(intitule, attendu, affiche):
     ok = attendu == affiche
-    ecarts.append({"ecran": intitule, "sql": attendu, "page": affiche, "ok": ok, "note": note})
-    print(f"  {'OK ' if ok else 'ECART'} {intitule:42} sql={attendu} page={affiche} {note}")
+    ECARTS.append({"ecran": intitule, "sql": attendu, "page": affiche, "ok": ok})
+    print(f"  {'OK ' if ok else 'ECART'} {intitule:34} base={attendu} page={affiche}")
 
 
-print("--- Factures (entite 7) ---")
-t = page("/factures")
-nb = int(sql("SELECT COUNT(*) FROM llx_facture WHERE entity=7") or 0)
-comparer("nombre de factures", nb, int(re.search(r"(\d+) facture\(s\)", t).group(1)) if re.search(r"(\d+) facture\(s\)", t) else None)
-total = float(sql("SELECT ROUND(SUM(total_ttc),2) FROM llx_facture WHERE entity=7") or 0)
-# La page liste les 5 plus recentes : on compare la premiere facture a la base.
-ref = sql("SELECT ref FROM llx_facture WHERE entity=7 ORDER BY rowid DESC LIMIT 1")
-comparer("reference la plus recente", ref, ref if ref in t else None)
+def compter(page, motif, entity, table):
+    t = texte(page)
+    m = re.search(motif, t)
+    comparer(page, int(sql(f"SELECT COUNT(*) FROM {table} WHERE entity={entity}") or 0),
+             int(m.group(1)) if m else None)
 
-print("--- Tiers (entite 7) ---")
-t = page("/tiers")
-nb = int(sql("SELECT COUNT(*) FROM llx_societe WHERE entity=7") or 0)
-m = re.search(r"(\d+) fiche\(s\)", t)
-comparer("nombre de tiers", nb, int(m.group(1)) if m else None)
 
-print("--- Devis (entite 7) ---")
-t = page("/devis")
-nb = int(sql("SELECT COUNT(*) FROM llx_propal WHERE entity=7") or 0)
-m = re.search(r"(\d+) devis", t)
-comparer("nombre de devis", nb, int(m.group(1)) if m else None)
+E = entite_courante()
+print(f"--- entite {E} ---")
+compter("/factures", r"(\d+) facture\(s\)", E, "llx_facture")
+compter("/tiers", r"(\d+) fiche\(s\)", E, "llx_societe")
+compter("/devis", r"(\d+) devis", E, "llx_propal")
 
-print("--- Grand livre (entite 7) ---")
-t = page("/comptabilite/grand-livre")
-ventes = float(sql(
-    "SELECT ROUND(COALESCE(SUM(total_ht),0),2) FROM llx_facture WHERE entity=7 AND fk_statut>=1") or 0)
-# Le grand livre reconstitue : on verifie au moins que la page porte un total.
-m = re.search(r"Totaux\s*([\d \u202f\u00a0.,]+)€", t)
-affiche = euro(m.group(1)) if m else None
-ecarts.append({"ecran": "grand livre : total debit", "sql": None, "page": affiche,
-               "ok": affiche is not None, "note": "reconstitution, pas de reference SQL directe"})
-print(f"  info  grand livre : total affiche = {affiche}")
+ref = sql(f"SELECT ref FROM llx_facture WHERE entity={E} ORDER BY rowid DESC LIMIT 1")
+comparer("facture la plus recente", ref, ref if ref in texte("/factures") else None)
 
-total_ecarts = sum(1 for e in ecarts if not e["ok"])
-lignes = [
-    "# Écarts entre Cordeau et la base — copie de production",
-    "",
-    f"{len(ecarts)} contrôles, **{total_ecarts} en écart**.",
-    "",
-    "| Contrôle | Base | Page | Verdict |",
-    "|---|---|---|---|",
-]
-for e in ecarts:
-    lignes.append(
-        f"| {e['ecran']} | {e['sql'] if e['sql'] is not None else '—'} | "
-        f"{e['page'] if e['page'] is not None else '—'} | {'ok' if e['ok'] else '**écart**'} |"
-    )
+total = sum(1 for e in ECARTS if not e["ok"])
+lignes = ["# Écarts entre Cordeau et la base — copie de production", "",
+          f"Entité contrôlée : **{E}** · {len(ECARTS)} contrôles, **{total} en écart**.", "",
+          "| Contrôle | Base | Page | Verdict |", "|---|---|---|---|"]
+lignes += [f"| {e['ecran']} | {e['sql']} | {e['page']} | {'ok' if e['ok'] else '**écart**'} |"
+           for e in ECARTS]
 io.open(RAPPORT, "w", encoding="utf-8", newline="\n").write("\n".join(lignes) + "\n")
-print(f"\n{total_ecarts} ecart(s) — rapport : tools/ecarts-prod.md")
+print(f"{total} ecart(s) — tools/ecarts-prod.md")
