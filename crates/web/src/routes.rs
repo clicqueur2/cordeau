@@ -292,6 +292,10 @@ pub fn routes(app: App) -> Router {
             "/nomenclatures/:id/valider",
             post(nomenclature_ecran::valider),
         )
+        .route(
+            "/presets",
+            get(preset_ecran::page).post(preset_ecran::appliquer),
+        )
         .route("/dons", get(dons_ecran::page).post(dons_ecran::creer))
         .route("/dons/:id", get(dons_ecran::detail))
         .route("/dons/:id/valider", post(dons_ecran::valider))
