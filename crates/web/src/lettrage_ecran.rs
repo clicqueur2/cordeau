@@ -61,7 +61,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            p style="color:#78736c;font-size:13.5px;margin-top:16px" {
+            p.muet.petite.haut {
                 "Seules les lignes non lettrées sont prises. Rejouer un lettrage ne défait pas "
                 "le précédent : il ne travaille que sur le reste ouvert."
             }

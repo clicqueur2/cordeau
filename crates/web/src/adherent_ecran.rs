@@ -149,7 +149,7 @@ fn actions(a: &adherent::Adherent) -> maud::Markup {
             }
         } @else {
             form method="post" action=(format!("/adherents/{}/cotiser", a.rowid)) {
-                input type="date" name="jusqu_a" required style="font-size:13px";
+                input type="date" name="jusqu_a" required.petite;
                 " "
                 button type="submit" class="petit" { (crate::langue::tr("Cotiser")) }
             }

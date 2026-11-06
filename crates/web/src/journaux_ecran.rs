@@ -121,7 +121,7 @@ pub async fn page(
                         }
                     }
                 }
-                p style="color:#78736c;font-size:13px;margin-top:12px" {
+                p.muet.petite.haut {
                     (crate::langue::tr("Les 200 derniers événements. Le journal complet reste en base ; la tâche purge le nettoie au-delà du délai configuré."))
                 }
             }

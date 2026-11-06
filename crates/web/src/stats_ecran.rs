@@ -283,7 +283,7 @@ pub async fn echeancier(
                 }
             }
 
-            p style="color:#78736c;font-size:13.5px;margin-top:16px" {
+            p.muet.petite.haut {
                 (crate::langue::tr("Le cumul est la position de trésorerie à la fin du mois, si tout est encaissé et payé à l'échéance. Ce n'est pas un solde bancaire : il ne tient pas compte de ce qui était déjà en caisse."))
             }
         },

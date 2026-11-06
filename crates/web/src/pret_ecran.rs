@@ -202,7 +202,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                                     form method="post"
                                          action=(format!("/prets/{}/regler", p.rowid)) {
                                         input type="hidden" name="echeance" value=(e.rowid);
-                                        select name="fk_bank" style="font-size:13px" {
+                                        select name="fk_bank".petite {
                                             @for c in &comptes {
                                                 option value=(c.rowid) { (c.label.clone()) }
                                             }

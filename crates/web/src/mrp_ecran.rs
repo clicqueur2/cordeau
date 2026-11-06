@@ -150,7 +150,7 @@ pub async fn page(
                 }
             }
 
-            p style="color:#78736c;font-size:13.5px;margin-top:16px" {
+            p.muet.petite.haut {
                 "Ce que le calcul ne déduit pas encore : les "
                 strong {(crate::langue::tr("entrées attendues")) }
                 " (commandes fournisseurs en cours, ordres de fabrication). Elles sont donc "

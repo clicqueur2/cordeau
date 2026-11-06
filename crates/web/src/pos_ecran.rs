@@ -483,7 +483,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                             span .ref.muet.petite { (produit.ref_) }
                         }
                         div .note { (prix_affiche(produit)) }
-                        form method="post" action="/caisse/ajouter" style="margin-top:12px" {
+                        form method="post" action="/caisse/ajouter".haut {
                             input type="hidden" name="produit" value=(produit.rowid);
                             button type="submit"
                                    style="padding:18px 22px;font-size:16px;width:100%" {(crate::langue::tr("+ Ajouter au panier"))

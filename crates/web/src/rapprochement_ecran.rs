@@ -90,7 +90,7 @@ pub async fn page(
                 }
             }
 
-            p style="color:#78736c;font-size:13.5px;margin-top:16px" {
+            p.muet.petite.haut {
                 (crate::langue::tr("Le paiement et sa ligne de banque naissent ensemble à l'encaissement : pointer ne crée rien, cela marque ce qui existe déjà. Le numéro de relevé est conservé pour retrouver, six mois plus tard, avec quel relevé la ligne a été pointée."))
             }
         },
