@@ -248,6 +248,31 @@ fn schema_verify(args: &[String]) -> ExitCode {
 
 /// Taches planifiees : appelees par le planificateur du systeme (cron, tache
 /// planifiee Windows). Pas de demon dans l'application, pas de cron PHP.
+/// Coupe un texte a une longueur, sans casser un caractere.
+fn tronquer(texte: &str, max: usize) -> String {
+    if texte.chars().count() <= max {
+        return texte.to_string();
+    }
+    let mut out: String = texte.chars().take(max.saturating_sub(1)).collect();
+    out.push('…');
+    out
+}
+
+/// Le statut d'une facture, en francais.
+///
+/// Les valeurs sont celles de `llx_facture.fk_statut` ; un statut inconnu est
+/// dit tel quel plutot que traduit en « brouillon » par defaut, ce qui
+/// masquerait une donnee inattendue.
+fn statut_facture(statut: i16) -> &'static str {
+    match statut {
+        0 => "brouillon",
+        1 => "validee",
+        2 => "payee",
+        3 => "abandonnee",
+        _ => "statut inconnu",
+    }
+}
+
 /// Audit d'une base Dolibarr, **en lecture seule**.
 ///
 /// Sert a brancher le noyau sur une base qui n'est pas la sienne — une copie de
@@ -288,6 +313,35 @@ fn audit_cmd(args: &[String]) -> ExitCode {
     println!("\nObjets :");
     for c in &rapport.comptes {
         println!("  {:<24} {:>8}", c.libelle, c.lignes);
+    }
+
+    // L'apercu : la seule facon de verifier qu'on lit la meme chose que
+    // Dolibarr. Un compteur ne prouve rien, un montant se compare.
+    let entity = flag(args, "--entity")
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(1);
+    match db::audit::apercu_factures(&pool, entity, 5) {
+        Ok(factures) if !factures.is_empty() => {
+            println!("\nDernieres factures de l'entite {entity} :");
+            println!(
+                "  {:<14} {:<24} {:<12} {:>12} {:>12}",
+                "Reference", "Client", "Date", "HT", "TTC"
+            );
+            for f in &factures {
+                println!(
+                    "  {:<14} {:<24} {:<12} {:>12} {:>12}  {}",
+                    f.reference,
+                    tronquer(&f.client, 24),
+                    f.date,
+                    f.total_ht,
+                    f.total_ttc,
+                    statut_facture(f.statut)
+                );
+            }
+            println!("  Comparez ces montants a l'ecran Dolibarr : ils doivent etre identiques.");
+        }
+        Ok(_) => println!("\nAucune facture dans l'entite {entity}."),
+        Err(e) => println!("\nApercu impossible : {e}"),
     }
 
     if !rapport.schema_complet() {
