@@ -45,6 +45,12 @@ pub fn message(ok: Option<&String>) -> Markup {
     match ok.map(|s| s.as_str()) {
         Some("reglement") => ui::flash("Règlement enregistré."),
         Some("validee") => ui::flash("Facture validée."),
+        // La validation a reussi, mais la piece n'a pas pu etre archivee : le
+        // document existe sans son PDF, et c'est exactement ce qu'il faut dire
+        // plutot que de laisser croire que tout est pret a envoyer.
+        Some("validee-sans-pdf") => ui::echec(
+            "Facture validée, mais son PDF n'a pas pu être archivé. Réessayez la génération avant de l'envoyer : le motif est dans le journal des erreurs.",
+        ),
         Some("envoyee") => ui::flash("Facture envoyée par e-mail, PDF joint."),
         Some("serie") => ui::flash("Série de factures créée : elle sera émise à l'échéance."),
         Some("echec-adresse") => ui::echec("Adresse e-mail invalide : rien n'a été envoyé."),
