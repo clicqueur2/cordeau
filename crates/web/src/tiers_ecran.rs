@@ -137,6 +137,37 @@ pub(crate) async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> 
                 }
             }
 
+            // Les contacts vivaient en base sans jamais s'afficher : on ouvrait
+            // une fiche client sans savoir qui appeler.
+            @let contacts = db::contact::par_tiers(p, entite::courante(), id)?;
+            @if !contacts.is_empty() {
+                h2 {(crate::langue::tr("Contacts")) }
+                table {
+                    thead {
+                        tr {
+                            th {(crate::langue::tr("Nom")) }
+                            th {(crate::langue::tr("Fonction")) }
+                            th {(crate::langue::tr("Téléphone")) }
+                            th {(crate::langue::tr("Courriel")) }
+                        }
+                    }
+                    tbody {
+                        @for c in &contacts {
+                            tr {
+                                td { strong { (c.nom_complet()) } }
+                                td { (c.poste.clone().unwrap_or_default()) }
+                                td .num { (c.telephone.clone().unwrap_or_default()) }
+                                td {
+                                    @if let Some(e) = c.email.as_deref().filter(|e| !e.trim().is_empty()) {
+                                        a href={ "mailto:" (e) } { (e) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             h2 {(crate::langue::tr("Devis")) }
             @if devis.is_empty() {
                 (ui::vide("Aucun devis pour ce client.", None))
