@@ -57,7 +57,7 @@ pub async fn contacts(
                         tr {
                             th {(crate::langue::tr("Société")) }
                             td {
-                                select name="soc" style="width:100%" {
+                                select name="soc" class="pleine" {
                                     option value="" {(crate::langue::tr("— aucun (particulier) —")) }
                                     @for s in &clients {
                                         option value=(s.rowid) { (s.nom) }
@@ -76,11 +76,11 @@ pub async fn contacts(
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Prénom")) } td { input type="text" name="prenom" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Fonction")) } td { input type="text" name="poste" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Téléphone")) } td { input type="text" name="telephone" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required class="pleine"; } }
+                        tr { th {(crate::langue::tr("Prénom")) } td { input type="text" name="prenom" class="pleine"; } }
+                        tr { th {(crate::langue::tr("Fonction")) } td { input type="text" name="poste" class="pleine"; } }
+                        tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" class="pleine"; } }
+                        tr { th {(crate::langue::tr("Téléphone")) } td { input type="text" name="telephone" class="pleine"; } }
                     }
                 }
                 div .actions { button type="submit" {(crate::langue::tr("Créer le contact")) } }
@@ -279,7 +279,7 @@ pub async fn tickets(
                     button type="submit" form="actions-tickets" name="action" value="fermer" {
                         (crate::langue::tr("Fermer la sélection"))
                     }
-                    span style="color:#78736c;font-size:13.5px" {
+                    span class="aide" {
                         (crate::langue::tr("Fermer n'est pas supprimer : le ticket garde son historique."))
                     }
                 }
@@ -326,7 +326,7 @@ pub async fn tickets(
                         tr {
                             th {(crate::langue::tr("Société")) }
                             td {
-                                select name="soc" style="width:100%" {
+                                select name="soc" class="pleine" {
                                     option value="" {(crate::langue::tr("— aucun —")) }
                                     @for c in &clients {
                                         option value=(c.rowid) { (c.nom) }
@@ -334,7 +334,7 @@ pub async fn tickets(
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Sujet")) } td { input type="text" name="sujet" required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Sujet")) } td { input type="text" name="sujet" required class="pleine"; } }
                         tr { th {(crate::langue::tr("Message")) } td { textarea name="message" rows="4" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #e6e2dc" {} } }
                         tr {
                             th {(crate::langue::tr("Gravité")) }
@@ -408,12 +408,12 @@ pub async fn contact_fiche(
             form method="post" action={ "/contacts/" (id) "/modifier" } {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" value=(c.nom) required style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Prénom")) } td { input type="text" name="prenom" value=(c.prenom.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Fonction")) } td { input type="text" name="poste" value=(c.poste.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" value=(c.email.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Téléphone")) } td { input type="text" name="telephone" value=(c.telephone.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(c.ville.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" value=(c.nom) required class="pleine"; } }
+                        tr { th {(crate::langue::tr("Prénom")) } td { input type="text" name="prenom" value=(c.prenom.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Fonction")) } td { input type="text" name="poste" value=(c.poste.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" value=(c.email.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Téléphone")) } td { input type="text" name="telephone" value=(c.telephone.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(c.ville.clone().unwrap_or_default()) class="pleine"; } }
                     }
                 }
                 div .actions {
@@ -529,7 +529,7 @@ pub async fn chantier_modifier(
                         tr {
                             th {(crate::langue::tr("Client")) }
                             td {
-                                select name="soc" style="width:100%" {
+                                select name="soc" class="pleine" {
                                     option value="" {(crate::langue::tr("— chantier interne —")) }
                                     @for s in &clients {
                                         option value=(s.rowid) selected[c.fk_soc == Some(s.rowid)] { (s.nom) }
@@ -537,11 +537,11 @@ pub async fn chantier_modifier(
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Intitulé")) } td { input type="text" name="title" value=(c.title) required style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" value=(c.date_start.clone().unwrap_or_default()) style="width:170px"; } }
-                        tr { th {(crate::langue::tr("Fin prévue")) } td { input type="date" name="fin" value=(c.date_end.clone().unwrap_or_default()) style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Intitulé")) } td { input type="text" name="title" value=(c.title) required class="pleine"; } }
+                        tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" value=(c.date_start.clone().unwrap_or_default()) class="champ-moyen"; } }
+                        tr { th {(crate::langue::tr("Fin prévue")) } td { input type="date" name="fin" value=(c.date_end.clone().unwrap_or_default()) class="champ-moyen"; } }
                         tr { th {(crate::langue::tr("Budget HT")) } td { input type="number" name="budget" step="0.01" min="0" value=(app::fmt_dec(c.budget)) style="width:150px"; } }
-                        tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" value=(c.description.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" value=(c.description.clone().unwrap_or_default()) class="pleine"; } }
                     }
                 }
                 div .actions {

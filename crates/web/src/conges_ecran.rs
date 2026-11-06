@@ -81,11 +81,11 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     " "
                     label for="description" { (crate::langue::tr("Motif")) } " "
                     input type="text" name="description" id="description" required
-                          style="min-width:260px";
+                          class="champ-large";
                     " "
                     button type="submit" { (crate::langue::tr("Déposer")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("Jours ouvrés calculés du lundi au vendredi. Les jours fériés ne sont pas connus : le nombre affiché est une borne haute."))
                 }
             }
@@ -134,21 +134,21 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
 fn actions(c: &conges::Conge) -> maud::Markup {
     html! {
         @if c.statut == conges::STATUT_DEMANDE {
-            form method="post" action=(format!("/conges/{}/valider", c.rowid)) style="display:inline" {
+            form method="post" action=(format!("/conges/{}/valider", c.rowid)) class="en-ligne" {
                 button type="submit" class="petit" { (crate::langue::tr("Valider")) }
             }
             " "
-            form method="post" action=(format!("/conges/{}/annuler", c.rowid)) style="display:inline" {
+            form method="post" action=(format!("/conges/{}/annuler", c.rowid)) class="en-ligne" {
                 button type="submit" class="petit secondaire" {
                     (crate::langue::tr("Annuler"))
                 }
             }
         } @else if c.statut == conges::STATUT_VALIDE {
-            form method="post" action=(format!("/conges/{}/approuver", c.rowid)) style="display:inline" {
+            form method="post" action=(format!("/conges/{}/approuver", c.rowid)) class="en-ligne" {
                 button type="submit" class="petit" { (crate::langue::tr("Approuver")) }
             }
             " "
-            form method="post" action=(format!("/conges/{}/refuser", c.rowid)) style="display:inline" {
+            form method="post" action=(format!("/conges/{}/refuser", c.rowid)) class="en-ligne" {
                 input type="text" name="motif" placeholder=(crate::langue::tr("motif"))
                       style="width:130px";
                 " "

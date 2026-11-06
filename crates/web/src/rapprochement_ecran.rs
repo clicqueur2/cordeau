@@ -68,7 +68,7 @@ pub async fn page(
                                     @if let Some(f) = &l.facture {
                                         (f.clone())
                                     } @else {
-                                        span style="color:#78736c" { "—" }
+                                        span class="muet" { "—" }
                                     }
                                 }
                                 td {

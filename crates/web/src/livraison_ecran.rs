@@ -63,11 +63,11 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     input type="text" name="qty" id="qty" value="1" style="width:80px" required;
                     " "
                     label for="subprice" { (crate::langue::tr("P.U. HT")) } " "
-                    input type="text" name="subprice" id="subprice" required style="width:110px";
+                    input type="text" name="subprice" id="subprice" required class="champ-court";
                     " "
                     button type="submit" { (crate::langue::tr("Créer le bon")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("La saisie se fait ligne par ligne. Un bon n'engage rien tant qu'il n'est pas validé."))
                 }
             }
@@ -106,7 +106,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            p style="color:#78736c;font-size:13px;margin-top:16px" {
+            p class="aide petite haut" {
                 (crate::langue::tr("Ce bon ne modifie pas le stock : une ligne de livraison ne dit pas d'où part la marchandise. Le mouvement viendra avec le module de stock."))
             }
         },
@@ -117,7 +117,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
 fn actions(b: &livraison::Livraison) -> maud::Markup {
     html! {
         @if b.fk_statut == livraison::STATUT_BROUILLON {
-            form method="post" action=(format!("/livraisons/{}/valider", b.rowid)) style="display:inline" {
+            form method="post" action=(format!("/livraisons/{}/valider", b.rowid)) class="en-ligne" {
                 button type="submit" class="petit" { (crate::langue::tr("Valider")) }
             }
         } @else if b.fk_statut == livraison::STATUT_VALIDEE {

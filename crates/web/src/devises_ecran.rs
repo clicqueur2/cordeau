@@ -52,7 +52,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     input type="text" name="taux" placeholder="1,08" size="8" required;
                     button type="submit" class="petit" {(crate::langue::tr("Figer")) }
                 }
-                p style="color:#78736c;font-size:13.5px;margin:0" {
+                p class="aide" {
                     "Le taux est le nombre d'unités de devise pour 1 €. "
                     "EUR 100 à 1,08 CHF donnent 108,00 CHF. "
                     "Seule une facture en brouillon se réévalue."

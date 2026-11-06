@@ -68,7 +68,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     br;
                     label for="fk_product" { (crate::langue::tr("Produit")) } " "
-                    select name="fk_product" id="fk_product" style="min-width:260px" {
+                    select name="fk_product" id="fk_product" class="champ-large" {
                         @for p in &produits {
                             option value=(p.rowid) { (p.label.clone()) }
                         }
@@ -79,7 +79,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     " "
                     button type="submit" { (crate::langue::tr("Créer le bon")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("Un transfert vers le même entrepôt est refusé : ce n'est pas un transfert."))
                 }
             }
@@ -124,7 +124,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            p style="color:#78736c;font-size:13px;margin-top:16px" {
+            p class="aide petite haut" {
                 (crate::langue::tr("Ce registre ne déplace pas le stock : un transfert écrit à moitié (la sortie sans l'entrée) laisserait une quantité fantôme. Le mouvement viendra avec le module dédié."))
             }
         },
@@ -209,12 +209,12 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                         " "
                         button type="submit" { (crate::langue::tr("Réceptionner")) }
                     }
-                    p style="color:#78736c;font-size:13.5px" {
+                    p class="aide" {
                         (crate::langue::tr("La marchandise est en route. Elle n'est ni dans l'entrepôt de départ, ni dans celui d'arrivée."))
                     }
                 }
                 _ => {
-                    p style="color:#78736c;font-size:13.5px" {
+                    p class="aide" {
                         (crate::langue::tr("Ce transfert est reçu. Le stock n'a pas été mouvementé : c'est le module de stock qui le fera."))
                     }
                 }

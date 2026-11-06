@@ -106,7 +106,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     " "
                     button type="submit" { (crate::langue::tr("Créer")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("Une note peut ensuite recevoir d'autres lignes. Elle se crée en brouillon : rien n'est soumis tant que vous ne l'avez pas décidé."))
                 }
             }
@@ -228,7 +228,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     form method="post" action=(format!("/notes-frais/{}/soumettre", n.rowid)) {
                         button type="submit" { (crate::langue::tr("Soumettre pour validation")) }
                     }
-                    p style="color:#78736c;font-size:13.5px" {
+                    p class="aide" {
                         (crate::langue::tr("Une note soumise ne se modifie plus : elle attend une décision."))
                     }
                 }
@@ -237,7 +237,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                         button type="submit" { (crate::langue::tr("Approuver")) }
                     }
                     form method="post" action=(format!("/notes-frais/{}/refuser", n.rowid))
-                         style="margin-top:14px" {
+                         class="haut" {
                         label for="motif" { (crate::langue::tr("Motif du refus")) } " "
                         input type="text" name="motif" id="motif" required
                               style="min-width:340px" placeholder=(crate::langue::tr("justificatif manquant, montant erroné…"));
@@ -248,7 +248,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     }
                 }
                 _ => {
-                    p style="color:#78736c;font-size:13.5px" {
+                    p class="aide" {
                         (crate::langue::tr("Cette note est close."))
                     }
                 }

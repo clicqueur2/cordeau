@@ -93,7 +93,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     " "
                     button type="submit" { (crate::langue::tr("Créer")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("Un partenariat se crée en brouillon. Il ne devient vivant qu'après soumission puis acceptation."))
                 }
             }
@@ -144,15 +144,15 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
 fn actions(p: &partenariat::Partenariat) -> maud::Markup {
     html! {
         @if p.est_brouillon() {
-            form method="post" action=(format!("/partenariats/{}/soumettre", p.rowid)) style="display:inline" {
+            form method="post" action=(format!("/partenariats/{}/soumettre", p.rowid)) class="en-ligne" {
                 button type="submit" class="petit" { (crate::langue::tr("Soumettre")) }
             }
         } @else if p.est_valide() {
-            form method="post" action=(format!("/partenariats/{}/accepter", p.rowid)) style="display:inline" {
+            form method="post" action=(format!("/partenariats/{}/accepter", p.rowid)) class="en-ligne" {
                 button type="submit" class="petit" { (crate::langue::tr("Accepter")) }
             }
             " "
-            form method="post" action=(format!("/partenariats/{}/refuser", p.rowid)) style="display:inline" {
+            form method="post" action=(format!("/partenariats/{}/refuser", p.rowid)) class="en-ligne" {
                 input type="text" name="motif" required placeholder=(crate::langue::tr("motif"))
                       style="width:130px";
                 " "
@@ -161,7 +161,7 @@ fn actions(p: &partenariat::Partenariat) -> maud::Markup {
                 }
             }
         } @else if p.est_accepte() {
-            form method="post" action=(format!("/partenariats/{}/annuler", p.rowid)) style="display:inline" {
+            form method="post" action=(format!("/partenariats/{}/annuler", p.rowid)) class="en-ligne" {
                 input type="text" name="motif" required placeholder=(crate::langue::tr("motif"))
                       style="width:130px";
                 " "

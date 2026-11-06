@@ -68,9 +68,9 @@ pub(crate) async fn banques(
                 table {
                     tbody {
                         tr { th {(crate::langue::tr("Référence")) } td { input type="text" name="ref" required style="width:140px"; } }
-                        tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" required style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Banque")) } td { input type="text" name="banque" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" required class="pleine"; } }
+                        tr { th {(crate::langue::tr("Banque")) } td { input type="text" name="banque" class="pleine"; } }
+                        tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" class="pleine"; } }
                         tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" style="width:260px"; } }
                     }
                 }

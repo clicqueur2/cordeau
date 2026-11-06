@@ -261,7 +261,7 @@ fn champ(d: &Definition, valeur: Option<&str>) -> maud::Markup {
 
     match type_ {
         "text" | "html" => html! {
-            textarea name=(nom) rows="4" style="width:100%" { (v) }
+            textarea name=(nom) rows="4" class="pleine" { (v) }
         },
         "boolean" => html! {
             input type="checkbox" name=(nom) value="1" checked[v == "1" || v.eq_ignore_ascii_case("true")];

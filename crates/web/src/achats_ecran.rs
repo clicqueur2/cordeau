@@ -54,7 +54,7 @@ pub(crate) async fn achats(
             form method="post" action="/achats/fournisseur" {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required class="pleine"; } }
                         tr { th {(crate::langue::tr("Code fournisseur")) } td { input type="text" name="code" placeholder="généré si vide" style="width:220px"; } }
                     }
                 }
@@ -133,16 +133,16 @@ pub(crate) async fn achat_facture_nouvelle(
                         tr {
                             th {(crate::langue::tr("Fournisseur")) }
                             td {
-                                select name="soc" required style="width:100%" {
+                                select name="soc" required class="pleine" {
                                     @for f in &fournisseurs {
                                         option value=(f.rowid) { (f.nom) }
                                     }
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Référence chez le fournisseur")) } td { input type="text" name="ref_supplier" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Date")) } td { input type="date" name="datef" style="width:170px"; } }
-                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Référence chez le fournisseur")) } td { input type="text" name="ref_supplier" class="pleine"; } }
+                        tr { th {(crate::langue::tr("Date")) } td { input type="date" name="datef" class="champ-moyen"; } }
+                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" class="pleine"; } }
                     }
                 }
                 h2 {(crate::langue::tr("Lignes")) }
@@ -151,8 +151,8 @@ pub(crate) async fn achat_facture_nouvelle(
                     tbody {
                         @for i in 1..=5 {
                             tr {
-                                td { input type="text" name=(format!("l{i}_lib")) style="width:100%"; }
-                                td { input type="number" name=(format!("l{i}_qte")) step="0.01" min="0" value="1" style="width:90px"; }
+                                td { input type="text" name=(format!("l{i}_lib")) class="pleine"; }
+                                td { input type="number" name=(format!("l{i}_qte")) step="0.01" min="0" value="1" class="champ-court"; }
                                 td { input type="number" name=(format!("l{i}_pu")) step="0.01" min="0" style="width:120px"; }
                                 td {
                                     select name=(format!("l{i}_tva")) {

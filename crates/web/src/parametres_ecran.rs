@@ -69,21 +69,21 @@ pub(crate) async fn parametres(
             form method="post" action="/parametres/societe" {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Denomination")) } td { input type="text" name="nom" value=(s.nom) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Forme juridique")) } td { input type="text" name="forme" value=(s.forme_juridique.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Capital")) } td { input type="text" name="capital" value=(s.capital.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("RCS")) } td { input type="text" name="rcs" value=(s.rcs.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(s.adresse.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Denomination")) } td { input type="text" name="nom" value=(s.nom) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Forme juridique")) } td { input type="text" name="forme" value=(s.forme_juridique.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Capital")) } td { input type="text" name="capital" value=(s.capital.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("RCS")) } td { input type="text" name="rcs" value=(s.rcs.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(s.adresse.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(s.code_postal.clone().unwrap_or_default()) style="width:120px"; } }
-                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(s.ville.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(s.siret.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" value=(s.tva_intra.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Email")) } td { input type="text" name="email" value=(s.email.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" value=(s.iban.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(s.ville.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(s.siret.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" value=(s.tva_intra.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Email")) } td { input type="text" name="email" value=(s.email.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" value=(s.iban.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" value=(s.bic.clone().unwrap_or_default()) style="width:260px"; } }
-                        tr { th {(crate::langue::tr("Assurance décennale (assureur)")) } td { input type="text" name="assurance_assureur" value=(s.assurance_assureur.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Assurance décennale (assureur)")) } td { input type="text" name="assurance_assureur" value=(s.assurance_assureur.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("Assurance (n° de police)")) } td { input type="text" name="assurance_police" value=(s.assurance_police.clone().unwrap_or_default()) style="width:260px"; } }
-                        tr { th {(crate::langue::tr("Assurance (couverture)")) } td { input type="text" name="assurance_couverture" value=(s.assurance_couverture.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Assurance (couverture)")) } td { input type="text" name="assurance_couverture" value=(s.assurance_couverture.clone().unwrap_or_default()) class="pleine"; } }
                         tr {
                             th {(crate::langue::tr("TVA taux réduit (travaux)")) }
                             td {
@@ -112,7 +112,7 @@ pub(crate) async fn parametres(
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Delai de paiement (jours)")) } td { input type="number" name="delai" value=(s.delai_paiement_jours) style="width:110px"; } }
+                        tr { th {(crate::langue::tr("Delai de paiement (jours)")) } td { input type="number" name="delai" value=(s.delai_paiement_jours) class="champ-court"; } }
                         tr {
                             th {(crate::langue::tr("Regime de TVA")) }
                             td {
@@ -201,7 +201,7 @@ pub(crate) async fn parametres_modules(
                                                 a .bouton.petit.secondaire href={ "/parametres/module/" (m.code) } style="margin-right:6px" title="Options du module" {(crate::langue::tr("Options")) }
                                             }
                                         }
-                                        form method="post" action="/parametres/modules" style="display:inline" {
+                                        form method="post" action="/parametres/modules" class="en-ligne" {
                                             input type="hidden" name="code" value=(m.code);
                                             input type="hidden" name="actif" value=(if actif { "0" } else { "1" });
                                             button type="submit" class="secondaire petit" {
@@ -323,8 +323,8 @@ pub(crate) async fn parametres_dictionnaires(State(app): State<App>) -> Res<Mark
                 table {
                     tbody {
                         tr { th {(crate::langue::tr("Code")) } td { input type="text" name="code" required placeholder="RECEPTION" style="width:180px"; } }
-                        tr { th {(crate::langue::tr("Libellé client")) } td { input type="text" name="libelle" required placeholder="Règlement à réception de facture, par virement" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Délai (jours)")) } td { input type="number" name="nbjour" min="0" value="0" style="width:110px"; } }
+                        tr { th {(crate::langue::tr("Libellé client")) } td { input type="text" name="libelle" required placeholder="Règlement à réception de facture, par virement" class="pleine"; } }
+                        tr { th {(crate::langue::tr("Délai (jours)")) } td { input type="number" name="nbjour" min="0" value="0" class="champ-court"; } }
                         tr {
                             th {(crate::langue::tr("Fin de mois")) }
                             td {

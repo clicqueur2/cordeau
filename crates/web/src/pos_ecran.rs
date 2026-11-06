@@ -460,7 +460,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                     }
                 }
             }
-            form method="post" action="/caisse/vider" style="margin-top:10px" {
+            form method="post" action="/caisse/vider" class="haut" {
                 button type="submit"
                        style="background:#fff;color:#1c1b19;border:1px solid #e6e2dc;\
                               padding:12px 18px;font-size:15px" {(crate::langue::tr("Vider le panier"))
@@ -495,7 +495,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
         }
 
         h2 {(crate::langue::tr("Vente directe")) }
-        p style="color:#78736c;font-size:13.5px;margin:0 0 12px" {
+        p class="aide bloc" {
             "Un article, une quantité, un encaissement : la vente part en une ligne, \
              sans passer par le panier."
         }
@@ -668,7 +668,7 @@ pub async fn etat_scelle_pour(app: &crate::App) -> crate::Res<maud::Markup> {
                 div .libelle { "Scelle du " (jour) }
                 div .valeur {(crate::langue::tr("non pose")) }
                 div .note { (scelle.ventes.to_string()) " vente(s) a sceller." }
-                form method="post" action="/caisse/sceller" style="margin-top:10px" {
+                form method="post" action="/caisse/sceller" class="haut" {
                     button type="submit" {(crate::langue::tr("Sceller la journee")) }
                 }
             }
@@ -682,7 +682,7 @@ pub async fn etat_scelle_pour(app: &crate::App) -> crate::Res<maud::Markup> {
                     (crate::ui::euros(scelle.total)) " - empreinte "
                     code { (scelle.empreinte.chars().take(12).collect::<String>()) }
                 }
-                a .bouton.secondaire href={ "/caisse/archive?date=" (jour) } style="margin-top:10px" {(crate::langue::tr("Telecharger l'archive"))
+                a .bouton.secondaire.haut href={ "/caisse/archive?date=" (jour) } {(crate::langue::tr("Telecharger l'archive"))
                 }
             }
         },
@@ -694,7 +694,7 @@ pub async fn etat_scelle_pour(app: &crate::App) -> crate::Res<maud::Markup> {
                     "Les ventes ne correspondent plus au scelle pose : une ligne a ete "
                     "modifiee, ajoutee ou supprimee."
                 }
-                a .bouton.secondaire href={ "/caisse/archive?date=" (jour) } style="margin-top:10px" {(crate::langue::tr("Voir l'archive"))
+                a .bouton.secondaire.haut href={ "/caisse/archive?date=" (jour) } {(crate::langue::tr("Voir l'archive"))
                 }
             }
         },

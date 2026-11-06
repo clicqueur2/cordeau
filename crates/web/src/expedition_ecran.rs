@@ -193,7 +193,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                 form method="post" action=(format!("/expeditions/{}/valider", e.rowid)) {
                     button type="submit" { (crate::langue::tr("Valider")) }
                 }
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Valider rend le bon définitif : il ne se rouvrira plus, et il ne pourra plus être supprimé."))
                 }
             } @else if e.fk_statut == expedition::STATUT_VALIDEE {
@@ -207,13 +207,13 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     button type="submit" { (crate::langue::tr("Marquer expédiée")) }
                 }
                 form method="post" action=(format!("/expeditions/{}/supprimer", e.rowid))
-                     style="margin-top:10px" {
+                     class="haut" {
                     button type="submit" class="petit secondaire" {
                         (crate::langue::tr("Supprimer"))
                     }
                 }
             } @else {
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Ce bon est expédié. Il ne se modifie plus."))
                 }
             }

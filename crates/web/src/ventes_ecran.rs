@@ -69,7 +69,7 @@ pub(crate) async fn devis(
             form id="actions-devis" method="post" action="/devis/actions" {}
             div .actions {
                 button type="submit" form="actions-devis" name="action" value="valider" {(crate::langue::tr("Valider la sélection")) }
-                span style="color:#78736c;font-size:13.5px" {(crate::langue::tr("Seuls les devis en brouillon sont cochables."))
+                span class="aide" {(crate::langue::tr("Seuls les devis en brouillon sont cochables."))
                 }
             }
             @if listes.is_empty() {
@@ -173,7 +173,7 @@ pub(crate) async fn devis_fiche(
                         button type="submit" class="secondaire" {(crate::langue::tr("Créer la commande")) }
                     }
                 } @else {
-                    p style="color:#78736c;font-size:13px" {(crate::langue::tr("Ce devis est facturé par situations : la facture globale est désactivée pour éviter la double facturation."))
+                    p class="aide petite" {(crate::langue::tr("Ce devis est facturé par situations : la facture globale est désactivée pour éviter la double facturation."))
                     }
                 }
             }
@@ -215,7 +215,7 @@ pub(crate) async fn devis_fiche(
             }
             form method="post" action={ "/devis/" (id) "/situation" } .actions {
                 input type="number" name="pct" step="0.01" min="0.01" max="100"
-                      placeholder="%" style="width:110px" aria-label="Pourcentage" required;
+                      placeholder="%" class="champ-court" aria-label="Pourcentage" required;
                 input type="date" name="date" aria-label="Date de la situation";
                 button type="submit" {(crate::langue::tr("Créer la facture de situation")) }
             }
@@ -318,7 +318,7 @@ pub(crate) async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
                         tr {
                             th {(crate::langue::tr("Client")) }
                             td {
-                                select name="soc" required style="width:100%" {
+                                select name="soc" required class="pleine" {
                                     @for c in &clients {
                                         option value=(c.rowid) { (c.nom) }
                                     }
@@ -328,7 +328,7 @@ pub(crate) async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
                         tr {
                             th {(crate::langue::tr("Chantier")) }
                             td {
-                                select name="projet" style="width:100%" {
+                                select name="projet" class="pleine" {
                                     option value="" { (crate::langue::tr("— aucun —")) }
                                     @for c in &chantiers {
                                         option value=(c.rowid) { (c.ref_.clone()) " " (c.title.clone()) }
@@ -336,19 +336,19 @@ pub(crate) async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" class="pleine"; } }
                         tr {
                             th {(crate::langue::tr("Règlement")) }
                             td {
-                                select name="cond" style="width:100%" {
+                                select name="cond" class="pleine" {
                                     @for c in &conditions {
                                         option value=(c.rowid) { (c.libelle_fr()) }
                                     }
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Acompte (%)")) } td { input type="number" name="acompte" step="0.01" min="0" max="100" style="width:110px" placeholder="0"; } }
-                        tr { th {(crate::langue::tr("Valable jusqu'au")) } td { input type="date" name="validite" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Acompte (%)")) } td { input type="number" name="acompte" step="0.01" min="0" max="100" class="champ-court" placeholder="0"; } }
+                        tr { th {(crate::langue::tr("Valable jusqu'au")) } td { input type="date" name="validite" class="champ-moyen"; } }
                     }
                 }
                 h2 {(crate::langue::tr("Lignes")) }
@@ -364,8 +364,8 @@ pub(crate) async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
                     tbody {
                         @for i in 1..=4 {
                             tr {
-                                td { input type="text" name=(format!("l{i}_lib")) style="width:100%"; }
-                                td { input type="number" name=(format!("l{i}_qte")) step="0.01" min="0" value="1" style="width:90px"; }
+                                td { input type="text" name=(format!("l{i}_lib")) class="pleine"; }
+                                td { input type="number" name=(format!("l{i}_qte")) step="0.01" min="0" value="1" class="champ-court"; }
                                 td { input type="number" name=(format!("l{i}_pu")) step="0.01" min="0" style="width:120px"; }
                                 td {
                                     select name=(format!("l{i}_tva")) {
@@ -517,26 +517,26 @@ pub(crate) async fn devis_modifier(State(app): State<App>, Path(id): Path<i64>) 
                         tr {
                             th {(crate::langue::tr("Client")) }
                             td {
-                                select name="soc" required style="width:100%" {
+                                select name="soc" required class="pleine" {
                                     @for c in &clients {
                                         option value=(c.rowid) selected[d.fk_soc == Some(c.rowid)] { (c.nom) }
                                     }
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" value=(d.note_private.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" value=(d.note_private.clone().unwrap_or_default()) class="pleine"; } }
                         tr {
                             th {(crate::langue::tr("Règlement")) }
                             td {
-                                select name="cond" style="width:100%" {
+                                select name="cond" class="pleine" {
                                     @for c in &conditions {
                                         option value=(c.rowid) selected[d.fk_cond_reglement == Some(c.rowid)] { (c.libelle_fr()) }
                                     }
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Acompte (%)")) } td { input type="number" name="acompte" step="0.01" min="0" max="100" value=(app::fmt_dec(d.deposit_percent)) style="width:110px"; } }
-                        tr { th {(crate::langue::tr("Valable jusqu'au")) } td { input type="date" name="validite" value=(d.fin_validite.clone().unwrap_or_default()) style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Acompte (%)")) } td { input type="number" name="acompte" step="0.01" min="0" max="100" value=(app::fmt_dec(d.deposit_percent)) class="champ-court"; } }
+                        tr { th {(crate::langue::tr("Valable jusqu'au")) } td { input type="date" name="validite" value=(d.fin_validite.clone().unwrap_or_default()) class="champ-moyen"; } }
                     }
                 }
                 h2 {(crate::langue::tr("Lignes")) }
@@ -554,9 +554,9 @@ pub(crate) async fn devis_modifier(State(app): State<App>, Path(id): Path<i64>) 
                         @for (i, (sec, lib, qte, pu, tva_l)) in prefill.iter().enumerate() {
                             tr {
                                 td { input type="text" name=(format!("r{}_sec", i + 1)) value=(sec) style="width:130px"; }
-                                td { input type="text" name=(format!("r{}_lib", i + 1)) value=(lib) style="width:100%"; }
+                                td { input type="text" name=(format!("r{}_lib", i + 1)) value=(lib) class="pleine"; }
                                 td { input type="number" name=(format!("r{}_qte", i + 1)) step="0.01" min="0" value=(qte) style="width:80px"; }
-                                td { input type="number" name=(format!("r{}_pu", i + 1)) step="0.01" min="0" value=(pu) style="width:110px"; }
+                                td { input type="number" name=(format!("r{}_pu", i + 1)) step="0.01" min="0" value=(pu) class="champ-court"; }
                                 td {
                                     select name=(format!("r{}_tva", i + 1)) {
                                         @for t in &tva {

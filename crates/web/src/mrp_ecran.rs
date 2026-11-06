@@ -132,12 +132,12 @@ pub async fn page(
                                     @if p.quantite > Decimal::ZERO {
                                         strong { (p.quantite.normalize().to_string()) }
                                     } @else {
-                                        span style="color:#78736c" { "—" }
+                                        span class="muet" { "—" }
                                     }
                                 }
                                 td {
                                     @if p.quantite == Decimal::ZERO {
-                                        span style="color:#78736c" { "couvert" }
+                                        span class="muet" { "couvert" }
                                     } @else if p.en_retard {
                                         span .pastille.p-retard { (p.date_lancement.clone()) }
                                     } @else {

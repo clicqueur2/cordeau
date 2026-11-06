@@ -132,7 +132,7 @@ pub async fn page(
                         }
                         tr {
                             th {(crate::langue::tr("Sujet")) }
-                            td { input type="text" name="sujet" required style="width:100%"; }
+                            td { input type="text" name="sujet" required class="pleine"; }
                         }
                         tr {
                             th {(crate::langue::tr("Message")) }
@@ -145,7 +145,7 @@ pub async fn page(
                             th {(crate::langue::tr("Destinataire de test")) }
                             td {
                                 input type="email" name="test" required value=(test)
-                                      style="width:100%";
+                                      class="pleine";
                                 p style="color:#78736c;font-size:12.5px;margin:6px 0 0" {
                                     "Le message part a cette seule adresse. La liste complete \
                                      n'est pas sollicitee tant que l'envoi n'est pas trace."
@@ -156,7 +156,7 @@ pub async fn page(
                 }
                 div .actions {
                     button type="submit" {(crate::langue::tr("Envoyer l'essai")) }
-                    span style="color:#78736c;font-size:13px" {
+                    span class="aide petite" {
                         (n_cible) " destinataire(s) dans la cible choisie"
                     }
                 }

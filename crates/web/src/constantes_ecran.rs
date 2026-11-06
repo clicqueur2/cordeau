@@ -84,10 +84,10 @@ pub async fn page(
                                         @if c.sensible {
                                             input type="password" name="valeur" value=""
                                                   placeholder=(db::constantes::valeur_affichable(&c.nom, &c.valeur))
-                                                  style="width:100%" autocomplete="off";
+                                                  class="pleine" autocomplete="off";
                                         } @else {
                                             input type="text" name="valeur" value=(c.valeur.clone())
-                                                  style="width:100%";
+                                                  class="pleine";
                                         }
                                         button type="submit" class="petit" { (crate::langue::tr("Écrire")) }
                                     }
@@ -115,7 +115,7 @@ pub async fn page(
                     input type="text" name="valeur" placeholder=(crate::langue::tr("valeur")) size="34" required;
                     button type="submit" { (crate::langue::tr("Écrire")) }
                 }
-                p style="color:#78736c;font-size:13.5px;margin:0" {
+                p class="aide" {
                     (crate::langue::tr("Le nom accepte lettres, chiffres et souligné. Une valeur vide supprime la constante."))
                 }
             }

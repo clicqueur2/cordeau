@@ -178,12 +178,12 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     form method="post" action=(format!("/mailings/{}/marquer-envoye", c.rowid)) {
                         button type="submit" { (crate::langue::tr("Marquer comme envoyée")) }
                     }
-                    p style="color:#78736c;font-size:13.5px" {
+                    p class="aide" {
                         (crate::langue::tr("Ce bouton n'envoie rien : il enregistre qu'un envoi a eu lieu. Un envoi en masse ne se déclenche pas depuis un écran — une faute de destinataire ne se corrige pas."))
                     }
                 }
                 _ => {
-                    p style="color:#78736c;font-size:13.5px" {
+                    p class="aide" {
                         (crate::langue::tr("Cette campagne est partie. Elle ne se modifie plus."))
                     }
                 }

@@ -46,14 +46,14 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 input type="text" name="label" id="label" required style="min-width:240px";
                 " "
                 label for="nb_operators" { (crate::langue::tr("Opérateurs")) } " "
-                input type="number" name="nb_operators" id="nb_operators" value="1" min="0" style="width:90px";
+                input type="number" name="nb_operators" id="nb_operators" value="1" min="0" class="champ-court";
                 " "
                 label for="hourly_cost" { (crate::langue::tr("Coût horaire")) } " "
-                input type="text" name="hourly_cost" id="hourly_cost" required style="width:110px";
+                input type="text" name="hourly_cost" id="hourly_cost" required class="champ-court";
                 " "
                 button type="submit" { (crate::langue::tr("Créer")) }
             }
-            p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+            p class="aide petite sous-champ" {
                 (crate::langue::tr("Un poste naît désactivé : c'est l'état de repos dans Dolibarr, il n'y a pas de brouillon sur cette fiche."))
             }
 
@@ -82,13 +82,13 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                                 td { (pastille(p.statut)) }
                                 td {
                                     @if p.statut == poste_charge::STATUT_ACTIF {
-                                        form method="post" action=(format!("/postes/{}/desactiver", p.rowid)) style="display:inline" {
+                                        form method="post" action=(format!("/postes/{}/desactiver", p.rowid)) class="en-ligne" {
                                             button type="submit" class="petit secondaire" {
                                                 (crate::langue::tr("Désactiver"))
                                             }
                                         }
                                     } @else {
-                                        form method="post" action=(format!("/postes/{}/valider", p.rowid)) style="display:inline" {
+                                        form method="post" action=(format!("/postes/{}/valider", p.rowid)) class="en-ligne" {
                                             button type="submit" class="petit" {
                                                 (crate::langue::tr("Activer"))
                                             }
@@ -153,15 +153,15 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                 input type="text" name="label" id="label" value=(p.label.clone()) required style="min-width:240px";
                 " "
                 label for="nb_operators" { (crate::langue::tr("Opérateurs")) } " "
-                input type="number" name="nb_operators" id="nb_operators" value=(p.nb_operators) min="0" style="width:90px";
+                input type="number" name="nb_operators" id="nb_operators" value=(p.nb_operators) min="0" class="champ-court";
                 " "
                 label for="hourly_cost" { (crate::langue::tr("Coût horaire")) } " "
                 input type="text" name="hourly_cost" id="hourly_cost"
-                      value=(p.hourly_cost.to_string()) required style="width:110px";
+                      value=(p.hourly_cost.to_string()) required class="champ-court";
                 " "
                 button type="submit" class="petit" { (crate::langue::tr("Enregistrer")) }
             }
-            p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+            p class="aide petite sous-champ" {
                 (crate::langue::tr("La référence ne se modifie pas : c'est elle qu'on retrouve dans une nomenclature."))
             }
 
@@ -173,7 +173,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
             }
             form method="post" action=(format!("/postes/{}/ressource", p.rowid)) {
                 label for="fk_ressource" { (crate::langue::tr("Attacher la ressource n°")) } " "
-                input type="number" name="fk_ressource" id="fk_ressource" min="1" required style="width:110px";
+                input type="number" name="fk_ressource" id="fk_ressource" min="1" required class="champ-court";
                 " "
                 button type="submit" class="petit" { (crate::langue::tr("Attacher")) }
             }
@@ -186,7 +186,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
             }
             form method="post" action=(format!("/postes/{}/groupe", p.rowid)) {
                 label for="fk_groupe" { (crate::langue::tr("Attacher le groupe n°")) } " "
-                input type="number" name="fk_groupe" id="fk_groupe" min="1" required style="width:110px";
+                input type="number" name="fk_groupe" id="fk_groupe" min="1" required class="champ-court";
                 " "
                 button type="submit" class="petit" { (crate::langue::tr("Attacher")) }
             }

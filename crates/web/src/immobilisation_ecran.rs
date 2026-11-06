@@ -69,7 +69,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                       placeholder=(crate::langue::tr("Camionnette, outillage, ordinateur…"));
                 " "
                 label for="valeur" { (crate::langue::tr("Valeur HT")) } " "
-                input type="text" name="valeur" id="valeur" required style="width:110px";
+                input type="text" name="valeur" id="valeur" required class="champ-court";
                 " "
                 label for="duree" { (crate::langue::tr("Durée (ans)")) } " "
                 input type="text" name="duree" id="duree" value="5" style="width:70px";
@@ -79,7 +79,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 " "
                 button type="submit" { (crate::langue::tr("Créer et calculer le plan")) }
             }
-            p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+            p class="aide petite sous-champ" {
                 (crate::langue::tr("Amortissement linéaire. La dernière annuité porte le reliquat d'arrondi pour que la somme des dotations égale exactement la valeur."))
             }
 
@@ -167,7 +167,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     crate::langue::tr("Cédé le"),
                     d
                 )))
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Un bien cédé reste au registre : c'est une pièce comptable, pas une ligne à effacer."))
                 }
             }
@@ -205,13 +205,13 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     input type="date" name="date" id="date_cession" required;
                     " "
                     label for="prix" { (crate::langue::tr("Prix de cession HT")) } " "
-                    input type="text" name="prix" id="prix" required style="width:110px";
+                    input type="text" name="prix" id="prix" required class="champ-court";
                     " "
                     button type="submit" class="petit secondaire" {
                         (crate::langue::tr("Céder"))
                     }
                 }
-                p style="color:#78736c;font-size:13px" {
+                p class="aide petite" {
                     (crate::langue::tr("La cession ne supprime rien : elle date la sortie et fixe le prix. Un bien cédé reste au registre."))
                 }
             }

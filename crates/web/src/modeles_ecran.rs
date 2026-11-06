@@ -50,7 +50,7 @@ pub async fn page(
                             tr {
                                 td { (m.libelle.clone()) }
                                 td .ref { (m.type_template.clone()) }
-                                td style="color:#78736c" { (m.sujet.clone()) }
+                                td class="muet" { (m.sujet.clone()) }
                                 td {
                                     @if m.actif {
                                         span .pastille.p-payee { "actif" }
@@ -93,14 +93,14 @@ pub async fn page(
                         tr {
                             th { (crate::langue::tr("Objet")) }
                             td colspan="3" {
-                                input type="text" name="sujet" style="width:100%"
+                                input type="text" name="sujet" class="pleine"
                                       value="Votre facture __REF__";
                             }
                         }
                         tr {
                             th { (crate::langue::tr("Message")) }
                             td colspan="3" {
-                                textarea name="corps" rows="7" style="width:100%" {
+                                textarea name="corps" rows="7" class="pleine" {
                                     "Bonjour,\n\nVeuillez trouver ci-joint la facture __REF__ d'un montant de __TOTAL_TTC__ €.\n\nBien cordialement,\n"
                                 }
                             }
@@ -109,7 +109,7 @@ pub async fn page(
                 }
                 div .actions {
                     button type="submit" { (crate::langue::tr("Créer le modèle")) }
-                    span style="color:#78736c;font-size:13.5px" {
+                    span class="aide" {
                         (crate::langue::tr("Variables disponibles : __REF__, __TOTAL_TTC__, __TOTAL_HT__, __CLIENT__, __ECHEANCE__, __SOCIETE__."))
                     }
                 }

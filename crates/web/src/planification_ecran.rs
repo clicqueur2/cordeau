@@ -51,7 +51,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     @for t in TACHES {
                         tr {
                             td { (crate::langue::tr(t.libelle)) }
-                            td style="color:#78736c;font-size:13.5px" { (crate::langue::tr(t.description)) }
+                            td class="aide" { (crate::langue::tr(t.description)) }
                             td .ref { (t.commande) }
                             td { (crate::langue::tr(periode(t.frequence))) }
                             td {

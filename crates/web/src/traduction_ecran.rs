@@ -116,7 +116,7 @@ pub async fn page(
                     (ui::flash("Tous les textes de l'interface ont une traduction dans cette langue."))
                 }
             } @else {
-                p style="color:#78736c;font-size:13.5px;margin:0 0 12px" {
+                p class="aide bloc" {
                     (crate::langue::tr("300 au plus, par ordre alphabétique. Pour en ajouter une, le texte se déclare dans langs/noyau : la clé est le texte français lui-même."))
                 }
                 table {
@@ -132,7 +132,7 @@ pub async fn page(
             }
 
             h2 { (crate::langue::tr("Comment ça marche")) }
-            p style="color:#78736c;font-size:13.5px" {
+            p class="aide" {
                 (crate::langue::tr("La langue est globale au processus : elle se règle par DOLIBARR_LANGUE au démarrage. Un choix par utilisateur demanderait de faire descendre la langue dans chaque écran ; ce n'est pas fait, et cet écran ne fait pas semblant de le proposer."))
             }
         },

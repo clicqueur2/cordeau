@@ -69,14 +69,14 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 input type="email" name="email" id="email" style="width:220px";
                 " "
                 label for="amount" { (crate::langue::tr("Montant")) } " "
-                input type="text" name="amount" id="amount" required style="width:110px";
+                input type="text" name="amount" id="amount" required class="champ-court";
                 " "
                 label for="datedon" { (crate::langue::tr("Date")) } " "
                 input type="date" name="datedon" id="datedon";
                 " "
                 button type="submit" { (crate::langue::tr("Enregistrer la promesse")) }
             }
-            p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+            p class="aide petite sous-champ" {
                 (crate::langue::tr("Un nom ou une société suffit. Un don anonyme sans aucune trace de qui l'a reçu ne sert à rien."))
             }
 
@@ -159,7 +159,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
 
             h2 { (crate::langue::tr("Actions")) }
             @if d.encaisse {
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Ce don est encaissé. Il ne se supprime plus et ne s'encaisse plus une seconde fois."))
                 }
             } @else {
@@ -167,7 +167,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     form method="post" action=(format!("/dons/{}/valider", d.rowid)) {
                         button type="submit" { (crate::langue::tr("Valider")) }
                     }
-                    p style="color:#78736c;font-size:13.5px" {
+                    p class="aide" {
                         (crate::langue::tr("Valider contrôle la promesse. On n'encaisse pas une promesse que personne n'a vérifiée."))
                     }
                 } @else {
@@ -197,7 +197,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                             " "
                             button type="submit" { (crate::langue::tr("Encaisser")) }
                         }
-                        p style="color:#78736c;font-size:13.5px" {
+                        p class="aide" {
                             (crate::langue::tr("L'encaissement écrit un règlement réel : le montant est recopié du don, jamais ressaisi."))
                         }
                     }

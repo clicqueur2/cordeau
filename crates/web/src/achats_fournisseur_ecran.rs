@@ -49,7 +49,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 h2 { (crate::langue::tr("Demander un prix")) }
                 form method="post" action="/achats-fournisseur/demande" {
                     label for="fk_soc" { (crate::langue::tr("Fournisseur")) } " "
-                    select name="fk_soc" id="fk_soc" style="min-width:260px" {
+                    select name="fk_soc" id="fk_soc" class="champ-large" {
                         @for f in &fournisseurs {
                             option value=(f.rowid) { (f.nom.clone()) }
                         }
@@ -73,7 +73,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 h2 { (crate::langue::tr("Commander")) }
                 form method="post" action="/achats-fournisseur/commande" {
                     label for="fk_soc_cmd" { (crate::langue::tr("Fournisseur")) } " "
-                    select name="fk_soc" id="fk_soc_cmd" style="min-width:260px" {
+                    select name="fk_soc" id="fk_soc_cmd" class="champ-large" {
                         @for f in &fournisseurs {
                             option value=(f.rowid) { (f.nom.clone()) }
                         }
@@ -159,7 +159,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            p style="color:#78736c;font-size:13px;margin-top:16px" {
+            p class="aide petite haut" {
                 (crate::langue::tr("Le cycle d'une commande fournisseur va de la validation à la réception. Chaque étape refuse de se produire hors séquence : une commande non approuvée ne part pas."))
             }
         },
@@ -170,15 +170,15 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
 fn actions_demande(d: &proposition_fournisseur::PropositionFournisseur) -> maud::Markup {
     html! {
         @if d.fk_statut == proposition_fournisseur::STATUT_BROUILLON {
-            form method="post" action=(format!("/achats-fournisseur/demande/{}/valider", d.rowid)) style="display:inline" {
+            form method="post" action=(format!("/achats-fournisseur/demande/{}/valider", d.rowid)) class="en-ligne" {
                 button type="submit" class="petit" { (crate::langue::tr("Valider")) }
             }
         } @else if d.fk_statut == proposition_fournisseur::STATUT_VALIDEE {
-            form method="post" action=(format!("/achats-fournisseur/demande/{}/cloturer", d.rowid)) style="display:inline" {
+            form method="post" action=(format!("/achats-fournisseur/demande/{}/cloturer", d.rowid)) class="en-ligne" {
                 button type="submit" class="petit" { (crate::langue::tr("Clore")) }
             }
             " "
-            form method="post" action=(format!("/achats-fournisseur/demande/{}/refuser", d.rowid)) style="display:inline" {
+            form method="post" action=(format!("/achats-fournisseur/demande/{}/refuser", d.rowid)) class="en-ligne" {
                 button type="submit" class="petit secondaire" { (crate::langue::tr("Refuser")) }
             }
         }

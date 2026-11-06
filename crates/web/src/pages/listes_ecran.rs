@@ -363,7 +363,7 @@ pub async fn liste_simple_page(
                     }
                 }
             }
-            p style="color:#78736c;font-size:13px" {
+            p class="aide petite" {
                 @if creation {(crate::langue::tr("Écran de création et de lecture. Le reste des champs se saisit dans Dolibarr."))
                 } @else {(crate::langue::tr("Lecture seule : les écritures se font dans Dolibarr."))
                 }
@@ -705,7 +705,7 @@ pub async fn liste_saisie_form(
                             tr {
                                 th {
                                     (ch.libelle)
-                                    @if ch.obligatoire { span style="color:#a33" { " *" } }
+                                    @if ch.obligatoire { span class="rouge" { " *" } }
                                 }
                                 td {
                                     @if let Some(opts) = options.get(i).cloned().flatten() {
@@ -891,7 +891,7 @@ pub async fn fiche_saisie(
                             tr {
                                 th {
                                     (ch.libelle)
-                                    @if ch.obligatoire { span style="color:#a33" { " *" } }
+                                    @if ch.obligatoire { span class="rouge" { " *" } }
                                 }
                                 td {
                                     input

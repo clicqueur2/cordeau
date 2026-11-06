@@ -63,7 +63,7 @@ pub async fn options_module(
                                         } @else if o.genre == crate::plugin::Genre::Nombre {
                                             input type="number" name=(o.cle) value=(valeurs[i]) style="width:130px";
                                         } @else {
-                                            input type="text" name=(o.cle) value=(valeurs[i]) style="width:100%";
+                                            input type="text" name=(o.cle) value=(valeurs[i]) class="pleine";
                                         }
                                         p style="color:#78736c;font-size:12px;margin:6px 0 0" {
                                             (o.aide) " — constante " code { (o.cle) }

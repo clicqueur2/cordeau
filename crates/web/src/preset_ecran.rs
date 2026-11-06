@@ -138,7 +138,7 @@ pub async fn page(
                         (crate::langue::tr("Ce socle est déjà en place."))
                     }
                 } @else {
-                    form method="post" action="/presets" style="margin-top:10px" {
+                    form method="post" action="/presets" class="haut" {
                         input type="hidden" name="code" value=(p.code);
                         button type="submit" class="petit" {
                             (crate::langue::tr("Appliquer")) " " (p.libelle)
@@ -148,7 +148,7 @@ pub async fn page(
             }
 
             h2 { (crate::langue::tr("Ce qu'un preset ne fait pas")) }
-            p style="color:#78736c;font-size:13.5px" {
+            p class="aide" {
                 (crate::langue::tr("Il n'éteint aucun module : ce que vous avez allumé reste allumé. Il n'écrit aucune donnée métier — pas de client, pas de produit, pas de tarif. Et le schéma de la base ne change pas d'un octet : c'est la sélection qui change, et elle se défait module par module."))
             }
         },

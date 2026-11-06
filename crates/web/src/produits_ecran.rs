@@ -58,7 +58,7 @@ pub(crate) async fn produit_fiche(
             form method="post" action={ "/produits/" (id) "/modifier" } {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Désignation")) } td { input type="text" name="label" value=(p.label) required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Désignation")) } td { input type="text" name="label" value=(p.label) required class="pleine"; } }
                         tr { th {(crate::langue::tr("Prix HT")) } td { input type="number" name="prix" step="0.01" min="0" value=(app::fmt_dec(p.price)) style="width:140px"; } }
                         tr {
                             th {(crate::langue::tr("TVA")) }
@@ -70,7 +70,7 @@ pub(crate) async fn produit_fiche(
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" value=(p.description.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" value=(p.description.clone().unwrap_or_default()) class="pleine"; } }
                         tr {
                             th {(crate::langue::tr("En vente")) }
                             td {
@@ -137,7 +137,7 @@ pub(crate) async fn produits_nouveau(State(app): State<App>) -> Res<Markup> {
                 table {
                     tbody {
                         tr { th {(crate::langue::tr("Reference")) } td { input type="text" name="ref" required style="width:220px"; } }
-                        tr { th {(crate::langue::tr("Libelle")) } td { input type="text" name="label" required style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Libelle")) } td { input type="text" name="label" required class="pleine"; } }
                         tr { th {(crate::langue::tr("Prix HT")) } td { input type="number" name="prix" step="0.01" min="0" style="width:140px"; } }
                         tr {
                             th {(crate::langue::tr("Taux de TVA")) }
