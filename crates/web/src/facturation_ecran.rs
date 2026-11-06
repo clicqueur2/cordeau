@@ -372,7 +372,17 @@ pub(crate) async fn factures_valider(State(app): State<App>, Path(id): Path<i64>
             &format!("Facture {} validée", f.ref_),
         );
         // Le PDF part dans la GED : un document non archivé n'est pas une pièce.
-        let _ = app::archiver_facture(&app.pool, entite::courante(), id);
+        // Un echec d'archivage n'est plus avale : la facture reste validee
+        // (c'est un document legal des qu'elle l'est), mais l'utilisateur
+        // l'apprend et le motif part au journal des erreurs. Avant, la facture
+        // se validait sans PDF et personne ne le savait.
+        if let Err(e) = app::archiver_facture(&app.pool, entite::courante(), id) {
+            crate::journal_erreurs::enregistrer(
+                "archivage",
+                &format!("facture {id} validee sans PDF : {e}"),
+            );
+            return Ok(Redirect::to(&format!("/factures/{id}?ok=validee-sans-pdf")));
+        }
 
         // L'ecriture comptable, dans la table que Dolibarr lit. Une erreur ici
         // ne defait pas la validation : la facture est validee, et le message
