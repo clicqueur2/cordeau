@@ -73,3 +73,27 @@ pub fn delai_moyen(pool: &Pool, entity: i64) -> Result<f64, Box<dyn Error>> {
     )?;
     Ok(jours.unwrap_or(0.0))
 }
+
+/// Les cinq premiers clients par chiffre d'affaires facture (HT, hors avoirs).
+///
+/// Le nom vient du tiers ; un tiers supprime laisse la ligne sans nom plutot que
+/// de disparaitre, sinon le total des barres ne ferait plus le total facture.
+pub fn top_clients(
+    pool: &Pool,
+    entity: i64,
+    n: u32,
+) -> Result<Vec<(String, f64)>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let rows: Vec<(Option<String>, Option<f64>)> = conn.exec(
+        "SELECT s.nom, SUM(f.total_ht) \
+         FROM llx_facture f LEFT JOIN llx_societe s ON s.rowid = f.fk_soc \
+         WHERE f.entity = :entity AND f.fk_statut >= 1 AND f.type <> 2 \
+         GROUP BY f.fk_soc, s.nom \
+         ORDER BY 2 DESC LIMIT :n",
+        params! { "entity" => entity, "n" => n },
+    )?;
+    Ok(rows
+        .into_iter()
+        .map(|(nom, ca)| (nom.unwrap_or_else(|| "(client supprime)".to_string()), ca.unwrap_or(0.0)))
+        .collect())
+}
