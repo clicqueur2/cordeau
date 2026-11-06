@@ -114,6 +114,12 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                     }
 
                     span .compte {
+                        select id="style" aria-label=(crate::langue::tr("Style d'affichage"))
+                               title=(crate::langue::tr("Style d'affichage")) {
+                            option value="systeme" { (crate::langue::tr("Style système")) }
+                            option value="futuriste" { (crate::langue::tr("Futuriste")) }
+                            option value="classique" { (crate::langue::tr("Classique")) }
+                        }
                         a .bouton.secondaire.petit href="/compte" { (crate::langue::tr("Mon compte")) }
                         form method="post" action="/deconnexion" {
                             button .fantome.petit type="submit"
@@ -145,6 +151,14 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                     main id="contenu" {
                         div .contenu { (contenu) }
                     }
+                }
+                // Le style choisi est une préférence locale, pas une donnée de la
+                // base : il vit dans le navigateur et s'applique avant l'affichage.
+                // Sans JavaScript, la page garde le style système — rien ne casse.
+                script {
+                    (maud::PreEscaped(
+                        "(function(){try{var s=localStorage.getItem('cordeau-style')||'systeme';document.documentElement.dataset.style=s;var el=document.getElementById('style');if(el){el.value=s;el.addEventListener('change',function(){document.documentElement.dataset.style=el.value;localStorage.setItem('cordeau-style',el.value);});}}catch(e){}})();"
+                    ))
                 }
                 // Quatre lignes de JavaScript, uniquement pour le raccourci « / ».
                 // Sans elles, l'application fonctionne exactement pareil : la
