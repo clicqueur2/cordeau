@@ -190,6 +190,20 @@ Les sections et sous-totaux portent 0 % de TVA : la ventilation affichait donc
 une ligne à zéro. Dolibarr ne l'imprime pas, et un zéro sur une facture fait
 douter du reste. Les taux sans montant sont écartés.
 
+### 10. Les listes étaient tronquées sans le dire
+
+**Symptôme.** L'écran des tiers affichait « 500 fiches » pour l'entité 1. Il y en
+a **875**. L'écran des factures disait « 200 » pour 203.
+
+**Cause.** La requête demandait 500 lignes, et le compteur affichait
+`liste.len()` — la taille de ce qu'on avait chargé, présentée comme le total.
+
+**Correction.** Les deux écrans chargent large (2 000) et affichent le compte
+réel ; si la troncature revient un jour, elle est **dite** : « 500 sur 875 —
+affinez la recherche ». Une liste incomplète qui se présente comme complète est
+un mensonge par omission : 375 fiches étaient introuvables sans que rien ne le
+signale.
+
 ## Ce qui reste ouvert
 
 | Sujet | Constat | Pourquoi ce n'est pas corrigé ici |
@@ -206,7 +220,7 @@ douter du reste. Les taux sans montant sont écartés.
 
 La base de test ne prouvait rien sur un point : elle ne contenait que des
 données écrites par Cordeau. Une heure sur une copie de production a trouvé
-**neuf défauts**, dont un qui empêchait d'éditer la moindre facture de
+**dix défauts**, dont un qui empêchait d'éditer la moindre facture de
 particulier — c'est-à-dire l'essentiel de l'activité — et quatre qui rendaient
 les champs libres invisibles sans le dire.
 

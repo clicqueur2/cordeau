@@ -18,7 +18,8 @@ pub(crate) async fn factures(
         .map(|s| s.trim().to_lowercase())
         .unwrap_or_default();
 
-    let toutes = db::invoice::list(p, entite::courante(), 200, 0)?;
+    let toutes = db::invoice::list(p, entite::courante(), 2000, 0)?;
+    let total_db = db::invoice::count(p, entite::courante()).unwrap_or(0);
     let total = toutes.len();
     let listes: Vec<_> = toutes
         .into_iter()
@@ -62,6 +63,7 @@ pub(crate) async fn factures(
                 @if listes.len() != total {
                     " sur " (total.to_string())
                 }
+                (ui::compte_tronque(total, total_db))
             }
             form id="actions-factures" method="post" action="/factures/actions" {}
             div .actions {

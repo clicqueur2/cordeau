@@ -304,6 +304,24 @@ pub fn flash(message: &str) -> Markup {
     html! { p .flash { (message) } }
 }
 
+/// Le complément à afficher quand une liste est plus longue que ce qu'on charge.
+///
+/// Une liste tronquée qui se présente comme complète est un mensonge par
+/// omission : sur la copie de production, l'écran des tiers annonçait « 500
+/// tiers » pour 875 en base, et 375 fiches étaient introuvables sans que rien
+/// ne le dise.
+pub fn compte_tronque(affiches: usize, total: i64) -> Markup {
+    let total = total.max(0) as usize;
+    html! {
+        @if total > affiches {
+            " sur " (total)
+            span .aide {
+                " — seules les " (affiches) " plus récentes sont affichées ; affinez la recherche pour voir les autres"
+            }
+        }
+    }
+}
+
 /// Un message d'echec, dans le style rouge de la coque.
 pub fn echec(message: &str) -> Markup {
     html! { p .erreur { (message) } }
@@ -330,5 +348,24 @@ pub fn carte(libelle: &str, valeur: &str, note: Option<&str>, alerte: bool) -> M
             div .valeur { (valeur) }
             @if let Some(n) = note { div .note { (n) } }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn une_liste_tronquee_le_dit() {
+        let rendu = compte_tronque(500, 875).into_string();
+        assert!(rendu.contains("sur 875"), "{rendu}");
+        assert!(rendu.contains("affinez"), "{rendu}");
+    }
+
+    #[test]
+    fn une_liste_complete_ne_dit_rien() {
+        assert_eq!(compte_tronque(17, 17).into_string().trim(), "");
+        // Un total inconnu (0) ne doit pas faire croire a une troncature.
+        assert_eq!(compte_tronque(17, 0).into_string().trim(), "");
     }
 }
