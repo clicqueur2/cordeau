@@ -88,6 +88,76 @@ pub const SURVEILLEES: &[(&str, &str)] = &[
     ("user", "Utilisateurs"),
 ];
 
+/// Une facture telle que le noyau la lit, pour comparaison a l'ecran.
+///
+/// Un compteur ne prouve rien : « 14 factures » ne dit pas si les montants
+/// sortent justes. Cet apercu sert a poser la meme facture cote a cote —
+/// Dolibarr d'un cote, Cordeau de l'autre — et a voir si les totaux tombent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApercuFacture {
+    pub reference: String,
+    pub client: String,
+    pub date: String,
+    pub total_ht: String,
+    pub total_ttc: String,
+    pub statut: i16,
+}
+
+/// Les dernieres factures, lues exactement comme le fait l'ecran.
+///
+/// Seules des colonnes existantes sont lues ; aucune jointure facultative. Si
+/// un tiers a ete supprime, la facture sort avec un client vide plutot que de
+/// disparaitre : une facture orpheline est justement ce qu'il faut voir.
+pub fn apercu_factures(
+    pool: &Pool,
+    entity: i64,
+    limite: u32,
+) -> Result<Vec<ApercuFacture>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    conn.query_drop("START TRANSACTION READ ONLY")?;
+
+    let resultat = (|| -> Result<Vec<ApercuFacture>, Box<dyn Error>> {
+        let rows: Vec<mysql::Row> = conn.exec(
+            "SELECT f.ref, COALESCE(s.nom, ''), COALESCE(DATE_FORMAT(f.datef, '%Y-%m-%d'), ''), \
+                    CAST(COALESCE(f.total_ht, 0) AS CHAR), \
+                    CAST(COALESCE(f.total_ttc, 0) AS CHAR), COALESCE(f.fk_statut, 0) \
+             FROM llx_facture f LEFT JOIN llx_societe s ON s.rowid = f.fk_soc \
+             WHERE f.entity = :entity \
+             ORDER BY f.rowid DESC LIMIT :limite",
+            params! { "entity" => entity, "limite" => limite.clamp(1, 50) },
+        )?;
+        Ok(rows
+            .into_iter()
+            .map(|r| ApercuFacture {
+                reference: r
+                    .get_opt::<String, _>(0)
+                    .and_then(|v| v.ok())
+                    .unwrap_or_default(),
+                client: r
+                    .get_opt::<String, _>(1)
+                    .and_then(|v| v.ok())
+                    .unwrap_or_default(),
+                date: r
+                    .get_opt::<String, _>(2)
+                    .and_then(|v| v.ok())
+                    .unwrap_or_default(),
+                total_ht: r
+                    .get_opt::<String, _>(3)
+                    .and_then(|v| v.ok())
+                    .unwrap_or_default(),
+                total_ttc: r
+                    .get_opt::<String, _>(4)
+                    .and_then(|v| v.ok())
+                    .unwrap_or_default(),
+                statut: r.get_opt::<i64, _>(5).and_then(|v| v.ok()).unwrap_or(0) as i16,
+            })
+            .collect())
+    })();
+
+    let _ = conn.query_drop("ROLLBACK");
+    resultat
+}
+
 /// Lit l'etat de la base **sans pouvoir y ecrire**.
 ///
 /// # Erreurs
