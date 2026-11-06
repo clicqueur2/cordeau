@@ -27,6 +27,25 @@ use crate::{entite, ui, App, Erreur, Res};
 /// La liste et le formulaire.
 pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
     let entity = entite::courante();
+
+    // Le module Transfert de stock n'est pas installe dans toutes les bases :
+    // ses deux tables n'existent alors pas du tout, et interroger la premiere
+    // rendait une erreur MySQL brute. On regarde avant de demander.
+    if !db::transfert_stock::installe(&app.pool).unwrap_or(false) {
+        return Ok(ui::page(
+            "transferts",
+            "liste",
+            "Transferts de stock",
+            html! {
+                h1 { (crate::langue::tr("Transferts de stock")) }
+                (ui::vide(
+                    "Le module Transfert de stock n'est pas installé dans cette base : ses tables n'existent pas. Activez-le dans Outils → Configuration → Modules, ou installez-le depuis Dolibarr.",
+                    Some(("/produits", "Voir les produits")),
+                ))
+            },
+        ));
+    }
+
     let transferts = transfert_stock::list(&app.pool, entity, 200, 0)?;
     let entrepots = db::stock::entrepots(&app.pool, entity).unwrap_or_default();
     let produits = db::product::list(&app.pool, entity, 500, 0).unwrap_or_default();
