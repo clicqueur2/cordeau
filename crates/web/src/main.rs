@@ -102,6 +102,7 @@ mod pdf_modele_ecran;
 mod planification_ecran;
 mod plugin;
 mod pos_ecran;
+mod poste_ecran;
 mod preset_ecran;
 mod pret_ecran;
 mod rapprochement_ecran;
