@@ -18,6 +18,18 @@ ureq = "2"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# Les symboles de debogage complets pesent lourd : 24 Go de `.pdb` accumules en
+# une session, parce que chaque build laisse les siens et que rien ne les
+# efface. `line-tables-only` garde ce qui sert vraiment — un arret sur une ligne
+# avec son fichier — sans embarquer les variables locales de chaque fonction.
+# Une trace reste lisible ; le disque respire.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"
+
 [workspace.metadata]
 licence = "GPL-3.0-or-later"
 oeuvre-derivee = "Dolibarr ERP & CRM 24.0.1 (GPL-3.0-or-later)"
