@@ -118,6 +118,8 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                                title=(crate::langue::tr("Style d'affichage")) {
                             option value="systeme" { (crate::langue::tr("Style système")) }
                             option value="futuriste" { (crate::langue::tr("Futuriste")) }
+                            option value="minuit" { (crate::langue::tr("Minuit")) }
+                            option value="sable" { (crate::langue::tr("Sable")) }
                             option value="classique" { (crate::langue::tr("Classique")) }
                         }
                         a .bouton.secondaire.petit href="/compte" { (crate::langue::tr("Mon compte")) }

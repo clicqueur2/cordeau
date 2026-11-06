@@ -551,6 +551,87 @@ html[data-style="classique"] thead th { background: #f0f0f0; border-bottom: 1px 
 html[data-style="classique"] td { border-bottom: 1px solid #e6e6e6; }
 html[data-style="classique"] h1 { font-size: 22px; letter-spacing: 0; font-weight: 600; }
 
+/* « minuit » : sombre neutre et dense, pour travailler tard sans agresser
+   l'oeil. Pas de halo, pas de couleur criarde : du gris, un accent sourd. */
+html[data-style="minuit"] {
+  --encre: #e9e9ec;
+  --encre-douce: #c2c2c7;
+  --muet: #8e8e94;
+  --pale: #6a6a70;
+  --papier: #0e0e10;
+  --surface: #17171a;
+  --surface-2: #1c1c20;
+  --surface-3: #26262b;
+  --verre: rgba(23, 23, 26, .8);
+  --trait: rgba(255, 255, 255, .07);
+  --trait-fort: rgba(255, 255, 255, .14);
+  --accent: #c9a227;
+  --accent-fonce: #e0b63a;
+  --accent-clair: rgba(201, 162, 39, .14);
+  --accent-trait: rgba(201, 162, 39, .32);
+  --anneau: rgba(201, 162, 39, .4);
+  --vert: #56c98f;
+  --vert-clair: rgba(86, 201, 143, .13);
+  --vert-trait: rgba(86, 201, 143, .28);
+  --rouge: #f07167;
+  --rouge-clair: rgba(240, 113, 103, .13);
+  --rouge-trait: rgba(240, 113, 103, .28);
+  --bleu: #7aa7d9;
+  --bleu-clair: rgba(122, 167, 217, .13);
+  --bleu-trait: rgba(122, 167, 217, .28);
+  --ambre: #e3b341;
+  --ambre-clair: rgba(227, 179, 65, .13);
+  --ambre-trait: rgba(227, 179, 65, .28);
+  --ombre-1: 0 0.5px 1px rgba(0, 0, 0, .6);
+  --ombre-2: 0 6px 20px rgba(0, 0, 0, .5);
+  --ombre-3: 0 22px 50px rgba(0, 0, 0, .7);
+}
+html[data-style="minuit"] header .marque .sceau,
+html[data-style="minuit"] .connexion-marque .sceau {
+  background: linear-gradient(160deg, #e0b63a 0%, #9a7b1c 100%);
+  color: #14140f;
+}
+
+/* « sable » : clair et chaud, papier de calque, encre brune, accent terre
+   cuite. Le contemporain des maisons d'édition et des cabinets. */
+html[data-style="sable"] {
+  --encre: #211d19;
+  --encre-douce: #423a32;
+  --muet: #6b6157;
+  --pale: #94897d;
+  --papier: #f6f2ec;
+  --surface: #fffdfa;
+  --surface-2: #fbf7f0;
+  --surface-3: #f1ebe1;
+  --verre: rgba(255, 253, 250, .8);
+  --trait: rgba(84, 66, 46, .12);
+  --trait-fort: rgba(84, 66, 46, .22);
+  --accent: #b4562a;
+  --accent-fonce: #96451f;
+  --accent-clair: rgba(180, 86, 42, .1);
+  --accent-trait: rgba(180, 86, 42, .28);
+  --anneau: rgba(180, 86, 42, .32);
+  --vert: #3d7a53;
+  --vert-clair: rgba(61, 122, 83, .1);
+  --vert-trait: rgba(61, 122, 83, .24);
+  --rouge: #a93b2c;
+  --rouge-clair: rgba(169, 59, 44, .09);
+  --rouge-trait: rgba(169, 59, 44, .24);
+  --bleu: #2f5d78;
+  --bleu-clair: rgba(47, 93, 120, .09);
+  --bleu-trait: rgba(47, 93, 120, .22);
+  --ambre: #8c6a1f;
+  --ambre-clair: rgba(140, 106, 31, .1);
+  --ambre-trait: rgba(140, 106, 31, .24);
+  --rayon: 6px;
+  --rayon-lg: 10px;
+}
+html[data-style="sable"] header .marque .sceau,
+html[data-style="sable"] .connexion-marque .sceau {
+  background: linear-gradient(160deg, #cf7844 0%, #96451f 100%);
+}
+html[data-style="sable"] h1 { letter-spacing: -.025em; }
+
 /* ===== mode sombre ===================================================== */
 @media (prefers-color-scheme: dark) {
   :root {
