@@ -1,7 +1,7 @@
-//! Rendu PDF des documents commerciaux (devis, commande, facture, avoir).
+﻿//! Rendu PDF des documents commerciaux (devis, commande, facture, avoir).
 //!
 //! Crate volontairement isolee de `db` et de `money` : elle ne connait que les
-//! structures de vue definies ici — des chaines **deja formatees** — ce qui
+//! structures de vue definies ici â€” des chaines **deja formatees** â€” ce qui
 //! permet de la tester sans base de donnees ni arithmetique monetaire.
 //!
 //! # Approche
@@ -33,7 +33,7 @@
 //!     service_date: Some("12/10/2026".into()),
 //!     bank: Some("IBAN FR76 1234 5678 9012 3456 7890 123".into()),
 //!     payment_terms: Some("30 jours fin de mois".into()),
-//!     deposit: Some("30 % — 1 526,14 €".into()),
+//!     deposit: Some("30 % â€” 1 526,14 â‚¬".into()),
 //!     seller: PartyView {
 //!         legal_line: None,
 //!         name: "Pierre Angulaire".into(),
@@ -41,6 +41,8 @@
 //!         zip: Some("69450".into()),
 //!         town: Some("Saint-Cyr-au-Mont-d'Or".into()),
 //!         siret: Some("123 456 789 00016".into()),
+//!         siren: None,
+//!         ape: None,
 //!         tva_intra: Some("FR12345678900".into()),
 //!     },
 //!     customer: PartyView {
@@ -50,6 +52,8 @@
 //!         zip: None,
 //!         town: None,
 //!         siret: None,
+//!         siren: None,
+//!         ape: None,
 //!         tva_intra: None,
 //!     },
 //!     lines: vec![LineView {
@@ -148,6 +152,10 @@ pub struct PartyView {
     pub zip: Option<String>,
     pub town: Option<String>,
     pub siret: Option<String>,
+    /// SIREN seul, quand la fiche le porte : Dolibarr l'imprime a cote du SIRET.
+    pub siren: Option<String>,
+    /// Code NAF / APE du vendeur.
+    pub ape: Option<String>,
     pub tva_intra: Option<String>,
     /// Identification legale affichee sous le nom : forme juridique, capital, RCS.
     pub legal_line: Option<String>,
@@ -173,7 +181,7 @@ pub struct LineView {
     pub description: Option<String>,
     /// Quantite deja formatee (ex. `"2,00"`).
     pub qty: String,
-    /// Unite de la ligne (ex. `"m²"`, `"forfait"`), deja lisible.
+    /// Unite de la ligne (ex. `"mÂ²"`, `"forfait"`), deja lisible.
     pub unit: String,
     /// Prix unitaire hors taxes deja formate, symbole monetaire inclus.
     pub unit_price_ht: String,
@@ -193,7 +201,7 @@ pub struct LineView {
 ///
 /// Dolibarr les range dans `MAIN_PDF_MARGIN_LEFT`, `_RIGHT`, `_TOP`, `_BOTTOM`.
 /// Le gabarit n'en connait que trois : la largeur, le haut et le bas. La gauche
-/// et la droite sont donc ramenees a une seule valeur — la plus grande des
+/// et la droite sont donc ramenees a une seule valeur â€” la plus grande des
 /// deux, parce qu'une marge trop petite se voit alors qu'une marge trop grande
 /// ne fait que reduire un tableau.
 ///
@@ -220,22 +228,22 @@ impl Default for Marges {
 pub struct DocumentView {
     pub kind: DocKind,
     /// Remplace le libelle du type quand le document est particulier
-    /// (« Facture de situation n° 2 »).
+    /// (Â« Facture de situation nÂ° 2 Â»).
     pub title_override: Option<String>,
     pub reference: String,
     pub date: String,
     pub due_date: Option<String>,
     pub valid_until: Option<String>,
-    /// Bon de commande du client, s'il a été établi.
+    /// Bon de commande du client, s'il a Ã©tÃ© Ã©tabli.
     pub customer_ref: Option<String>,
     /// Date de la vente ou de la prestation.
     pub service_date: Option<String>,
-    /// Coordonnées bancaires : IBAN et BIC, sur une ligne.
+    /// CoordonnÃ©es bancaires : IBAN et BIC, sur une ligne.
     pub bank: Option<String>,
-    /// Condition de règlement, telle qu'elle doit apparaître au client
-    /// (ex. « 30 jours fin de mois »).
+    /// Condition de rÃ¨glement, telle qu'elle doit apparaÃ®tre au client
+    /// (ex. Â« 30 jours fin de mois Â»).
     pub payment_terms: Option<String>,
-    /// Acompte demandé à la commande, déjà formaté (ex. « 30,00 % — 1 234,56 € TTC »).
+    /// Acompte demandÃ© Ã  la commande, dÃ©jÃ  formatÃ© (ex. Â« 30,00 % â€” 1 234,56 â‚¬ TTC Â»).
     pub deposit: Option<String>,
     pub seller: PartyView,
     pub customer: PartyView,
@@ -610,6 +618,10 @@ fn party_dict(party: &PartyView) -> String {
         ("name", typst_str(&party.name)),
         ("address_lines", str_array(&address)),
         ("siret", opt_str(party.siret.as_deref())),
+        // Le gabarit teste toutes les cles (`#if has(data.seller.siren)`) : une
+        // cle absente n'est pas `none`, c'est une erreur de composition.
+        ("siren", opt_str(party.siren.as_deref())),
+        ("ape", opt_str(party.ape.as_deref())),
         ("tva_intra", opt_str(party.tva_intra.as_deref())),
         ("legal_line", opt_str(party.legal_line.as_deref())),
     ])
@@ -731,7 +743,7 @@ mod tests_modeles {
         for m in MODELES {
             assert_eq!(Modele::depuis_code(m.code()), Some(*m));
         }
-        // Casse et espaces tolerés : la valeur vient d'une constante saisie
+        // Casse et espaces tolerÃ©s : la valeur vient d'une constante saisie
         // a la main.
         assert_eq!(Modele::depuis_code(" EPURE "), Some(Modele::Epure));
         assert_eq!(Modele::depuis_code("standard"), Some(Modele::Standard));
@@ -858,14 +870,16 @@ mod tests_gabarits {
             service_date: Some("12/10/2026".into()),
             bank: Some("IBAN FR76 1680 7003 4838 4868 9521 643".into()),
             payment_terms: Some("30 jours fin de mois".into()),
-            deposit: Some("30 % — 1 526,14 €".into()),
+            deposit: Some("30 % â€” 1 526,14 â‚¬".into()),
             seller: PartyView {
-                legal_line: Some("SAS au capital de 10 000 € — RCS Lyon".into()),
+                legal_line: Some("SAS au capital de 10 000 â‚¬ â€” RCS Lyon".into()),
                 name: "Pierre Angulaire".into(),
                 address: Some("17 chemin du Grimpillon".into()),
                 zip: Some("69450".into()),
                 town: Some("Saint-Cyr-au-Mont-d'Or".into()),
                 siret: Some("123 456 789 00016".into()),
+                siren: None,
+                ape: None,
                 tva_intra: Some("FR12345678900".into()),
             },
             customer: PartyView {
@@ -875,49 +889,51 @@ mod tests_gabarits {
                 zip: Some("69370".into()),
                 town: Some("Saint-Didier-au-Mont-d'Or".into()),
                 siret: None,
+                siren: None,
+                ape: None,
                 tva_intra: None,
             },
             lines: vec![
                 LineView {
                     kind: LineKind::Section,
-                    label: "Lot 1 — Gros oeuvre".into(),
+                    label: "Lot 1 â€” Gros oeuvre".into(),
                     ..LineView::default()
                 },
                 LineView {
                     kind: LineKind::Normal,
                     label: "Reprise de contour de piscine".into(),
-                    description: Some("Y compris évacuation des gravois.".into()),
+                    description: Some("Y compris Ã©vacuation des gravois.".into()),
                     qty: "1".into(),
                     unit: "forfait".into(),
-                    unit_price_ht: "4 624,65 €".into(),
+                    unit_price_ht: "4 624,65 â‚¬".into(),
                     discount_percent: "0,00 %".into(),
                     vat_rate: "10,00 %".into(),
-                    total_ht: "4 624,65 €".into(),
+                    total_ht: "4 624,65 â‚¬".into(),
                 },
                 LineView {
                     kind: LineKind::Subtotal,
                     label: "Sous-total Lot 1".into(),
-                    total_ht: "4 624,65 €".into(),
+                    total_ht: "4 624,65 â‚¬".into(),
                     ..LineView::default()
                 },
             ],
-            total_ht: "4 624,65 €".into(),
-            total_vat: "462,47 €".into(),
-            total_ttc: "5 087,12 €".into(),
+            total_ht: "4 624,65 â‚¬".into(),
+            total_vat: "462,47 â‚¬".into(),
+            total_ttc: "5 087,12 â‚¬".into(),
             vat_breakdown: vec![
-                ("10,00 %".into(), "462,47 €".into()),
-                ("20,00 %".into(), "0,00 €".into()),
+                ("10,00 %".into(), "462,47 â‚¬".into()),
+                ("20,00 %".into(), "0,00 â‚¬".into()),
             ],
             mentions: vec![
-                "Devis valable un mois à compter de sa date d'émission.".into(),
-                "TVA acquittée sur les encaissements.".into(),
+                "Devis valable un mois Ã  compter de sa date d'Ã©mission.".into(),
+                "TVA acquittÃ©e sur les encaissements.".into(),
             ],
             cgv: Some(
-                "Les marchandises voyagent aux risques et périls du destinataire.\n\
-                 Paiement par virement à réception de facture."
+                "Les marchandises voyagent aux risques et pÃ©rils du destinataire.\n\
+                 Paiement par virement Ã  rÃ©ception de facture."
                     .into(),
             ),
-            notes: Some("Acompte de 30 % à la commande.\nSolde à la réception.".into()),
+            notes: Some("Acompte de 30 % Ã  la commande.\nSolde Ã  la rÃ©ception.".into()),
             margins: Default::default(),
         }
     }
@@ -960,7 +976,7 @@ mod tests_gabarits {
         for i in 0..45 {
             let mut ligne = modele_ligne.clone();
             ligne.kind = LineKind::Normal;
-            ligne.label = format!("Poste {} — reprise de maçonnerie", i + 2);
+            ligne.label = format!("Poste {} â€” reprise de maÃ§onnerie", i + 2);
             doc.lines.push(ligne);
         }
 

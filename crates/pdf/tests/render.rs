@@ -10,6 +10,8 @@ fn seller() -> PartyView {
         zip: Some("69450".into()),
         town: Some("Saint-Cyr-au-Mont-d'Or".into()),
         siret: Some("123 456 789 00016".into()),
+        siren: None,
+        ape: None,
         tva_intra: Some("FR12345678900".into()),
     }
 }
@@ -22,6 +24,8 @@ fn customer() -> PartyView {
         zip: Some("69370".into()),
         town: Some("Saint-Didier-au-Mont-d'Or".into()),
         siret: None,
+        siren: None,
+        ape: None,
         tva_intra: None,
     }
 }

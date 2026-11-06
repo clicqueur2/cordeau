@@ -84,6 +84,12 @@ margin: (
     #if has(data.seller.siret) [
       SIRET : #data.seller.siret \
     ]
+    #if has(data.seller.siren) [
+      SIREN : #data.seller.siren \
+    ]
+    #if has(data.seller.ape) [
+      NAF-APE : #data.seller.ape \
+    ]
     #if has(data.seller.tva_intra) [
       N° TVA intracommunautaire : #data.seller.tva_intra \
     ]
