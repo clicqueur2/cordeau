@@ -214,6 +214,7 @@ pub const MODULES: &[Module] = &[
             e("inventaires", "Inventaires", "/inventaires"),
             e("marges", "Marges", "/marges"),
             e("nomenclatures", "Nomenclatures", "/nomenclatures"),
+            e("postes", "Postes de charge", "/postes"),
             e("adherents", "Adhérents", "/adherents"),
             e("partenariats", "Partenariats", "/partenariats"),
             e("dons", "Dons", "/dons"),

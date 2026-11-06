@@ -292,6 +292,16 @@ pub fn routes(app: App) -> Router {
             "/nomenclatures/:id/valider",
             post(nomenclature_ecran::valider),
         )
+        .route("/postes", get(poste_ecran::page).post(poste_ecran::creer))
+        .route("/postes/:id", get(poste_ecran::detail))
+        .route("/postes/:id/modifier", post(poste_ecran::modifier))
+        .route("/postes/:id/valider", post(poste_ecran::valider))
+        .route("/postes/:id/desactiver", post(poste_ecran::desactiver))
+        .route(
+            "/postes/:id/ressource",
+            post(poste_ecran::attacher_ressource),
+        )
+        .route("/postes/:id/groupe", post(poste_ecran::attacher_groupe))
         .route(
             "/presets",
             get(preset_ecran::page).post(preset_ecran::appliquer),
