@@ -168,6 +168,23 @@ pub(crate) async fn factures_fiche(
         ),
     };
 
+    // Les mentions legales du client : signalees, jamais bloquantes. Un
+    // particulier n'a ni SIRET ni numero de TVA, et sa facture doit sortir
+    // quand meme.
+    let mentions_client = match f.fk_soc {
+        Some(soc) => match db::party::get(p, entite::courante(), soc)? {
+            Some(t) => {
+                let societe = db::company::get(p, entite::courante())?;
+                legal::mentions_client_manquantes(
+                    &app::societe_legale(&societe),
+                    &app::client_legal(&t),
+                )
+            }
+            None => Vec::new(),
+        },
+        None => Vec::new(),
+    };
+
     Ok(ui::page(
         "factures",
         "liste",
@@ -193,6 +210,17 @@ pub(crate) async fn factures_fiche(
                 f.total_ttc.unwrap_or_default(),
                 Some(solde.reste),
             ))
+
+            // Les mentions du client qui manquent ne bloquent pas le document —
+            // un particulier n'a pas de SIRET — mais elles se disent ici, sur la
+            // fiche, et non par un refus au moment d'imprimer.
+            @if !mentions_client.is_empty() {
+                p .aide {
+                    (crate::langue::tr("À compléter sur la fiche du client : "))
+                    (mentions_client.join(", "))
+                    (crate::langue::tr(" — la facture s'édite sans."))
+                }
+            }
 
             div .actions {
                 a .bouton.secondaire href={ "/factures/" (id) "/pdf" } {(crate::langue::tr("Télécharger le PDF")) }

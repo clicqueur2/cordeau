@@ -55,6 +55,10 @@ pub struct Societe {
     /// Assurance professionnelle : due par tout artisan, sur devis comme sur
     /// facture (code de l'artisanat, art. L132-1 et R132-1).
     pub assurance: Option<Assurance>,
+    /// Mention d'assurance en texte libre, telle que Dolibarr la stocke
+    /// (`MAIN_INFO_PROFID5`). Prime sur `assurance` : c'est la donnee reelle de
+    /// l'entreprise, pas une reconstruction.
+    pub assurance_texte: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -149,8 +153,15 @@ pub fn entete_legal(societe: &Societe) -> Option<String> {
     }
 }
 
-/// Champs legaux absents, bloquants pour emettre une facture.
-pub fn champs_manquants(doc: DocType, societe: &Societe, client: &Client) -> Vec<&'static str> {
+/// Champs legaux absents, bloquants pour emettre un document.
+///
+/// Ne restent ici que ce qui empeche vraiment d'emettre : l'identite du
+/// vendeur — c'est sa propre fiche, il la complete avant d'imprimer — et le nom
+/// du client. Les identifiants du client ne bloquent pas : un particulier n'a
+/// ni SIRET ni numero de TVA, et refuser de facturer un particulier reviendrait
+/// a refuser l'essentiel de l'artisanat. Ils sont signales par
+/// `mentions_client_manquantes`, qui n'empeche rien.
+pub fn champs_manquants(societe: &Societe, client: &Client) -> Vec<&'static str> {
     let mut manquants = Vec::new();
     let vide = |v: &Option<String>| v.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true);
 
@@ -173,12 +184,27 @@ pub fn champs_manquants(doc: DocType, societe: &Societe, client: &Client) -> Vec
     if client.nom.trim().is_empty() {
         manquants.push("nom du client");
     }
-    if doc != DocType::Devis && client.est_professionnel && vide(&client.siret) {
+
+    manquants
+}
+
+/// Mentions qui manquent au client, sans empecher d'emettre.
+///
+/// SIRET et numero de TVA intracommunautaire ne sont dus qu'entre
+/// professionnels (art. 242 nonies A du CGI) ; un particulier n'en a pas, et
+/// une entreprise en franchise de TVA non plus. Les signaler laisse le choix de
+/// completer la fiche tiers ; les exiger bloquerait la facture.
+pub fn mentions_client_manquantes(societe: &Societe, client: &Client) -> Vec<&'static str> {
+    let mut manquants = Vec::new();
+    if !client.est_professionnel {
+        return manquants;
+    }
+    let vide = |v: &Option<String>| v.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true);
+
+    if vide(&client.siret) {
         manquants.push("SIRET du client");
     }
-    if doc != DocType::Devis
-        && societe.regime_tva == RegimeTva::Assujetti
-        && client.est_professionnel
+    if societe.regime_tva == RegimeTva::Assujetti
         && vide(&client.tva_intra)
         && !client.est_ue_hors_france()
     {
@@ -221,7 +247,18 @@ pub fn mentions(
         ));
     }
 
-    if let Some(a) = societe
+    // L'assurance en texte libre vient de la fiche Dolibarr : c'est la donnee
+    // que l'entreprise a saisie, et la mention est obligatoire pour un artisan.
+    if let Some(t) = societe
+        .assurance_texte
+        .as_deref()
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+    {
+        out.push(format!(
+            "Assurance responsabilité civile et décennale : {t}"
+        ));
+    } else if let Some(a) = societe
         .assurance
         .as_ref()
         .filter(|a| !a.assureur.trim().is_empty())
@@ -438,7 +475,7 @@ mod tests {
             nom: String::new(),
             ..Default::default()
         };
-        let m = champs_manquants(DocType::Facture, &vide, &client);
+        let m = champs_manquants(&vide, &client);
         assert!(m.contains(&"denomination du vendeur"));
         assert!(m.contains(&"SIRET du vendeur"));
         assert!(m.contains(&"nom du client"));
@@ -446,15 +483,34 @@ mod tests {
 
     #[test]
     fn une_societe_complete_ne_manque_de_rien() {
-        let m = champs_manquants(DocType::Facture, &societe(), &client_pro());
+        let m = champs_manquants(&societe(), &client_pro());
         assert!(m.is_empty(), "champs manquants inattendus : {m:?}");
     }
 
+    /// Un professionnel sans SIRET n'empeche pas d'emettre : sa fiche est
+    /// incomplete, la facture reste valable. C'est un avertissement, pas un
+    /// refus.
     #[test]
-    fn un_devis_tolere_un_client_sans_siret() {
+    fn un_client_sans_siret_n_empeche_pas_la_facture() {
         let mut c = client_pro();
         c.siret = None;
-        assert!(champs_manquants(DocType::Devis, &societe(), &c).is_empty());
-        assert!(!champs_manquants(DocType::Facture, &societe(), &c).is_empty());
+        assert!(champs_manquants(&societe(), &c).is_empty());
+        assert_eq!(
+            mentions_client_manquantes(&societe(), &c),
+            vec!["SIRET du client"]
+        );
+    }
+
+    /// Le cas de la production : Dolibarr stocke la chaine vide, pas `NULL`.
+    /// Un tiers dont le SIRET vaut `""` n'est pas un professionnel — sinon
+    /// toutes les factures de particuliers seraient refusees.
+    #[test]
+    fn un_siret_en_chaine_vide_ne_fait_pas_un_professionnel() {
+        let mut c = client_pro();
+        c.siret = Some(String::new());
+        c.tva_intra = Some("  ".to_string());
+        c.est_professionnel = false;
+        assert!(champs_manquants(&societe(), &c).is_empty());
+        assert!(mentions_client_manquantes(&societe(), &c).is_empty());
     }
 }

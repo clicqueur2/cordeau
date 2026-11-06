@@ -375,7 +375,6 @@ pub(crate) async fn parametres_base(State(app): State<App>) -> Res<Markup> {
     let modules = db::modules_actifs(p)?;
     let s = db::company::get(p, entite::courante())?;
     let manquants = legal::champs_manquants(
-        legal::DocType::Facture,
         &app::societe_legale(&s),
         &legal::Client {
             nom: "client".into(),

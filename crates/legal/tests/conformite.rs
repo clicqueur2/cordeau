@@ -32,6 +32,7 @@ fn societe_artisan() -> Societe {
             police: "POL-2026-78451".into(),
             couverture: "France métropolitaine".into(),
         }),
+        assurance_texte: None,
     }
 }
 
@@ -181,7 +182,7 @@ fn les_champs_bloquants_sont_ceux_du_decret() {
     // pouvoir être émise : c'est ce que vérifie `champs_manquants`.
     let vide = Societe::default();
     let client_vide = Client::default();
-    let manquants = legal::champs_manquants(DocType::Facture, &vide, &client_vide);
+    let manquants = legal::champs_manquants(&vide, &client_vide);
     for attendu in [
         "denomination du vendeur",
         "adresse du vendeur",
@@ -196,7 +197,7 @@ fn les_champs_bloquants_sont_ceux_du_decret() {
 
 #[test]
 fn une_societe_complete_passe_le_controle() {
-    let m = legal::champs_manquants(DocType::Facture, &societe_artisan(), &client_pro());
+    let m = legal::champs_manquants(&societe_artisan(), &client_pro());
     assert!(m.is_empty(), "champs manquants inattendus : {m:?}");
 }
 

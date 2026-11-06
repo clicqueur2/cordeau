@@ -184,7 +184,11 @@ pub fn fmt_date_fr(iso: Option<&str>) -> String {
 pub fn societe_legale(c: &db::company::Company) -> legal::Societe {
     legal::Societe {
         nom: c.nom.clone(),
-        forme_juridique: c.forme_juridique.clone(),
+        // Le libelle resolu prime : la constante Dolibarr porte un code.
+        forme_juridique: c
+            .forme_juridique_libelle
+            .clone()
+            .or_else(|| c.forme_juridique.clone()),
         adresse: c.adresse.clone(),
         code_postal: c.code_postal.clone(),
         ville: c.ville.clone(),
@@ -192,7 +196,7 @@ pub fn societe_legale(c: &db::company::Company) -> legal::Societe {
         siret: c.siret.clone(),
         siren: c.siren.clone(),
         tva_intra: c.tva_intra.clone(),
-        capital: c.capital.clone(),
+        capital: c.capital.as_deref().map(capital_lisible),
         rcs: c.rcs.clone(),
         email: c.email.clone(),
         telephone: c.telephone.clone(),
@@ -206,16 +210,54 @@ pub fn societe_legale(c: &db::company::Company) -> legal::Societe {
             police: c.assurance_police.clone().unwrap_or_default(),
             couverture: c.assurance_couverture.clone().unwrap_or_default(),
         }),
+        assurance_texte: c.assurance_mention.clone(),
+    }
+}
+
+/// Le capital tel qu'il doit s'ecrire : `5100` devient `5 100 EUR`.
+///
+/// Dolibarr stocke un nombre nu, sans devise. Un capital sans unite sur une
+/// facture se lit mal, et « 5100 » colle a la suite du nom ne se lit pas du
+/// tout. Une valeur qui n'est pas un nombre est rendue telle quelle : on ne
+/// reformate pas ce qu'on ne comprend pas.
+fn capital_lisible(brut: &str) -> String {
+    let t = brut.trim();
+    let nombre: String = t.replace([' ', '\u{a0}'], "").replace(',', ".");
+    let Ok(d) = nombre.parse::<rust_decimal::Decimal>() else {
+        return t.to_string();
+    };
+    let entier = d.trunc().to_string();
+    let mut out = String::new();
+    for (i, c) in entier.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            out.push(' ');
+        }
+        out.push(c);
+    }
+    let groupe: String = out.chars().rev().collect();
+    if d.fract() == rust_decimal::Decimal::ZERO {
+        format!("{groupe}\u{a0}€")
+    } else {
+        format!(
+            "{groupe},{}\u{a0}€",
+            d.fract().to_string().trim_start_matches("0.")
+        )
     }
 }
 
 /// Professionnel des qu'il porte un SIRET ou un numero de TVA intracommunautaire.
+///
+/// La chaine vide ne compte pas : Dolibarr ecrit `''` dans ces colonnes pour
+/// dire « rien ». La lire comme une valeur rendait professionnel un particulier
+/// sur deux, et faisait refuser ses factures.
 pub fn client_legal(p: &db::party::Party) -> legal::Client {
+    let renseigne =
+        |v: &Option<String>| v.as_deref().map(|s| !s.trim().is_empty()).unwrap_or(false);
     legal::Client {
         nom: p.nom.clone(),
         siret: p.siret.clone(),
         tva_intra: p.tva_intra.clone(),
-        est_professionnel: p.siret.is_some() || p.tva_intra.is_some(),
+        est_professionnel: renseigne(&p.siret) || renseigne(&p.tva_intra),
         pays: p.fk_pays.map(|id| {
             if id == 1 {
                 "FR".to_string()
@@ -620,20 +662,17 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
     let vendeur = societe_legale(&emit);
     let client = client_legal(&soc);
     let est_avoir = f.type_ == db::invoice::TYPE_AVOIR;
-    let manquants = legal::champs_manquants(
-        if est_avoir {
-            legal::DocType::Avoir
-        } else {
-            legal::DocType::Facture
-        },
-        &vendeur,
-        &client,
-    );
+
+    // Seule l'identite du vendeur bloque : c'est notre propre fiche, on la
+    // complete avant d'emettre. Les identifiants du client, eux, ne bloquent
+    // pas — un particulier n'a ni SIRET ni numero de TVA, et refuser sa facture
+    // reviendrait a refuser l'essentiel des clients d'un macon. Ils sont
+    // signales sur la fiche de la facture (`legal::mentions_client_manquantes`).
+    let manquants = legal::champs_manquants(&vendeur, &client);
     if !manquants.is_empty() {
         return Err(format!("facture non conforme : il manque {}", manquants.join(", ")).into());
     }
 
-    let est_avoir = f.type_ == db::invoice::TYPE_AVOIR;
     let origine = f
         .fk_facture_source
         .and_then(|id| db::invoice::get(pool, entity, id).ok().flatten())
@@ -657,7 +696,7 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
         payment_terms: db::reglement::condition(pool, entity, f.fk_cond_reglement.unwrap_or(0))
             .ok()
             .flatten()
-            .map(|c| nettoyer_condition(&c.libelle_fr()))
+            .map(|c| nettoyer_condition(&c.libelle_facture_fr()))
             .filter(|l| !l.trim().is_empty()),
         deposit: None,
         valid_until: None,
@@ -706,4 +745,32 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
         bytes: r.bytes,
         pages: r.pages,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Une chaine vide n'est pas un identifiant : sans ce garde-fou, tout
+    /// particulier de la base de production passait pour un professionnel.
+    #[test]
+    fn une_chaine_vide_ne_fait_pas_un_professionnel() {
+        let p = db::party::Party {
+            nom: "M DURAND".into(),
+            siret: Some(String::new()),
+            tva_intra: Some("   ".into()),
+            ..Default::default()
+        };
+        assert!(!client_legal(&p).est_professionnel);
+    }
+
+    #[test]
+    fn un_vrai_siret_fait_un_professionnel() {
+        let p = db::party::Party {
+            nom: "SARL TERRA".into(),
+            siret: Some("12345678900012".into()),
+            ..Default::default()
+        };
+        assert!(client_legal(&p).est_professionnel);
+    }
 }

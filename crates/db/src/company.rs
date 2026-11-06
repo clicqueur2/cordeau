@@ -32,6 +32,15 @@ pub const CLE_BIC: &str = "DOLIBARR_RS_BIC";
 pub const CLE_ASSURANCE_ASSUREUR: &str = "DOLIBARR_RS_ASSURANCE_ASSUREUR";
 pub const CLE_ASSURANCE_POLICE: &str = "DOLIBARR_RS_ASSURANCE_POLICE";
 pub const CLE_ASSURANCE_COUVERTURE: &str = "DOLIBARR_RS_ASSURANCE_COUVERTURE";
+/// Assurance de responsabilite civile et decennale, telle que Dolibarr la
+/// stocke : un texte libre, sur le champ « numero professionnel 5 ».
+///
+/// C'est la que la mention legale de l'artisan vit en vrai (art. L132-1 du code
+/// de l'artisanat). Cordeau lisait ses propres constantes et n'imprimait donc
+/// rien sur une base Dolibarr existante.
+pub const CLE_PROFID5: &str = "MAIN_INFO_PROFID5";
+/// Code NAF / APE de l'entreprise.
+pub const CLE_APE: &str = "MAIN_INFO_APE";
 /// Texte des conditions generales de vente imprime sur les documents.
 pub const CLE_CGV: &str = "MAIN_PDF_TEXT_CGV";
 /// TVA exigible sur les encaissements (option du redevable).
@@ -43,6 +52,11 @@ pub const CLE_TVA_TAUX_REDUIT: &str = "DOLIBARR_RS_TVA_TAUX_REDUIT";
 pub struct Company {
     pub nom: String,
     pub forme_juridique: Option<String>,
+    /// Libelle lisible de la forme juridique, resolu dans
+    /// `llx_c_forme_juridique`. Dolibarr stocke un code (`57`), pas un mot.
+    pub forme_juridique_libelle: Option<String>,
+    /// Code NAF / APE.
+    pub ape: Option<String>,
     pub adresse: Option<String>,
     pub code_postal: Option<String>,
     pub ville: Option<String>,
@@ -61,6 +75,9 @@ pub struct Company {
     pub assurance_assureur: Option<String>,
     pub assurance_police: Option<String>,
     pub assurance_couverture: Option<String>,
+    /// Mention d'assurance telle que Dolibarr la porte (`MAIN_INFO_PROFID5`),
+    /// en texte libre : « Contrat n° … souscrit auprès de … ».
+    pub assurance_mention: Option<String>,
     /// Coordonnées bancaires, imprimées sur les factures.
     pub iban: Option<String>,
     pub bic: Option<String>,
@@ -89,6 +106,44 @@ fn non_vide(v: Option<String>) -> Option<String> {
     v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
 
+/// Le libelle d'une forme juridique, a partir du code stocke dans la constante.
+///
+/// Dolibarr n'ecrit pas « SAS » dans `MAIN_INFO_SOCIETE_FORME_JURIDIQUE` : il
+/// ecrit le **code** du dictionnaire (`57`), que son administration traduit en
+/// « Societe par actions simplifiee (SAS) ». Imprimer le code brut donne
+/// « 57 au capital de 5100 » en tete de facture, ce que faisait Cordeau.
+///
+/// Le dictionnaire est filtre par pays quand il est connu, puis sans filtre :
+/// un code unique suffit, et mieux vaut un libelle d'un autre pays qu'un
+/// numero nu.
+fn libelle_forme(
+    conn: &mut mysql::PooledConn,
+    code: &str,
+    pays: Option<i64>,
+) -> Result<Option<String>, Box<dyn Error>> {
+    if let Some(p) = pays {
+        let par_pays: Option<String> = conn.exec_first(
+            "SELECT libelle FROM llx_c_forme_juridique \
+             WHERE code = :code AND fk_pays = :pays AND active = 1 LIMIT 1",
+            params! { "code" => code, "pays" => p },
+        )?;
+        if let Some(l) = non_vide(par_pays) {
+            return Ok(Some(l));
+        }
+    }
+    let sans_pays: Option<String> = conn.exec_first(
+        "SELECT libelle FROM llx_c_forme_juridique \
+         WHERE code = :code AND active = 1 ORDER BY fk_pays LIMIT 1",
+        params! { "code" => code },
+    )?;
+    Ok(non_vide(sans_pays))
+}
+
+/// L'identifiant de pays porte par `MAIN_INFO_SOCIETE_COUNTRY` (`1:FR:France`).
+fn id_pays(valeur: &str) -> Option<i64> {
+    valeur.split(':').next()?.trim().parse().ok()
+}
+
 pub fn get(pool: &Pool, entity: i64) -> Result<Company, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let lignes: Vec<(String, String)> = conn.exec(
@@ -106,9 +161,23 @@ pub fn get(pool: &Pool, entity: i64) -> Result<Company, Box<dyn Error>> {
     let lire = |cle: &str| non_vide(map.get(cle).cloned());
     let lire_brut = |cle: &str| map.get(cle).cloned();
 
+    // La forme juridique est un code : on resout son libelle a part, sans
+    // toucher au code lui-meme. Ecrire le libelle dans la constante ferait
+    // perdre la valeur que l'administration Dolibarr relit.
+    let forme_juridique_libelle = match lire(CLE_FORME) {
+        Some(code) => libelle_forme(
+            &mut conn,
+            &code,
+            lire(CLE_PAYS).as_deref().and_then(id_pays),
+        )?,
+        None => None,
+    };
+
     Ok(Company {
         nom: lire(CLE_NOM).unwrap_or_default(),
         forme_juridique: lire(CLE_FORME),
+        forme_juridique_libelle,
+        ape: lire(CLE_APE),
         adresse: lire(CLE_ADRESSE),
         code_postal: lire(CLE_CP),
         ville: lire(CLE_VILLE),
@@ -127,6 +196,7 @@ pub fn get(pool: &Pool, entity: i64) -> Result<Company, Box<dyn Error>> {
         assurance_assureur: lire(CLE_ASSURANCE_ASSUREUR),
         assurance_police: lire(CLE_ASSURANCE_POLICE),
         assurance_couverture: lire(CLE_ASSURANCE_COUVERTURE),
+        assurance_mention: lire(CLE_PROFID5),
         iban: lire(CLE_IBAN),
         bic: lire(CLE_BIC),
         cgv: lire(CLE_CGV),

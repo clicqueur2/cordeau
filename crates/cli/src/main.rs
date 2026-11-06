@@ -1246,7 +1246,6 @@ fn company_run(
             );
             println!("delai paiement {} jours", c.delai_paiement_jours);
             let manquants = legal::champs_manquants(
-                legal::DocType::Facture,
                 &app::societe_legale(&c),
                 &legal::Client {
                     nom: "client".into(),

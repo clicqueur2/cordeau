@@ -79,6 +79,18 @@ fn opt_s(row: &Row, i: usize) -> Option<String> {
     row.get_opt::<String, _>(i).and_then(|r| r.ok())
 }
 
+/// Un texte lu en base, ou `None` s'il est vide.
+///
+/// Dolibarr n'ecrit jamais `NULL` dans ces colonnes : il ecrit la chaine vide.
+/// Sur la base de production, 912 tiers sur 932 portent `siret = ''`.
+/// `Some("")` n'est donc pas une valeur, c'est une absence — et les confondre a
+/// un effet mesurable : un particulier sans SIRET passait pour un
+/// professionnel, et sa facture etait refusee faute de numero de TVA
+/// intracommunautaire. Toutes les factures de particuliers y passaient.
+fn opt_txt(row: &Row, i: usize) -> Option<String> {
+    opt_s(row, i).filter(|v| !v.trim().is_empty())
+}
+
 fn opt_i(row: &Row, i: usize) -> Option<i64> {
     row.get_opt::<i64, _>(i).and_then(|r| r.ok())
 }
@@ -105,9 +117,9 @@ fn map_row(row: Row) -> Party {
         fk_pays: opt_i(&row, 11),
         phone: opt_s(&row, 12),
         email: opt_s(&row, 13),
-        siren: opt_s(&row, 14),
-        siret: opt_s(&row, 15),
-        tva_intra: opt_s(&row, 16),
+        siren: opt_txt(&row, 14),
+        siret: opt_txt(&row, 15),
+        tva_intra: opt_txt(&row, 16),
         statut: opt_i16(&row, 17).unwrap_or(1),
         datec: opt_s(&row, 18),
         cond_reglement: opt_i(&row, 19),
@@ -162,6 +174,21 @@ pub fn get(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Party>, Box<dy
     let sql = format!("SELECT {SELECT_COLS} FROM llx_societe WHERE entity = ? AND rowid = ?");
     let row: Option<Row> = conn.exec_first(sql, (entity, rowid))?;
     Ok(row.map(map_row))
+}
+
+/// La societe qui detient ce tiers, si le tiers existe ailleurs.
+///
+/// Sert a distinguer deux situations qu'on confond sinon : un tiers supprime,
+/// et un tiers qui appartient a une autre societe. La seconde arrive en vrai —
+/// un chantier de Pierre Angulaire pointant sur un tiers de 2AR — et dire
+/// « absent » envoie chercher une donnee qui existe.
+pub fn entity_du_tiers(pool: &Pool, rowid: i64) -> Result<Option<i64>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let e: Option<i64> = conn.exec_first(
+        "SELECT entity FROM llx_societe WHERE rowid = ? LIMIT 1",
+        (rowid,),
+    )?;
+    Ok(e)
 }
 
 /// Code client au format de `mod_codeclient_leopard` : `CU` + `AAAMM` + `-` + 5 chiffres.
