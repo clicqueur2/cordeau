@@ -91,15 +91,23 @@ ecran : les jetons et les composants sont a unifier, pas a inventer.
 
 ### 4. Multi-company par defaut
 
-Aujourd'hui l'entite est portee par la session et tout fonctionne, mais c'est
-un mecanisme qu'il faut connaitre pour s'en servir. Ce qu'il reste :
+Etat au 06/11 :
 
-- choisir l'entite **a la connexion**, pas apres ;
-- un bandeau qui dit toujours dans quelle societe on travaille (il existe,
-  a rendre evident) ;
-- des listes qui disent quand elles sont **filtrees** par entite ;
-- l'export et la sauvegarde par entite ;
-- un garde-fou : creer une facture dans la mauvaise societe doit etre difficile.
+| Point | Etat |
+|---|---|
+| Choix de l'entite | **fait** — la session demarre sur l'entite du compte, et `/entite` permet d'en changer |
+| Bandeau | **fait** — le selecteur ne s'affiche que s'il y a plusieurs societes, et porte la mention « listes filtrees » |
+| Listes filtrees | **fait** — la lecture par identifiant est cloisonnee comme la liste (teste) |
+| Garde-fou | **fait** — facturer un client d'une autre societe est refuse, avec le motif, et rien n'est ecrit (teste) |
+| Export par entite | **fait** — les CSV (tiers, produits, ventes, achats, TVA, grand livre) prennent l'entite de la session |
+| Sauvegarde par entite | **non, et c'est voulu** |
+
+Sur la sauvegarde : un `mysqldump` est **par nature** global — c'est la base
+entiere, pas une societe. Filtrer un dump par entite produirait une sauvegarde
+qui ne se restaure pas seule (les cles etrangeres pointeraient vers des lignes
+absentes). Qui veut sortir les donnees d'**une** societe prend l'export CSV, qui
+existe precisement pour ca. Une sauvegarde incomplete qui a l'air complete est
+plus dangereuse qu'une sauvegarde annoncee globale.
 
 ## Ce qui ne change jamais
 
@@ -134,7 +142,7 @@ Aucun defaut de fond ouvert.
 | 1. Finir le corps general | **termine le 06/11** — 46 modules, la liste des 8 restants est close |
 | 2. Presets de base par metier | **premiere version livree** le 06/11 — restent les constantes par metier |
 | 3. Passe d'interface (`ui-ux-pro-max`) | pas commence — le perimetre est desormais stable |
-| 4. Multi-company par defaut | pas commence |
+| 4. Multi-company par defaut | **en cours** — cloisonnement prouve, selecteur explicite |
 
 Ce qui a ete porte pour clore le chantier 1 : variantes, postes de charge,
 codes-barres, salaires, recrutement, evenements, reservations, impressions.

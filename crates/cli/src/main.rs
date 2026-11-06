@@ -49,6 +49,7 @@ fn main() -> ExitCode {
         (Some("schema"), Some("manifest")) => schema_manifest(&args),
         (Some("schema"), Some("prepare")) => schema_prepare(&args),
         (Some("schema"), Some("verify")) => schema_verify(&args),
+        (Some("audit"), _) => audit_cmd(&args),
         (Some("tache"), Some(cmd)) => tache_cmd(cmd, &args),
         (Some("adresse"), _) => annuaire_adresse(&args),
         (Some("entreprise"), _) => annuaire_entreprise(&args),
@@ -247,6 +248,68 @@ fn schema_verify(args: &[String]) -> ExitCode {
 
 /// Taches planifiees : appelees par le planificateur du systeme (cron, tache
 /// planifiee Windows). Pas de demon dans l'application, pas de cron PHP.
+/// Audit d'une base Dolibarr, **en lecture seule**.
+///
+/// Sert a brancher le noyau sur une base qui n'est pas la sienne — une copie de
+/// production, une sauvegarde restauree — et a voir ce qu'il y trouve, sans
+/// pouvoir rien changer. La garantie n'est pas ici : elle est dans
+/// `db::audit::lire`, qui ouvre une transaction `READ ONLY`. MariaDB refuse
+/// alors toute ecriture, meme si ce fichier se trompait.
+fn audit_cmd(args: &[String]) -> ExitCode {
+    let dsn = dsn_or_env(args);
+    let pool = match db::pool(&dsn) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("connexion impossible: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let rapport = match db::audit::lire(&pool) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("audit impossible: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    println!("Base   : {}", rapport.base);
+    println!(
+        "Schema : {} tables sur {}",
+        rapport.tables, rapport.tables_attendues
+    );
+    println!("Comptes: {} utilisateur(s) actif(s)", rapport.utilisateurs);
+
+    println!("\nSocietes :");
+    for (id, nom) in &rapport.entites {
+        println!("  {id:>4}  {nom}");
+    }
+
+    println!("\nObjets :");
+    for c in &rapport.comptes {
+        println!("  {:<24} {:>8}", c.libelle, c.lignes);
+    }
+
+    if !rapport.schema_complet() {
+        println!(
+            "\nATTENTION : {} table(s) manquante(s) — ce n'est pas une base Dolibarr complete.",
+            rapport.tables_attendues - rapport.tables
+        );
+        return ExitCode::FAILURE;
+    }
+    if rapport.vides().is_empty() {
+        println!("\nToutes les tables surveillees portent des lignes.");
+    } else {
+        println!("\nTables vides :");
+        for c in rapport.vides() {
+            println!("  {} ({})", c.libelle, c.table);
+        }
+        println!("  Une base de production n'a pas de factures vides : verifier que la copie est complete.");
+    }
+    println!("\nAucune ecriture n'a ete faite : la transaction etait en lecture seule.");
+    ExitCode::SUCCESS
+}
+
 fn tache_cmd(cmd: &str, args: &[String]) -> ExitCode {
     let dsn = dsn_or_env(args);
     let entity = flag(args, "--entity")
