@@ -43,6 +43,7 @@ pub mod ged;
 pub mod grand_livre;
 pub mod groupe;
 pub mod immobilisation;
+pub mod impression;
 pub mod impex;
 pub mod installation;
 pub mod inventaire;
