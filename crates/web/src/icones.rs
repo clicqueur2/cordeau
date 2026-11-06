@@ -51,10 +51,9 @@ pub fn icone(nom: &str) -> Markup {
         return html! {};
     };
     html! {
-        svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+        svg .ic width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
-            stroke-linejoin="round" aria-hidden="true"
-            style="vertical-align:-3px;margin-right:7px;flex:0 0 auto" {
+            stroke-linejoin="round" aria-hidden="true" {
             (PreEscaped(format!("<path d=\"{d}\"/>")))
         }
     }

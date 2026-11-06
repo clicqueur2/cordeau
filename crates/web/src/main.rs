@@ -113,6 +113,7 @@ mod securite_ecran;
 mod sepa_ecran;
 mod site_web_ecran;
 mod stats_ecran;
+mod theme;
 mod traduction_ecran;
 mod transfert_ecran;
 pub(crate) mod ui;

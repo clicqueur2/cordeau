@@ -38,13 +38,19 @@ pub(crate) async fn tiers(
         titre,
         html! {
             h1 { (titre) }
-            p .sous-titre { (affiches) " fiche(s)" (ui::compte_tronque(affiches, total_db)) }
-            form method="get" action="/tiers" .actions {
-                input type="text" name="q" placeholder="Nom du client" value=(filtre);
-                @if !type_.is_empty() {
-                    input type="hidden" name="type" value=(type_);
+            div .barre-outils {
+                form method="get" action="/tiers" {
+                    input type="search" name="q" placeholder=(crate::langue::tr("Nom du client")) value=(filtre) .champ-moyen;
+                    @if !type_.is_empty() {
+                        input type="hidden" name="type" value=(type_);
+                    }
+                    button type="submit" {(crate::langue::tr("Chercher")) }
                 }
-                button type="submit" {(crate::langue::tr("Chercher")) }
+                span .pousse {}
+                p .compte-liste {
+                    strong { (affiches) } " fiche(s)"
+                    (ui::compte_tronque(affiches, total_db))
+                }
             }
             @if listes.is_empty() {
                 (ui::vide("Aucun tiers ne correspond.", Some(("/tiers", "Voir tous les tiers"))))
