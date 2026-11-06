@@ -71,6 +71,23 @@ pub fn comptes(pool: &Pool, entity: i64) -> Result<Vec<Compte>, Box<dyn Error>> 
         .collect())
 }
 
+/// Le compte bancaire principal de la societe : le premier ouvert.
+///
+/// Sert de repli quand un document ne designe pas de compte : un devis n'a pas
+/// de `fk_account`, et sans ce repli il partait sans RIB — le client ne pouvait
+/// pas savoir ou payer.
+pub fn compte_principal(pool: &Pool, entity: i64) -> Result<Option<String>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let id: Option<Option<i64>> = conn.exec_first(
+        "SELECT MIN(rowid) FROM llx_bank_account WHERE entity = :entity AND clos = 0",
+        params! { "entity" => entity },
+    )?;
+    match id.flatten() {
+        Some(id) => compte_libelle(pool, entity, id),
+        None => Ok(None),
+    }
+}
+
 /// Solde d'un compte : somme des ecritures, arrondie au centime.
 pub fn solde(pool: &Pool, entity: i64, compte: i64) -> Result<Decimal, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;

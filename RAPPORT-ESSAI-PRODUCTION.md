@@ -131,10 +131,70 @@ retombe sur une lecture par `rowid` quand l'entité ne la voit pas.
 **Correction.** `Erreur` répond 404 quand le message dit « introuvable ». Une
 adresse qui ne mène nulle part n'est pas une panne du serveur.
 
+## Le devis, et quatre fautes dans un même module
+
+La facture était alignée ; le devis, non. Le devis `PR2611-0025` (63 205,66 €)
+imprimait ceci :
+
+```
+• À la signature (__EXTRAFIELD_PCT_SIGN_PDF__%) :
+  __EXTRAFIELD_MNT_SIGNATURE_FORMATED__ €
+```
+
+### 6. Aucun champ libre n'était lisible
+
+Les quatre fautes étaient dans `db::extrafields`, et aucune ne produisait
+d'erreur — elles rendaient une liste vide.
+
+| Fautes | Réalité Dolibarr | Vérifié dans |
+|---|---|---|
+| colonne nommée `options_<nom>` | la colonne porte le nom du champ | `extrafields.class.php`, `DDLAddField($table, $attrname, …)` |
+| colonnes filtrées `LIKE 'options\_%'` | idem : aucune colonne ne commence par `options_` | la base de production |
+| lecture dans `llx_<objet>` | les valeurs sont dans `llx_<objet>_extrafields` | `SHOW TABLES` |
+| ligne cherchée par `rowid` | la table a son `rowid`, l'objet est lié par `fk_object` | `UNIQUE KEY uk_propal_extrafields (fk_object)` |
+
+Conséquence : sur une vraie base, **aucun champ libre n'a jamais été lu ni
+écrit** — et rien ne le disait. Les tests unitaires ne pouvaient pas le voir :
+ils fabriquaient leurs propres tables avec la fausse convention.
+
+**Correction.** Les quatre, plus un test d'intégration qui passe par le schéma
+réel : il crée une définition et une colonne, écrit une valeur, la relit, la
+modifie, et nettoie derrière lui. C'est le seul test qui aurait attrapé ça.
+
+### 7. Le devis n'annonçait pas son échéancier
+
+Une fois les champs libres lisibles, restait à remplir les jetons
+`__EXTRAFIELD_*__` du libellé de condition de règlement avec les valeurs du
+document — et à formater les montants en français (`31 602,83`, pas
+`31602.83000000`). Le devis dit maintenant :
+
+```
+• À la signature (50 %) : 31 602,83 €
+• Mi-chantier (25 %) : 15 801,42 €
+• Avancement 80 % (15 %) : 9 480,85 €
+• Solde réception (10 %) : 6 320,56 €
+```
+
+**Comparaison finale :** 60 montants de part et d'autre, **59 identiques** ; le
+soixantième est le même nombre, coupé par un retour à la ligne chez Dolibarr.
+
+### 8. Le RIB manquait sur les devis
+
+Un devis n'a pas de `fk_account` : Cordeau retombait sur des constantes
+inventées, vides. Il retombe désormais sur le **compte bancaire ouvert** de la
+société. Sans RIB, un devis accepté ne dit pas où payer.
+
+### 9. « TVA 0 % : 0,00 € »
+
+Les sections et sous-totaux portent 0 % de TVA : la ventilation affichait donc
+une ligne à zéro. Dolibarr ne l'imprime pas, et un zéro sur une facture fait
+douter du reste. Les taux sans montant sont écartés.
+
 ## Ce qui reste ouvert
 
 | Sujet | Constat | Pourquoi ce n'est pas corrigé ici |
 |---|---|---|
+| Annexes PDF (CGV, attestation) | le devis `PR2610-0024` fait 7 pages en production, 1 chez Cordeau | Dolibarr fusionne un fichier annexe par son module de facturation ; ce n'est pas une donnée, c'est un document joint à récupérer |
 | SIREN, NAF-APE, « Type d'opérations » | présents sur le PDF Dolibarr, absents du nôtre | aucune obligation légale ; à ajouter quand la mise en page sera reprise |
 | Écritures comptables | 0 ligne en production | rien à lire ; le grand livre reconstitue et le dit à l'écran |
 | Six chantiers de l'entité 7 | `fk_soc = 1`, un tiers de l'entité 1 (« Forster Systèmes de Profils SARL ») | **donnée de production à corriger dans Dolibarr** : M & Mme Mesnier, SCI Boca, etc. pointent tous vers le même tiers |
@@ -146,9 +206,16 @@ adresse qui ne mène nulle part n'est pas une panne du serveur.
 
 La base de test ne prouvait rien sur un point : elle ne contenait que des
 données écrites par Cordeau. Une heure sur une copie de production a trouvé
-**cinq défauts**, dont un qui empêchait d'éditer la moindre facture de
-particulier — c'est-à-dire l'essentiel de l'activité.
+**neuf défauts**, dont un qui empêchait d'éditer la moindre facture de
+particulier — c'est-à-dire l'essentiel de l'activité — et quatre qui rendaient
+les champs libres invisibles sans le dire.
 
-La règle qui en sort : **une chaîne vide n'est pas une valeur.** Dolibarr ne
-stocke pas `NULL` dans ses colonnes texte. Toute lecture qui confond les deux se
-trompe, et se trompe silencieusement.
+Deux règles en sortent :
+
+1. **Une chaîne vide n'est pas une valeur.** Dolibarr ne stocke pas `NULL` dans
+   ses colonnes texte. Toute lecture qui confond les deux se trompe, et se
+   trompe silencieusement.
+2. **Un test qui fabrique sa propre table ne prouve rien.** Les quatre fautes
+   des champs libres ont survécu à la suite de tests parce qu'elle imitait le
+   schéma au lieu de le lire. Le seul test qui les attrape crée une vraie
+   définition dans `llx_extrafields` et une vraie colonne.

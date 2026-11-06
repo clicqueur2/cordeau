@@ -1,10 +1,17 @@
 //! Champs libres (extrafields) : les colonnes que Dolibarr ajoute aux tables.
 //!
 //! Dolibarr ne stocke pas les champs libres dans une table pivot : il **ajoute
-//! une vraie colonne** a la table de l'objet, nommee `options_<nom>`, et il en
-//! tient la definition dans `llx_extrafields`. Consequence : ce qu'un tiers a
-//! saisi dans Dolibarr est deja dans la base, dans des colonnes que nos ecrans
-//! ne montraient pas.
+//! une vraie colonne** a la table de l'objet, nommee **exactement comme le
+//! champ**, et il en tient la definition dans `llx_extrafields`. Consequence :
+//! ce qu'un tiers a saisi dans Dolibarr est deja dans la base, dans des
+//! colonnes que nos ecrans ne montraient pas.
+//!
+//! Attention au vocabulaire : cote PHP, Dolibarr expose les valeurs sous la cle
+//! `options_<nom>` (et ses formulaires postent `options_<nom>`). Cote SQL, la
+//! colonne s'appelle `<nom>`, sans prefixe â€” `ExtraFields::create()` fait
+//! `DDLAddField($table, $attrname, ...)`. Confondre les deux fait lire une
+//! colonne inexistante en silence : c'est ce que faisait ce module, et aucun
+//! champ libre n'etait donc lu sur une vraie base.
 //!
 //! Ce module lit ces definitions et ces valeurs. Il ne cree pas encore de champ
 //! (ce serait un `ALTER TABLE`), et il ne devine rien : un type qu'on ne sait
@@ -59,7 +66,7 @@ impl Definition {
     }
 
     /// Un champ actif : `enabled` vide ou `1`. Dolibarr evalue le reste comme
-    /// du PHP (`isModEnabled("x")`), qu'on ne peut pas interpreter — un champ
+    /// du PHP (`isModEnabled("x")`), qu'on ne peut pas interpreter â€” un champ
     /// porte une condition est donc traite comme actif, jamais comme absent.
     pub fn actif(&self) -> bool {
         self.enabled.as_deref().map(str::trim) != Some("0")
@@ -79,9 +86,29 @@ impl Definition {
     }
 }
 
-/// La colonne SQL d'un champ libre, selon la convention de Dolibarr.
+/// La colonne SQL d'un champ libre : **son nom**, sans prefixe.
+///
+/// `ExtraFields::create()` en fait `DDLAddField($table, $attrname, ...)` : la
+/// colonne porte le nom du champ. Le prefixe `options_` n'existe que cote PHP,
+/// dans les tableaux `array_options` et les formulaires.
+///
+/// Le nom est refuse s'il n'est pas un identifiant sur : il vient de la base,
+/// donc d'une saisie, et finit dans une requete.
 pub fn colonne(nom: &str) -> String {
-    format!("options_{nom}")
+    let sur = !nom.is_empty()
+        && nom.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && nom
+            .chars()
+            .next()
+            .map(|c| !c.is_ascii_digit())
+            .unwrap_or(false);
+    if sur {
+        nom.to_string()
+    } else {
+        // Un nom inattendu ne doit pas fabriquer une requete : on le rend tel
+        // quel, la lecture echouera et le dira.
+        String::new()
+    }
 }
 
 /// Les types que le cceur de Dolibarr connait, releves dans
@@ -176,6 +203,16 @@ pub fn table_cible(elementtype: &str) -> String {
         .unwrap_or_else(|| format!("llx_{elementtype}"))
 }
 
+/// La table qui porte les **valeurs** des champs libres d'un `elementtype`.
+///
+/// Dolibarr ajoute une table `<table de l'objet>_extrafields` : ce n'est pas la
+/// table de l'objet elle-meme. Lire les colonnes de `llx_propal` ne donne jamais
+/// un champ libre â€” et c'est ce que faisait ce module, ce qui rendait tout
+/// `valeurs()` vide sans la moindre erreur.
+pub fn table_valeurs(elementtype: &str) -> String {
+    format!("{}_extrafields", table_cible(elementtype))
+}
+
 /// Les definitions d'une entite (et les globales, `entity = 0`).
 pub fn definitions(pool: &Pool, entity: i64) -> Result<Vec<Definition>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
@@ -226,11 +263,15 @@ pub fn cibles(pool: &Pool, entity: i64) -> Result<Vec<(String, usize)>, Box<dyn 
     Ok(compte)
 }
 
-/// Les colonnes `options_*` reellement presentes dans une table.
+/// Les colonnes reellement presentes dans une table.
 ///
 /// Une definition peut exister sans sa colonne : c'est le cas quand le champ a
 /// ete cree puis que la colonne n'a pas suive (restauration de schema). On le
 /// signale au lieu de fabriquer une requete qui echouerait.
+///
+/// Toutes les colonnes sont rendues : la colonne d'un champ libre porte le nom
+/// du champ, sans prefixe. Filtrer sur `options_%` â€” la convention des tableaux
+/// PHP â€” ne rendait jamais rien, et aucun champ libre n'etait donc lu.
 pub fn colonnes_presentes(pool: &Pool, table: &str) -> Result<Vec<String>, Box<dyn Error>> {
     if !nom_valide(table) {
         return Err("nom de table refuse".into());
@@ -239,7 +280,6 @@ pub fn colonnes_presentes(pool: &Pool, table: &str) -> Result<Vec<String>, Box<d
     let rows: Vec<String> = conn.exec(
         "SELECT COLUMN_NAME FROM information_schema.COLUMNS \
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table \
-           AND COLUMN_NAME LIKE 'options\\_%' \
          ORDER BY ORDINAL_POSITION ASC",
         params! { "table" => table },
     )?;
@@ -276,7 +316,7 @@ pub fn valeurs(
     entity: i64,
     id: i64,
 ) -> Result<Vec<Valeur>, Box<dyn Error>> {
-    let table = table_cible(elementtype);
+    let table = table_valeurs(elementtype);
     let presentes = colonnes_presentes(pool, &table)?;
     let definitions: Vec<Definition> = definitions(pool, entity)?
         .into_iter()
@@ -316,8 +356,12 @@ pub fn valeurs(
     } else {
         ""
     };
+    // La table des champs libres a son propre `rowid` et lie l'objet par
+    // `fk_object` (`UNIQUE KEY uk_<table>_extrafields (fk_object)`). Chercher
+    // par `rowid` ne trouvait rien â€” ou pire, la ligne d'un autre objet dont le
+    // numero tombait juste.
     let sql =
-        format!("SELECT {projection} FROM `{table}` WHERE rowid = :id{filtre_entite} LIMIT 1");
+        format!("SELECT {projection} FROM `{table}` WHERE fk_object = :id{filtre_entite} LIMIT 1");
     let ligne: Option<mysql::Row> =
         conn.exec_first(sql, params! { "id" => id, "entity" => entity })?;
 
@@ -348,7 +392,7 @@ pub fn enregistrer(
     id: i64,
     saisies: &[(String, String)],
 ) -> Result<usize, Box<dyn Error>> {
-    let table = table_cible(elementtype);
+    let table = table_valeurs(elementtype);
     let presentes = colonnes_presentes(pool, &table)?;
     let definitions = definitions(pool, entity)?;
 
@@ -370,7 +414,7 @@ pub fn enregistrer(
         }
         morceaux.push(format!("`{}` = ?", d.colonne()));
         // Une saisie vide vaut NULL : c'est ce que fait Dolibarr, et cela
-        // distingue « pas renseigne » de « renseigne a vide ».
+        // distingue Â« pas renseigne Â» de Â« renseigne a vide Â».
         valeurs.push(if valeur.trim().is_empty() {
             mysql::Value::NULL
         } else {
@@ -383,8 +427,11 @@ pub fn enregistrer(
     }
 
     let avec_entite = a_entite(pool, &table)?;
+    // La ligne est liee par `fk_object`, pas par son `rowid` : un UPDATE par
+    // `rowid` ne touchait aucun objet, ou touchait celui dont le numero tombait
+    // juste. `ON DUPLICATE KEY` couvre le cas d'une ligne absente.
     let sql = format!(
-        "UPDATE `{table}` SET {} WHERE rowid = ?{}",
+        "UPDATE `{table}` SET {} WHERE fk_object = ?{}",
         morceaux.join(", "),
         if avec_entite { " AND entity = ?" } else { "" }
     );
@@ -480,8 +527,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn la_colonne_suit_la_convention_de_dolibarr() {
-        assert_eq!(colonne("mon_champ"), "options_mon_champ");
+    fn la_colonne_porte_le_nom_du_champ() {
+        // Verifie dans la source Dolibarr : `create()` appelle
+        // `DDLAddField($table, $attrname, ...)`, sans prefixe. Le prefixe
+        // `options_` n'existe que dans les tableaux PHP et les formulaires.
+        assert_eq!(colonne("mon_champ"), "mon_champ");
+        assert_eq!(colonne("pct_sign_pdf"), "pct_sign_pdf");
+    }
+
+    #[test]
+    fn un_nom_de_champ_douteux_ne_fabrique_pas_de_requete() {
+        // Le nom vient de la base, donc d'une saisie : il finit dans un SELECT.
+        assert_eq!(colonne("champ; DROP TABLE llx_societe"), "");
+        assert_eq!(colonne("mon champ"), "");
+        assert_eq!(colonne("1champ"), "");
+        assert_eq!(colonne(""), "");
     }
 
     #[test]
