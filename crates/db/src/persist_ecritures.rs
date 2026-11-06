@@ -517,6 +517,57 @@ pub fn ecrire_journal(
 /// La question porte sur le numero d'ecriture, c'est-a-dire sur `ref`. Les
 /// lignes posees par `crate::fec::generer` ne renseignent pas `ref` : elles ne
 /// sont donc pas vues ici, et c'est voulu - deux ecrivains, deux marques.
+/// Ecrit les ecritures d'une facture de vente dans `llx_accounting_bookkeeping`.
+///
+/// # Pourquoi ici et pas dans `invoice::validate`
+///
+/// La validation d'une facture est une operation metier ; l'ecriture comptable
+/// en est une consequence. Les separer permet a une base dont le plan comptable
+/// n'est pas pret de continuer a facturer, et rend l'appel explicite : c'est
+/// l'ecran qui decide, pas une validation qui ecrit sans le dire.
+///
+/// # Idempotence
+///
+/// Le numero d'ecriture est stable (`VE-<reference>`). Une seconde validation
+/// — ou un rejeu apres incident — ne double donc rien : `deja_ecrite` le dit
+/// avant d'ecrire. Sans cette garde, un double clic creerait deux fois le
+/// chiffre d'affaires.
+///
+/// Rend le nombre de lignes ecrites : 0 veut dire « deja la ».
+pub fn ecrire_facture_vente(
+    pool: &Pool,
+    entity: i64,
+    facture_id: i64,
+) -> Result<usize, Box<dyn Error>> {
+    let ecriture = crate::ecritures::facture_vente(pool, entity, facture_id)?;
+    if deja_ecrite(pool, entity, &ecriture.numero)? {
+        return Ok(0);
+    }
+    ecrire(pool, entity, &ecriture)
+}
+
+/// Ecrit les ecritures d'un reglement client dans `llx_accounting_bookkeeping`.
+///
+/// # Pourquoi les deux ensemble
+///
+/// Une facture seule laisse un client debiteur pour toujours : le grand livre
+/// constate la creance, jamais son solde. C'est l'ecriture de banque qui la
+/// solde. Ecrire l'une sans l'autre produit une comptabilite ou **aucun client
+/// n'est jamais a jour**, ce qui se voit tout de suite a la balance.
+///
+/// Meme garde d'idempotence que pour la vente : le numero est stable.
+pub fn ecrire_reglement_client(
+    pool: &Pool,
+    entity: i64,
+    paiement_id: i64,
+) -> Result<usize, Box<dyn Error>> {
+    let ecriture = crate::ecritures::reglement_client(pool, entity, paiement_id)?;
+    if deja_ecrite(pool, entity, &ecriture.numero)? {
+        return Ok(0);
+    }
+    ecrire(pool, entity, &ecriture)
+}
+
 pub fn deja_ecrite(pool: &Pool, entity: i64, numero: &str) -> Result<bool, Box<dyn Error>> {
     if numero.trim().is_empty() {
         return Ok(false);

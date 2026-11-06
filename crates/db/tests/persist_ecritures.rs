@@ -210,6 +210,24 @@ fn toutes_les_lignes(pool: &Pool, entity: i64) -> Result<Vec<EnBase>, Box<dyn Er
     Ok(rows.iter().map(ligne_base).collect())
 }
 
+/// Efface les lignes d'une ecriture.
+///
+/// Depuis que la **validation d'une facture ecrit son ecriture comptable**,
+/// ces tests ne partent plus d'une table vide : ils doivent repartir de zero
+/// pour verifier `ecrire` lui-meme, et non la validation.
+fn vider_ecriture(
+    pool: &Pool,
+    entity: i64,
+    numero: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(
+        "DELETE FROM llx_accounting_bookkeeping WHERE entity = :entity AND ref = :ref",
+        params! { "entity" => entity, "ref" => numero },
+    )?;
+    Ok(())
+}
+
 fn compter(pool: &Pool, entity: i64) -> Result<i64, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let n: Option<i64> = conn.exec_first(
@@ -249,6 +267,13 @@ fn trois_lignes_en_base_pour_une_vente() -> Result<(), Box<dyn Error>> {
     )?;
 
     let ecriture = db::ecritures::facture_vente(&pool, entity, id)?;
+    // La validation a deja ecrit l'ecriture : c'est le comportement voulu. On
+    // repart de zero pour verifier `ecrire` lui-meme.
+    assert!(
+        db::persist_ecritures::deja_ecrite(&pool, entity, &ecriture.numero)?,
+        "la validation doit avoir ecrit l'ecriture"
+    );
+    vider_ecriture(&pool, entity, &ecriture.numero)?;
     assert!(!db::persist_ecritures::deja_ecrite(
         &pool,
         entity,
@@ -389,6 +414,8 @@ fn deja_ecrite_est_vrai_apres_ecriture() -> Result<(), Box<dyn Error>> {
     )?;
     let ecriture = db::ecritures::facture_vente(&pool, entity, id)?;
 
+    // La validation ecrit l'ecriture ; on efface pour tester la detection.
+    vider_ecriture(&pool, entity, &ecriture.numero)?;
     assert!(
         !db::persist_ecritures::deja_ecrite(&pool, entity, &ecriture.numero)?,
         "rien en base avant l'ecriture"
@@ -526,12 +553,15 @@ fn un_journal_desequilibre_n_ecrit_rien() -> Result<(), Box<dyn Error>> {
     )?;
     drop(conn);
 
+    // On mesure un **ecart**, pas un absolu : les factures validees ont deja
+    // ecrit leurs ecritures, et un total absolu ne dirait plus rien.
+    let avant = compter(&pool, entity)?;
     let resultat = db::persist_ecritures::ecrire_journal(&pool, entity, "VE", 1000);
     assert!(resultat.is_err(), "le journal contient une facture fausse");
     assert_eq!(
         compter(&pool, entity)?,
-        0,
-        "aucune des deux ecritures n'est partie"
+        avant,
+        "une seule facture fausse doit arreter tout le journal"
     );
 
     Ok(())

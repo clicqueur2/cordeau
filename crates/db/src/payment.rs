@@ -265,7 +265,15 @@ pub fn create(pool: &Pool, entity: i64, new: &NewPayment) -> Result<i64, Box<dyn
     }
     let resultat = create_sous_verrou(&mut conn, entity, new);
     let _: Option<i64> = conn.exec_first("SELECT RELEASE_LOCK(?)", (verrou.as_str(),))?;
-    resultat
+    let paiement = resultat?;
+
+    // L'ecriture de banque : sans elle, le client reste debiteur pour toujours
+    // et la balance ne solde jamais personne. Un echec ne defait pas le
+    // reglement — l'argent est arrive — mais il s'entend.
+    if let Err(e) = crate::persist_ecritures::ecrire_reglement_client(pool, entity, paiement) {
+        eprintln!("[cordeau] reglement {paiement} enregistre, ecriture comptable impossible : {e}");
+    }
+    Ok(paiement)
 }
 
 fn create_sous_verrou(

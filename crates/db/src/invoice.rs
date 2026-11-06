@@ -1054,6 +1054,19 @@ pub fn validate(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Erro
          WHERE entity = :entity AND rowid = :rowid",
         params! { "statut" => STATUT_VALIDEE, "entity" => entity, "rowid" => rowid },
     )?;
+    drop(conn);
+
+    // L'ecriture comptable, dans la table que Dolibarr lit. Elle est ecrite
+    // **ici** et pas dans un ecran : tout appelant — ecran, CLI, test — doit
+    // obtenir la meme comptabilite. Un chemin qui valide sans comptabiliser
+    // produit un grand livre incomplet sans que rien ne le signale.
+    //
+    // Un echec ne defait pas la validation : la facture est un document legal,
+    // elle existe des qu'elle est validee. Mais il s'entend, avec le numero de
+    // la piece, pour qu'on puisse la comptabiliser a la main.
+    if let Err(e) = crate::persist_ecritures::ecrire_facture_vente(pool, entity, rowid) {
+        eprintln!("[cordeau] facture {rowid} validee, ecriture comptable impossible : {e}");
+    }
     Ok(())
 }
 
