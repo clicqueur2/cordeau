@@ -108,6 +108,33 @@ input[type=text], input[type=number], input[type=email], select {
          padding:11px 15px; margin:0 0 22px; border-radius:2px; }
 .erreur { background:var(--rouge-clair); border:1px solid #efd3cd; color:var(--rouge);
           padding:11px 15px; margin:16px 0; border-radius:2px; }
+/* --- utilitaires : ce qui etait recopie en style inline ------------------- */
+/* Un texte secondaire revient 70 fois dans les ecrans sous quatre variantes.
+   Quatre classes valent mieux que quatre copies par ecran : changer la teinte
+   des aides se fait ici, et nulle part ailleurs. */
+.aide { color:var(--muted); font-size:13.5px; }
+.aide.petite { font-size:13px; }
+.aide.sous-champ { margin:8px 0 0; }
+.aide.bloc { margin:0 0 14px; }
+.aide.haut { margin-top:10px; }
+/* Trois couleurs suffisent pour tout ce qui n'est pas du texte courant :
+   l'aide, l'alerte, et le prix. Ecrites en hexa dans un ecran, elles
+   echappent au systeme et ne suivent plus un changement de palette. */
+.muet { color:var(--muted); }
+.haut { margin-top:10px; }
+.rouge { color:var(--rouge); }
+
+.en-ligne { display:inline; }
+/* Un formulaire pose dans une cellule de tableau ne doit pas casser la ligne. */
+form.en-ligne { display:inline; }
+.pleine { width:100%; }
+/* Trois largeurs de champ suffisent : court (nombre, quantite), moyen (date,
+   montant), large (liste deroulante). Au-dela, c'est la mise en page qui doit
+   changer, pas le champ. */
+.champ-court { width:90px; }
+.champ-moyen { width:170px; }
+.champ-large { min-width:260px; }
+
 .vide { color:var(--muted); padding:26px 0; }
 .vide a { font-weight:600; }
 

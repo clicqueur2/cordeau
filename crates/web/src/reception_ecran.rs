@@ -47,7 +47,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/receptions" {
                     label for="fk_soc" { (crate::langue::tr("Fournisseur")) } " "
-                    select name="fk_soc" id="fk_soc" style="min-width:260px" {
+                    select name="fk_soc" id="fk_soc" class="champ-large" {
                         @for f in &fournisseurs {
                             option value=(f.rowid) { (f.nom.clone()) }
                         }
@@ -62,11 +62,11 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                           style="min-width:320px";
                     " "
                     label for="qty" { (crate::langue::tr("Quantité")) } " "
-                    input type="text" name="qty" id="qty" value="1" style="width:90px" required;
+                    input type="text" name="qty" id="qty" value="1" class="champ-court" required;
                     " "
                     button type="submit" { (crate::langue::tr("Créer le bon")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("La saisie se fait ligne par ligne ; le bon se complète ensuite. Une réception ne valide rien tant que vous ne l'avez pas décidé."))
                 }
             }
@@ -101,7 +101,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            p style="color:#78736c;font-size:13px;margin-top:16px" {
+            p class="aide petite haut" {
                 (crate::langue::tr("Le stock n'est pas modifié par cet écran : le mouvement de stock viendra avec le module dédié, pour que chaque quantité ait une origine traçable."))
             }
         },
@@ -192,13 +192,13 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     button type="submit" { (crate::langue::tr("Réceptionner")) }
                 }
                 form method="post" action=(format!("/receptions/{}/supprimer", r.rowid))
-                     style="margin-top:10px" {
+                     class="haut" {
                     button type="submit" class="petit secondaire" {
                         (crate::langue::tr("Supprimer"))
                     }
                 }
             } @else {
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Cette réception est close. Le stock n'a pas été mouvementé : c'est le module de stock qui le fera."))
                 }
             }

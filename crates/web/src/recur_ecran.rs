@@ -45,7 +45,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                                 td .num {
                                     @match &d.derniere_emission {
                                         Some(x) => (x.clone()),
-                                        None => span style="color:#a33" { "non" },
+                                        None => span class="rouge" { "non" },
                                     }
                                 }
                             }
@@ -53,12 +53,12 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                     }
                 }
                 div .actions {
-                    form method="post" action="/recurrences/generer" style="display:inline" {
+                    form method="post" action="/recurrences/generer" class="en-ligne" {
                         button type="submit" {(crate::langue::tr("Générer les brouillons")) }
                     }
                 }
             }
-            p style="color:#78736c;font-size:13px" {
+            p class="aide petite" {
                 "Date du jour : " (aujourd_hui)
                 ". Un seul document par série et par échéance : la clé "
                 code {(crate::langue::tr("PA-RECUR-…")) }

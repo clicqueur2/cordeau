@@ -73,7 +73,7 @@ pub async fn utilisateur_droits(
                         }
                     }
                 }
-                p style="color:#78736c;font-size:13px" {(crate::langue::tr("Les droits ci-dessus sont accordés par le groupe : pour les retirer, il faut modifier le groupe."))
+                p class="aide petite" {(crate::langue::tr("Les droits ci-dessus sont accordés par le groupe : pour les retirer, il faut modifier le groupe."))
                 }
             }
         },
@@ -129,8 +129,8 @@ pub async fn groupes(
             form method="post" action="/parametres/groupes" {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Note")) } td { input type="text" name="note" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required class="pleine"; } }
+                        tr { th {(crate::langue::tr("Note")) } td { input type="text" name="note" class="pleine"; } }
                     }
                 }
                 div .actions { button type="submit" {(crate::langue::tr("Creer le groupe")) } }

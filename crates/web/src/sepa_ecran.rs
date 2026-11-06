@@ -75,7 +75,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                                 td {
                                     @match &f.iban {
                                         Some(i) => (i),
-                                        None => span style="color:#a33" { "manquant" },
+                                        None => span class="rouge" { "manquant" },
                                     }
                                 }
                                 td .num {

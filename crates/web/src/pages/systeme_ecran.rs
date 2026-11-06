@@ -111,7 +111,7 @@ pub async fn tables_page(State(app): State<crate::App>) -> Res<Markup> {
                         tr {
                             td { a href={ "/parametres/tables/" (t.nom) } { (t.nom) } }
                             td .num { (t.lignes.to_string()) }
-                            td style="color:#78736c" { (t.commentaire.clone()) }
+                            td class="muet" { (t.commentaire.clone()) }
                         }
                     }
                 }
@@ -212,7 +212,7 @@ pub async fn greffons_page() -> Res<Markup> {
                         @for g in &liste {
                             tr {
                                 td { (g.nom.clone()) }
-                                td style="color:#78736c" { (g.chemin.display().to_string()) }
+                                td class="muet" { (g.chemin.display().to_string()) }
                             }
                         }
                     }
@@ -260,7 +260,7 @@ pub async fn installation_page(
             // voir la proposition elle aussi.
             @if actifs.len() <= 3 {
                 h2 {(crate::langue::tr("Choisir un socle")) }
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     "Cette base n'a que " (actifs.len()) " module(s) actif(s). "
                     "Un socle en allume d'un coup ceux dont un metier a besoin. "
                     "Il n'en eteint aucun et n'ecrit aucune donnee."
@@ -271,7 +271,7 @@ pub async fn installation_page(
                         button type="submit" class="petit" { (p.libelle) }
                     }
                 }
-                p style="color:#78736c;font-size:13px" {
+                p class="aide petite" {
                     a href="/presets" { (crate::langue::tr("Voir le detail des socles")) }
                 }
             }
@@ -307,7 +307,7 @@ pub async fn installation_page(
                         td {
                             @match &etat.societe {
                                 Some(n) => (n.clone()),
-                                None => span style="color:#a33" {(crate::langue::tr("sans nom")) },
+                                None => span class="rouge" {(crate::langue::tr("sans nom")) },
                             }
                         }
                         td { "" }
@@ -324,7 +324,7 @@ pub async fn installation_page(
                         td {
                             @match &etat.smtp {
                                 Some(h) => (h.clone()),
-                                None => span style="color:#a33" {(crate::langue::tr("non configuré")) },
+                                None => span class="rouge" {(crate::langue::tr("non configuré")) },
                             }
                         }
                         td { "" }
@@ -351,19 +351,19 @@ pub async fn installation_page(
                         tbody {
                             tr {
                                 th {(crate::langue::tr("Identifiant")) }
-                                td { input type="text" name="login" required value="admin" style="width:100%"; }
+                                td { input type="text" name="login" required value="admin" class="pleine"; }
                             }
                             tr {
                                 th {(crate::langue::tr("Mot de passe")) }
-                                td { input type="password" name="mot_de_passe" required minlength="8" style="width:100%"; }
+                                td { input type="password" name="mot_de_passe" required minlength="8" class="pleine"; }
                             }
                             tr {
                                 th {(crate::langue::tr("E-mail")) }
-                                td { input type="email" name="email" style="width:100%"; }
+                                td { input type="email" name="email" class="pleine"; }
                             }
                             tr {
                                 th {(crate::langue::tr("Nom de la société")) }
-                                td { input type="text" name="societe" style="width:100%"; }
+                                td { input type="text" name="societe" class="pleine"; }
                             }
                         }
                     }

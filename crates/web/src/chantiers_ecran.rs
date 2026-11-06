@@ -58,7 +58,7 @@ pub(crate) async fn chantiers(
                         tr {
                             th {(crate::langue::tr("Client")) }
                             td {
-                                select name="soc" style="width:100%" {
+                                select name="soc" class="pleine" {
                                     option value="" {(crate::langue::tr("— chantier interne —")) }
                                     @for c in &clients {
                                         option value=(c.rowid) { (c.nom) }
@@ -66,11 +66,11 @@ pub(crate) async fn chantiers(
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Intitulé")) } td { input type="text" name="title" required style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" style="width:170px"; } }
-                        tr { th {(crate::langue::tr("Fin prévue")) } td { input type="date" name="fin" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Intitulé")) } td { input type="text" name="title" required class="pleine"; } }
+                        tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" class="champ-moyen"; } }
+                        tr { th {(crate::langue::tr("Fin prévue")) } td { input type="date" name="fin" class="champ-moyen"; } }
                         tr { th {(crate::langue::tr("Budget HT")) } td { input type="number" name="budget" step="0.01" min="0" style="width:150px"; } }
-                        tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" class="pleine"; } }
                     }
                 }
                 div .actions { button type="submit" {(crate::langue::tr("Créer le chantier")) } }
@@ -159,9 +159,9 @@ pub(crate) async fn chantier_fiche(
             form method="post" action={ "/chantiers/" (id) "/tache" } {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" required style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" style="width:170px"; } }
-                        tr { th {(crate::langue::tr("Fin")) } td { input type="date" name="fin" style="width:170px"; } }
+                        tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" required class="pleine"; } }
+                        tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" class="champ-moyen"; } }
+                        tr { th {(crate::langue::tr("Fin")) } td { input type="date" name="fin" class="champ-moyen"; } }
                     }
                 }
                 div .actions { button type="submit" {(crate::langue::tr("Ajouter la tâche")) } }

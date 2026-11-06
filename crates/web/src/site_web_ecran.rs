@@ -43,14 +43,14 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                       placeholder="maconnerie-architecture";
                 " "
                 label for="lang" { (crate::langue::tr("Langue")) } " "
-                input type="text" name="lang" id="lang" value="fr_FR" style="width:90px";
+                input type="text" name="lang" id="lang" value="fr_FR" class="champ-court";
                 " "
                 label for="virtualhost" { (crate::langue::tr("Domaine")) } " "
                 input type="text" name="virtualhost" id="virtualhost" style="width:220px";
                 " "
                 button type="submit" { (crate::langue::tr("Créer")) }
             }
-            p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+            p class="aide petite sous-champ" {
                 (crate::langue::tr("La référence est le nom interne du site. Elle doit être unique : deux sites de même nom rendraient les journaux illisibles."))
             }
 
@@ -130,7 +130,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
             h2 { (crate::langue::tr("Nouvelle page")) }
             form method="post" action=(format!("/sites/{}/pages", site.rowid)) {
                 label for="pageurl" { (crate::langue::tr("Adresse")) } " "
-                span style="color:#78736c" { "/" }
+                span class="muet" { "/" }
                 input type="text" name="pageurl" id="pageurl" required style="width:220px"
                       placeholder="contact";
                 " "
@@ -180,20 +180,20 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                                 }
                                 td {
                                     @if p.est_en_ligne() {
-                                        form method="post" action=(format!("/pages/{}/depublier", p.rowid)) style="display:inline" {
+                                        form method="post" action=(format!("/pages/{}/depublier", p.rowid)) class="en-ligne" {
                                             button type="submit" class="petit secondaire" {
                                                 (crate::langue::tr("Dépublier"))
                                             }
                                         }
                                     } @else {
-                                        form method="post" action=(format!("/pages/{}/publier", p.rowid)) style="display:inline" {
+                                        form method="post" action=(format!("/pages/{}/publier", p.rowid)) class="en-ligne" {
                                             button type="submit" class="petit" {
                                                 (crate::langue::tr("Publier"))
                                             }
                                         }
                                     }
                                     " "
-                                    form method="post" action=(format!("/pages/{}/supprimer", p.rowid)) style="display:inline" {
+                                    form method="post" action=(format!("/pages/{}/supprimer", p.rowid)) class="en-ligne" {
                                         button type="submit" class="petit secondaire" {
                                             (crate::langue::tr("Supprimer"))
                                         }
@@ -213,7 +213,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     }
                 }
             } @else {
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Ce site porte des pages : il ne se supprime pas. Vider un site de vingt pages sur un clic n'est pas une récupération possible — supprimez les pages une par une si c'est bien ce que vous voulez."))
                 }
             }

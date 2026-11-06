@@ -99,7 +99,7 @@ pub async fn page(
                                     @let dedans: Vec<&analytique::Compte> =
                                         comptes.iter().filter(|c| c.fk_axe == a.rowid).collect();
                                     @if dedans.is_empty() {
-                                        span style="color:#78736c" { "aucun" }
+                                        span class="muet" { "aucun" }
                                     } @else {
                                         @for (i, c) in dedans.iter().enumerate() {
                                             @if i > 0 { " · " }
@@ -190,7 +190,7 @@ pub async fn page(
             }
 
             h2 {(crate::langue::tr("Affecter une ligne")) }
-            p style="color:#78736c;font-size:13.5px" {
+            p class="aide" {
                 "Le numéro de ligne est le " code { "rowid" } " dans "
                 code { "llx_accounting_bookkeeping" } ". Format : "
                 code { "compte:pourcentage" } ", plusieurs parts séparées par des virgules "

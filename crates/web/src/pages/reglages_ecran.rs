@@ -54,7 +54,7 @@ pub async fn reglages(
                                             (valeurs[i])
                                         }
                                     } @else {
-                                        input type="text" name=(c.cle) value=(valeurs[i]) style="width:100%";
+                                        input type="text" name=(c.cle) value=(valeurs[i]) class="pleine";
                                     }
                                     p style="color:#78736c;font-size:12px;margin:6px 0 0" { "constante " code { (c.cle) } }
                                 }
@@ -82,7 +82,7 @@ pub async fn reglages(
                                 td {
                                     input type="email" name="destinataire" required
                                           value=(q.get("destinataire").cloned().unwrap_or_default())
-                                          style="width:100%";
+                                          class="pleine";
                                 }
                             }
                         }

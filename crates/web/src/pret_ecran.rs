@@ -89,7 +89,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     " "
                     button type="submit" { (crate::langue::tr("Créer et calculer l'échéancier")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("L'échéancier se calcule : mensualités constantes, la dernière porte le reliquat d'arrondi pour que la somme fasse exactement le capital."))
                 }
             }

@@ -233,14 +233,14 @@ pub(crate) async fn tiers_nouveau(
             form method="post" action="/tiers/nouveau" {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required value=(nom) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(adresse) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required value=(nom) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(adresse) class="pleine"; } }
                         tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(cp) style="width:120px"; } }
-                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(ville) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Email")) } td { input type="email" name="email" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Telephone")) } td { input type="text" name="tel" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(siret) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(ville) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Email")) } td { input type="email" name="email" class="pleine"; } }
+                        tr { th {(crate::langue::tr("Telephone")) } td { input type="text" name="tel" class="pleine"; } }
+                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(siret) class="pleine"; } }
+                        tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" class="pleine"; } }
                     }
                 }
                 div .actions {
@@ -337,14 +337,14 @@ pub(crate) async fn tiers_modifier(
             form method="post" action={ "/tiers/" (id) "/modifier" } {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required value=(t.nom) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(t.address.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required value=(t.nom) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(t.address.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(t.zip.clone().unwrap_or_default()) style="width:120px"; } }
-                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(t.town.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Email")) } td { input type="email" name="email" value=(t.email.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Telephone")) } td { input type="text" name="tel" value=(t.phone.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(t.siret.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" value=(t.tva_intra.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(t.town.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Email")) } td { input type="email" name="email" value=(t.email.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Telephone")) } td { input type="text" name="tel" value=(t.phone.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(t.siret.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" value=(t.tva_intra.clone().unwrap_or_default()) class="pleine"; } }
                     }
                 }
                 div .actions {

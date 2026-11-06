@@ -66,7 +66,7 @@ pub(crate) async fn factures(
             form id="actions-factures" method="post" action="/factures/actions" {}
             div .actions {
                 button type="submit" form="actions-factures" name="action" value="valider" {(crate::langue::tr("Valider la sélection")) }
-                span style="color:#78736c;font-size:13.5px" {(crate::langue::tr("Seules les factures en brouillon sont cochables."))
+                span class="aide" {(crate::langue::tr("Seules les factures en brouillon sont cochables."))
                 }
             }
             @if listes.is_empty() {
@@ -240,17 +240,17 @@ pub(crate) async fn factures_fiche(
                             }
                             tr {
                                 th {(crate::langue::tr("Objet")) }
-                                td { input type="text" name="sujet" value=(courriel_sujet) style="width:100%"; }
+                                td { input type="text" name="sujet" value=(courriel_sujet) class="pleine"; }
                             }
                             tr {
                                 th {(crate::langue::tr("Message")) }
-                                td { textarea name="corps" rows="5" style="width:100%" { (courriel_corps) } }
+                                td { textarea name="corps" rows="5" class="pleine" { (courriel_corps) } }
                             }
                         }
                     }
                     div .actions {
                         button type="submit" {(crate::langue::tr("Envoyer la facture")) }
-                        span style="color:#78736c;font-size:13.5px" {(crate::langue::tr("Le PDF archivé part en pièce jointe. L'envoi est tracé."))
+                        span class="aide" {(crate::langue::tr("Le PDF archivé part en pièce jointe. L'envoi est tracé."))
                         }
                     }
                 }
@@ -283,7 +283,7 @@ pub(crate) async fn factures_fiche(
                     }
                     div .actions {
                         button type="submit" {(crate::langue::tr("Créer la série")) }
-                        span style="color:#78736c;font-size:13.5px" {(crate::langue::tr("La série est une copie figée : modifier cette facture ne la change pas."))
+                        span class="aide" {(crate::langue::tr("La série est une copie figée : modifier cette facture ne la change pas."))
                         }
                     }
                 }
@@ -511,18 +511,18 @@ pub(crate) async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
                         tr {
                             th {(crate::langue::tr("Client")) }
                             td {
-                                select name="soc" required style="width:100%" {
+                                select name="soc" required class="pleine" {
                                     @for c in &clients {
                                         option value=(c.rowid) { (c.nom) }
                                     }
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Bon de commande")) } td { input type="text" name="ref_client" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Bon de commande")) } td { input type="text" name="ref_client" class="pleine"; } }
                         tr {
                             th {(crate::langue::tr("Chantier")) }
                             td {
-                                select name="projet" style="width:100%" {
+                                select name="projet" class="pleine" {
                                     option value="0" { (crate::langue::tr("Aucun")) }
                                     @for c in &chantiers {
                                         option value=(c.rowid) { (c.title.clone()) }
@@ -533,15 +533,15 @@ pub(crate) async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
                         tr {
                             th {(crate::langue::tr("Règlement")) }
                             td {
-                                select name="cond" style="width:100%" {
+                                select name="cond" class="pleine" {
                                     @for c in &conditions {
                                         option value=(c.rowid) { (c.libelle_fr()) }
                                     }
                                 }
                             }
                         }
-                        tr { th {(crate::langue::tr("Date de la prestation")) } td { input type="date" name="date_prestation" style="width:170px"; } }
-                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Date de la prestation")) } td { input type="date" name="date_prestation" class="champ-moyen"; } }
+                        tr { th {(crate::langue::tr("Note interne")) } td { input type="text" name="note" class="pleine"; } }
                     } }
                 h2 {(crate::langue::tr("Lignes")) }
                 table {
@@ -556,8 +556,8 @@ pub(crate) async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
                     tbody {
                         @for i in 1..=6 {
                             tr {
-                                td { input type="text" name=(format!("l{i}_lib")) style="width:100%"; }
-                                td { input type="number" name=(format!("l{i}_qte")) step="0.01" min="0" value="1" style="width:90px"; }
+                                td { input type="text" name=(format!("l{i}_lib")) class="pleine"; }
+                                td { input type="number" name=(format!("l{i}_qte")) step="0.01" min="0" value="1" class="champ-court"; }
                                 td { input type="number" name=(format!("l{i}_pu")) step="0.01" min="0" style="width:120px"; }
                                 td {
                                     select name=(format!("l{i}_tva")) {

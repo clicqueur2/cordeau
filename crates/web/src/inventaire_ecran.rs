@@ -64,21 +64,21 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     " "
                     label for="fk_product" { (crate::langue::tr("Produit")) } " "
-                    select name="fk_product" id="fk_product" style="min-width:260px" {
+                    select name="fk_product" id="fk_product" class="champ-large" {
                         @for p in &produits {
                             option value=(p.rowid) { (p.label.clone()) }
                         }
                     }
                     br;
                     label for="qty_stock" { (crate::langue::tr("Quantité théorique")) } " "
-                    input type="text" name="qty_stock" id="qty_stock" required style="width:110px";
+                    input type="text" name="qty_stock" id="qty_stock" required class="champ-court";
                     " "
                     label for="qty_viewed" { (crate::langue::tr("Quantité constatée")) } " "
-                    input type="text" name="qty_viewed" id="qty_viewed" required style="width:110px";
+                    input type="text" name="qty_viewed" id="qty_viewed" required class="champ-court";
                     " "
                     button type="submit" { (crate::langue::tr("Créer le comptage")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("L'écart ne se saisit pas : il se calcule. Un écart saisi à la main est un écart qu'on peut faire dire n'importe quoi."))
                 }
             }
@@ -123,7 +123,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            p style="color:#78736c;font-size:13px;margin-top:16px" {
+            p class="aide petite haut" {
                 (crate::langue::tr("Valider un inventaire ne modifie pas le stock : le mouvement de régularisation viendra avec le module dédié, pour que chaque quantité ait une origine traçable."))
             }
         },
@@ -196,11 +196,11 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                 form method="post" action=(format!("/inventaires/{}/valider", i.rowid)) {
                     button type="submit" { (crate::langue::tr("Valider le comptage")) }
                 }
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Valider arrête le comptage. Le stock n'est pas modifié : l'écart est constaté, pas appliqué."))
                 }
             } @else {
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Ce comptage est validé."))
                 }
             }

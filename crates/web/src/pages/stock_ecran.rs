@@ -65,7 +65,7 @@ pub async fn stock(
                             tr {
                                 th {(crate::langue::tr("Produit")) }
                                 td {
-                                    select name="produit" required style="width:100%" {
+                                    select name="produit" required class="pleine" {
                                         @for p in &produits {
                                             option value=(p.rowid) { (p.ref_) " - " (p.label) }
                                         }
@@ -82,7 +82,7 @@ pub async fn stock(
                                     }
                                 }
                             }
-                            tr { th {(crate::langue::tr("Quantite")) } td { input type="number" name="quantite" step="0.01" min="0.01" value="1" style="width:110px"; } }
+                            tr { th {(crate::langue::tr("Quantite")) } td { input type="number" name="quantite" step="0.01" min="0.01" value="1" class="champ-court"; } }
                             tr {
                                 th {(crate::langue::tr("Sens")) }
                                 td {
@@ -92,7 +92,7 @@ pub async fn stock(
                                     }
                                 }
                             }
-                            tr { th {(crate::langue::tr("Libelle")) } td { input type="text" name="label" style="width:100%"; } }
+                            tr { th {(crate::langue::tr("Libelle")) } td { input type="text" name="label" class="pleine"; } }
                         }
                     }
                     div .actions { button type="submit" {(crate::langue::tr("Enregistrer le mouvement")) } }

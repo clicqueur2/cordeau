@@ -70,9 +70,9 @@ pub(crate) async fn utilisateurs(
                     tbody {
                         tr { th {(crate::langue::tr("Identifiant")) } td { input type="text" name="login" required style="width:220px"; } }
                         tr { th {(crate::langue::tr("Mot de passe")) } td { input type="text" name="mdp" required minlength="8" style="width:220px"; } }
-                        tr { th {(crate::langue::tr("Prénom")) } td { input type="text" name="prenom" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Prénom")) } td { input type="text" name="prenom" class="pleine"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" class="pleine"; } }
+                        tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" class="pleine"; } }
                         tr {
                             th {(crate::langue::tr("Rôle")) }
                             td {

@@ -127,7 +127,7 @@ pub async fn page(
             }
 
             h2 { (crate::langue::tr("Registre certifié")) }
-            p style="color:#78736c;font-size:13.5px;margin:0" {
+            p class="aide" {
                 (crate::langue::tr("llx_blockedlog est le registre à empreintes chaînées : chaque document certifié y laisse une signature, pour qu'une suppression se voie. Il reste vide tant qu'aucun document n'est certifié — ce n'est pas une anomalie."))
             }
         },

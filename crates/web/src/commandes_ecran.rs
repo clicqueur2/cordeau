@@ -29,7 +29,7 @@ pub(crate) async fn commandes(
                     button type="submit" form="actions-commandes" name="action" value="valider" {
                         (crate::langue::tr("Valider la sélection"))
                     }
-                    span style="color:#78736c;font-size:13.5px" {
+                    span class="aide" {
                         (crate::langue::tr("Seules les commandes en brouillon sont cochables."))
                     }
                 }

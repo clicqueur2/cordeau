@@ -94,7 +94,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     " "
                     button type="submit" { (crate::langue::tr("Inscrire")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("L'identifiant est facultatif. S'il est fourni, il doit être libre : deux adhérents ne peuvent pas se connecter sous le même nom."))
                 }
             }
@@ -133,7 +133,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 }
             }
 
-            p style="color:#78736c;font-size:13px;margin-top:16px" {
+            p class="aide petite haut" {
                 (crate::langue::tr("Prolonger une cotisation écrase la date de fin ; la raccourcir retirerait des mois déjà payés, et c'est refusé."))
             }
         },
@@ -144,7 +144,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
 fn actions(a: &adherent::Adherent) -> maud::Markup {
     html! {
         @if a.statut == adherent::STATUT_SUSPENDU {
-            form method="post" action=(format!("/adherents/{}/reactiver", a.rowid)) style="display:inline" {
+            form method="post" action=(format!("/adherents/{}/reactiver", a.rowid)) class="en-ligne" {
                 button type="submit" class="petit" { (crate::langue::tr("Réactiver")) }
             }
         } @else {
@@ -154,7 +154,7 @@ fn actions(a: &adherent::Adherent) -> maud::Markup {
                 button type="submit" class="petit" { (crate::langue::tr("Cotiser")) }
             }
             " "
-            form method="post" action=(format!("/adherents/{}/suspendre", a.rowid)) style="display:inline" {
+            form method="post" action=(format!("/adherents/{}/suspendre", a.rowid)) class="en-ligne" {
                 button type="submit" class="petit secondaire" {
                     (crate::langue::tr("Suspendre"))
                 }

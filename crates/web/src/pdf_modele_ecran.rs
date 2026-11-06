@@ -50,7 +50,7 @@ pub async fn page(
                             tr {
                                 td { (crate::langue::tr(objet.libelle())) }
                                 td {
-                                    select name=(objet.code()) style="width:100%" {
+                                    select name=(objet.code()) class="pleine" {
                                         option value="" selected[actuel.is_none()] {
                                             (crate::langue::tr("Standard (défaut)"))
                                         }

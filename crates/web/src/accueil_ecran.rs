@@ -175,7 +175,7 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                                         )) {}
                                     }
                                 }
-                                td .num style="width:110px" { (ui::euros(m.ventes)) }
+                                td .num.champ-court { (ui::euros(m.ventes)) }
                                 td style="width:30%" {
                                     div .piste {
                                         div .achat style=(format!(

@@ -254,7 +254,7 @@ pub(crate) async fn fec_page(
                 }
             }
 
-            p style="color:#78736c;font-size:13px" {
+            p class="aide petite" {
                 "Générer remplace les écritures VE/AC/BQ de la période. Une écriture saisie "
                 "dans un autre journal n'est jamais touchée."
             }

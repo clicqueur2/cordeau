@@ -108,7 +108,7 @@ pub async fn page(
                         input type="number" name="objet" placeholder=(crate::langue::tr("N° de l'objet")) size="8" required;
                         button type="submit" class="petit" { (crate::langue::tr("Étiqueter")) }
                     }
-                    p style="color:#78736c;font-size:13.5px;margin:0" {
+                    p class="aide" {
                         (crate::langue::tr("Le numéro est le rowid de l'objet dans sa table Dolibarr."))
                         " " code { (famille.table()) }
                     }

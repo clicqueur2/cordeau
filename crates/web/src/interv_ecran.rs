@@ -185,7 +185,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     button type="submit" { (crate::langue::tr("Clôturer")) }
                 }
             } @else {
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Cette intervention est clôturée."))
                 }
             }

@@ -62,7 +62,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     " "
                     label for="qty" { (crate::langue::tr("Quantité produite")) } " "
-                    input type="text" name="qty" id="qty" value="1" style="width:90px" required;
+                    input type="text" name="qty" id="qty" value="1" class="champ-court" required;
                     br;
                     label for="comp_product" { (crate::langue::tr("Composant")) } " "
                     select name="comp_product" id="comp_product" style="min-width:280px" {
@@ -72,11 +72,11 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     " "
                     label for="comp_qty" { (crate::langue::tr("Quantité")) } " "
-                    input type="text" name="comp_qty" id="comp_qty" required style="width:90px";
+                    input type="text" name="comp_qty" id="comp_qty" required class="champ-court";
                     " "
                     button type="submit" { (crate::langue::tr("Créer")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("La quantité d'en-tête dit à quoi se rapporte la nomenclature : 1 pour un m², 10 pour 10 m². Les autres composants s'ajoutent sur la fiche."))
                 }
             }
@@ -187,14 +187,14 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
 
             h2 { (crate::langue::tr("Actions")) }
             @if n.statut == nomenclature::STATUT_BROUILLON {
-                form method="post" action=(format!("/nomenclatures/{}/valider", n.rowid)) style="margin-top:14px" {
+                form method="post" action=(format!("/nomenclatures/{}/valider", n.rowid)) class="haut" {
                     button type="submit" { (crate::langue::tr("Valider")) }
                 }
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Valider fige la composition. Une nomenclature validée est un prix de revient constaté, pas une hypothèse."))
                 }
             } @else {
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Cette nomenclature est validée ou désactivée. Sa composition ne bouge plus."))
                 }
             }

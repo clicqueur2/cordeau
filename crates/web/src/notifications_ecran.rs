@@ -38,20 +38,20 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     tbody {
                         tr {
                             th { (crate::langue::tr("Courriel")) }
-                            td { input type="email" name="email" value=(config.email) style="width:100%"
+                            td { input type="email" name="email" value=(config.email) class="pleine"
                                        placeholder="contact@exemple.fr"; }
                         }
                         tr {
                             th { (crate::langue::tr("Webhook")) }
-                            td { input type="url" name="webhook" value=(config.webhook) style="width:100%"
+                            td { input type="url" name="webhook" value=(config.webhook) class="pleine"
                                        placeholder="https://…"; }
                         }
                         tr {
                             th { (crate::langue::tr("Délai de retard")) }
                             td {
                                 input type="number" name="jours" min="0" value=(config.jours_retard)
-                                      style="width:90px";
-                                span style="color:#78736c;font-size:13.5px" {
+                                      class="champ-court";
+                                span class="aide" {
                                     " " (crate::langue::tr("jours avant d'alerter — 5 par défaut, le temps qu'un virement arrive."))
                                 }
                             }
@@ -61,7 +61,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 div .actions {
                     button type="submit" { (crate::langue::tr("Enregistrer")) }
                 }
-                p style="color:#78736c;font-size:13.5px;margin:0" {
+                p class="aide" {
                     (crate::langue::tr("Le webhook reçoit du JSON : un champ text (ce que lit Telegram) et un tableau alertes (ce que lira un service maison). Rien n'est supposé du destinataire."))
                 }
             }
@@ -75,7 +75,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             }
 
             h2 { (crate::langue::tr("Quand ça part")) }
-            p style="color:#78736c;font-size:13.5px" {
+            p class="aide" {
                 (crate::langue::tr("La tâche notifier est dans Planification. Une fois programmée, elle est lancée par le cron de Dolibarr, ou par le planificateur du système avec la commande cordeau tache notifier."))
                 " "
                 a href="/parametres/planification" { (crate::langue::tr("Voir la planification")) }

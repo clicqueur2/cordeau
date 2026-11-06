@@ -62,27 +62,27 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                           placeholder=(crate::langue::tr("Terrasse chez M. Dupont"));
                     " "
                     label for="fk_soc" { (crate::langue::tr("Client")) } " "
-                    select name="fk_soc" id="fk_soc" style="min-width:260px" {
+                    select name="fk_soc" id="fk_soc" class="champ-large" {
                         @for c in &clients {
                             option value=(c.rowid) { (c.nom.clone()) }
                         }
                     }
                     br;
                     label for="designation" { (crate::langue::tr("Ligne")) } " "
-                    input type="text" name="designation" id="designation" required style="min-width:260px";
+                    input type="text" name="designation" id="designation" required class="champ-large";
                     " "
                     label for="quantite" { (crate::langue::tr("Qté")) } " "
                     input type="text" name="quantite" id="quantite" value="1" style="width:80px" required;
                     " "
                     label for="prix_vente_ht" { (crate::langue::tr("Vente HT")) } " "
-                    input type="text" name="prix_vente_ht" id="prix_vente_ht" required style="width:110px";
+                    input type="text" name="prix_vente_ht" id="prix_vente_ht" required class="champ-court";
                     " "
                     label for="prix_achat_ht" { (crate::langue::tr("Achat HT")) } " "
-                    input type="text" name="prix_achat_ht" id="prix_achat_ht" required style="width:110px";
+                    input type="text" name="prix_achat_ht" id="prix_achat_ht" required class="champ-court";
                     " "
                     button type="submit" { (crate::langue::tr("Créer")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:8px 0 0" {
+                p class="aide petite sous-champ" {
                     (crate::langue::tr("Le premier produit sert à créer l'affaire ; les lignes suivantes s'ajoutent sur sa fiche."))
                 }
             }
@@ -196,7 +196,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                         }
                     }
                 }
-                p style="color:#78736c;font-size:13px;margin-top:10px" {
+                p class="aide petite haut" {
                     (crate::langue::tr("Le taux de marge se rapporte au prix d'achat, le taux de marque au prix de vente. Un achat nul rend le taux de marge incalculable : il s'affiche n/a, jamais zéro."))
                 }
             }
@@ -218,14 +218,14 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                     " "
                     button type="submit" class="petit" { (crate::langue::tr("Ajouter")) }
                 }
-                form method="post" action=(format!("/marges/{}/valider", a.rowid)) style="margin-top:14px" {
+                form method="post" action=(format!("/marges/{}/valider", a.rowid)) class="haut" {
                     button type="submit" { (crate::langue::tr("Valider l'affaire")) }
                 }
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Valider fige les lignes : une marge validée est un constat, pas un brouillon."))
                 }
             } @else {
-                p style="color:#78736c;font-size:13.5px" {
+                p class="aide" {
                     (crate::langue::tr("Cette affaire est validée. Ses lignes ne bougent plus."))
                 }
             }

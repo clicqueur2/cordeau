@@ -43,12 +43,12 @@ pub async fn fournisseur_fiche(
             form method="post" action={ "/achats/fournisseur/" (id) "/modifier" } {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" value=(f.nom) required style="width:100%"; } }
-                        tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" value=(f.email.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Téléphone")) } td { input type="text" name="telephone" value="" style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(f.address.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(f.town.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(f.siret.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" value=(f.nom) required class="pleine"; } }
+                        tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" value=(f.email.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Téléphone")) } td { input type="text" name="telephone" value="" class="pleine"; } }
+                        tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(f.address.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(f.town.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(f.siret.clone().unwrap_or_default()) class="pleine"; } }
                     }
                 }
                 div .actions {
@@ -125,9 +125,9 @@ pub async fn compte_fiche(
             form method="post" action={ "/banques/" (id) "/modifier" } {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" value=(c.label) required style="width:100%"; } }
-                        tr { th {(crate::langue::tr("Banque")) } td { input type="text" name="banque" value=(c.banque.clone().unwrap_or_default()) style="width:100%"; } }
-                        tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" value=(c.iban.clone().unwrap_or_default()) style="width:100%"; } }
+                        tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" value=(c.label) required class="pleine"; } }
+                        tr { th {(crate::langue::tr("Banque")) } td { input type="text" name="banque" value=(c.banque.clone().unwrap_or_default()) class="pleine"; } }
+                        tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" value=(c.iban.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" value=(c.bic.clone().unwrap_or_default()) style="width:260px"; } }
                         tr {
                             th {(crate::langue::tr("Compte clos")) }
