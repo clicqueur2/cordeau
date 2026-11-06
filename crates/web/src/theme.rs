@@ -632,6 +632,24 @@ html[data-style="sable"] .connexion-marque .sceau {
 }
 html[data-style="sable"] h1 { letter-spacing: -.025em; }
 
+/* Tableaux : sous 720 px, le tableau defile horizontalement dans son cadre
+   plutot que de deborder de la page. Une colonne ne se coupe pas. */
+@media (max-width: 720px) {
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  thead, tbody, tfoot { display: table; width: 100%; min-width: 560px; }
+  .kpis, .cartes { grid-template-columns: 1fr; }
+  .actions { gap: 6px; }
+  .actions .bouton, .actions button { flex: 1 1 auto; }
+  input[type=text], input[type=number], input[type=email], input[type=date],
+  input[type=password], select, textarea { width: 100%; }
+  .champ-court, .champ-moyen, .champ-large { width: 100%; min-width: 0; }
+  .fiche dl { padding: 4px 12px; }
+  h1 { font-size: 20px; }
+  .contenu { padding: var(--e3) 10px 0; }
+  header form.societe .mention { display: none; }
+  header .compte .bouton { padding: 0 8px; }
+}
+
 /* ===== mode sombre ===================================================== */
 @media (prefers-color-scheme: dark) {
   :root {

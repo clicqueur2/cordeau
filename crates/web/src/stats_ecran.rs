@@ -272,7 +272,7 @@ pub async fn echeancier(
                             td style="width:20%" { (barre(e.decaissements, maxi, "#a33a2a")) }
                             td .num {
                                 @if e.solde() < Decimal::ZERO {
-                                    span style="color:#a33a2a" { (ui::euros(e.solde())) }
+                                    span.rouge { (ui::euros(e.solde())) }
                                 } @else {
                                     (ui::euros(e.solde()))
                                 }

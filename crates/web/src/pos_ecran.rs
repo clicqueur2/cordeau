@@ -480,7 +480,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                     div .carte {
                         div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline" {
                             strong { (libelle_produit(produit)) }
-                            span .ref style="color:#78736c;font-size:12.5px" { (produit.ref_) }
+                            span .ref.muet.petite { (produit.ref_) }
                         }
                         div .note { (prix_affiche(produit)) }
                         form method="post" action="/caisse/ajouter" style="margin-top:12px" {
