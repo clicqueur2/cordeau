@@ -122,7 +122,7 @@ fn actions(b: &livraison::Livraison) -> maud::Markup {
             }
         } @else if b.fk_statut == livraison::STATUT_VALIDEE {
             form method="post" action=(format!("/livraisons/{}/livrer", b.rowid)) {
-                input type="date" name="date" required style="font-size:13px";
+                input type="date" name="date" required.petite;
                 " "
                 button type="submit" class="petit" { (crate::langue::tr("Livrer")) }
             }

@@ -84,7 +84,7 @@ pub async fn page(
                 }
             }
 
-            p style="color:#78736c;font-size:13.5px;margin-top:16px" {
+            p.muet.petite.haut {
                 (crate::langue::tr("Le modèle est figé sur le PDF produit : changer le réglage ne réécrit pas les documents déjà archivés. Régénérez la pièce pour appliquer le nouveau."))
             }
         },

@@ -122,7 +122,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                 }
             }
-            p style="color:#78736c;font-size:13px;margin-top:12px" {
+            p.muet.petite.haut {
                 (crate::langue::tr("X-Content-Type-Options: nosniff est toujours posé : il empêche le navigateur de deviner un type de contenu, ce qui transforme un fichier déposé par un client en script exécutable."))
             }
         },
