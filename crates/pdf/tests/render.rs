@@ -72,6 +72,7 @@ fn sample(rows: usize) -> DocumentView {
             "TVA acquittée sur les encaissements.".into(),
         ],
         notes: Some("Acompte de 30 % à la commande.\nSolde à la réception des travaux.".into()),
+        margins: Default::default(),
     }
 }
 

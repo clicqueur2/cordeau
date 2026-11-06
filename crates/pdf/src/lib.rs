@@ -70,6 +70,7 @@
 //!     mentions: vec!["Devis valable 1 mois.".into()],
 //!     cgv: None,
 //!     notes: None,
+//!     margins: pdf::Marges::default(),
 //! };
 //!
 //! let bytes = render(&doc).expect("rendu PDF");
@@ -188,6 +189,33 @@ pub struct LineView {
 ///
 /// Aucun champ n'est calcule ici : les montants arrivent en chaines, ce qui
 /// garantit que l'arithmetique de `money` reste la seule source de verite.
+/// Marges de page, en millimetres.
+///
+/// Dolibarr les range dans `MAIN_PDF_MARGIN_LEFT`, `_RIGHT`, `_TOP`, `_BOTTOM`.
+/// Le gabarit n'en connait que trois : la largeur, le haut et le bas. La gauche
+/// et la droite sont donc ramenees a une seule valeur — la plus grande des
+/// deux, parce qu'une marge trop petite se voit alors qu'une marge trop grande
+/// ne fait que reduire un tableau.
+///
+/// Les valeurs par defaut sont celles du coeur Dolibarr, et non zero : un
+/// document sans marge n'est pas imprimable.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Marges {
+    pub x: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+impl Default for Marges {
+    fn default() -> Self {
+        Self {
+            x: 10.0,
+            top: 10.0,
+            bottom: 20.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DocumentView {
     pub kind: DocKind,
@@ -223,6 +251,8 @@ pub struct DocumentView {
     pub cgv: Option<String>,
     /// Note libre affichee sous les totaux (les `\n` sont conserves).
     pub notes: Option<String>,
+    /// Marges de page, lues dans les constantes Dolibarr.
+    pub margins: Marges,
 }
 
 /// Erreur de rendu.
@@ -543,7 +573,32 @@ fn document_dict(doc: &DocumentView) -> String {
         ("mentions", str_array(&doc.mentions)),
         ("notes_lines", str_array(&notes)),
         ("cgv_lines", str_array(&cgv)),
+        // Les marges viennent des constantes Dolibarr, en millimetres. Le
+        // gabarit les multiplie par `1mm` : on reste dans l'unite naturelle du
+        // reglage, celle que l'administrateur saisit.
+        (
+            "margins",
+            dict(&[
+                ("x", typst_num(doc.margins.x)),
+                ("top", typst_num(doc.margins.top)),
+                ("bottom", typst_num(doc.margins.bottom)),
+            ]),
+        ),
     ])
+}
+
+/// Un nombre en syntaxe Typst, sans expose ni `f32` parasite.
+///
+/// Typst lit un litteral numerique ; `10` et `10.0` sont equivalents, mais
+/// `10.0000001` ferait naitre des marges bizarres. On ecrit donc au plus une
+/// decimale, et un entier quand c'en est un.
+fn typst_num(valeur: f32) -> String {
+    let v = (valeur * 10.0).round() / 10.0;
+    if (v - v.round()).abs() < f32::EPSILON {
+        format!("{}", v.round() as i64)
+    } else {
+        format!("{v}")
+    }
 }
 
 fn party_dict(party: &PartyView) -> String {
@@ -751,9 +806,42 @@ mod tests_modeles {
 #[cfg(test)]
 mod tests_gabarits {
     use super::{
-        compose_avec_modele, render_avec_modele, DocKind, DocumentView, LineKind, LineView, Modele,
-        PartyView,
+        build_source, compose_avec_modele, render_avec_modele, DocKind, DocumentView, LineKind,
+        LineView, Marges, Modele, PartyView,
     };
+
+    /// Les marges reglees arrivent vraiment dans le gabarit.
+    ///
+    /// Le defaut qu'on corrige : les marges etaient ecrites en dur dans le
+    /// gabarit, et l'ecran de reglage enregistrait des valeurs que rien ne
+    /// lisait. Un reglage qui ne change rien est pire que pas de reglage.
+    #[test]
+    fn les_marges_arrivent_dans_le_gabarit() {
+        let mut doc = document_de_test();
+        doc.margins = Marges {
+            x: 30.0,
+            top: 22.0,
+            bottom: 40.0,
+        };
+        let source = build_source(&doc, Modele::Standard);
+        assert!(
+            source.contains("x: 30"),
+            "la marge laterale doit etre dans le dictionnaire"
+        );
+        assert!(
+            source.contains("top: 22"),
+            "la marge haute doit etre dans le dictionnaire"
+        );
+        assert!(
+            source.contains("bottom: 40"),
+            "la marge basse doit etre dans le dictionnaire"
+        );
+        // Et le gabarit la consomme, au lieu de la valeur en dur d'avant.
+        assert!(
+            source.contains("data.margins.x * 1mm"),
+            "le gabarit doit lire la marge"
+        );
+    }
 
     /// Document de reference pour les tests de gabarit : deux lignes, une
     /// section, un sous-total, une TVA a deux taux, des mentions, des CGV et
@@ -830,6 +918,7 @@ mod tests_gabarits {
                     .into(),
             ),
             notes: Some("Acompte de 30 % à la commande.\nSolde à la réception.".into()),
+            margins: Default::default(),
         }
     }
 

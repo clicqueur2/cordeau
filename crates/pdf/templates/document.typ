@@ -33,9 +33,13 @@
 
 #set page(
   paper: "a4",
-  // Marges de 10 mm comme les gabarits du coeur Dolibarr (pdf_sponge :
-// MAIN_PDF_MARGIN_* / 10 par defaut) : on gagne 20 mm de largeur de tableau.
-margin: (x: 10mm, top: 14mm, bottom: 34mm),
+  // Marges lues dans les constantes Dolibarr (MAIN_PDF_MARGIN_*). Le defaut du
+// gabarit est celui du coeur : 10 mm sur les cotes, 10 en haut, 20 en bas.
+margin: (
+    x: data.margins.x * 1mm,
+    top: data.margins.top * 1mm,
+    bottom: data.margins.bottom * 1mm,
+  ),
   footer: context [
     #set text(size: 6.5pt, fill: muted)
     #set par(leading: 0.5em)
