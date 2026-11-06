@@ -28,6 +28,18 @@ de test y a été créé pour entrer dans l'interface, et les noms de sociétés
 un dump, et la suppression des fichiers que j'y avais déposés (vérifiée par
 relecture du listing FTP).
 
+### Ce que Cordeau écrit quand on le démarre
+
+À savoir avant de le brancher sur une base qui compte : l'interface crée ses
+**deux tables de module** au démarrage, `llx_marge_affaire` et
+`llx_marge_ligne` (`CREATE TABLE IF NOT EXISTS`, donc sans effet les fois
+suivantes). C'est prévu par `REGLE-SCHEMA.md` — un module a le droit à ses
+tables sous `llx_<module>_` — mais c'est une écriture, et il faut le dire.
+Vérifié sur la copie : 485 tables dans le dump, **487** après un passage de
+l'interface. En revanche `llx_cronjob` n'a **pas** été touché (31 lignes, toutes
+à Dolibarr).
+
+
 ## Ce que la copie raconte
 
 ```
