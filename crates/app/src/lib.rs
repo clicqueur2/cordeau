@@ -316,6 +316,8 @@ pub fn vendeur_pdf(c: &db::company::Company) -> pdf::PartyView {
         zip: c.code_postal.clone(),
         town: c.ville.clone(),
         siret: c.siret.clone(),
+        siren: c.siren.clone(),
+        ape: c.ape.clone(),
         tva_intra: c.tva_intra.clone(),
         legal_line: legal::entete_legal(&legale),
     }
@@ -433,6 +435,10 @@ pub fn client_pdf(p: &db::party::Party) -> pdf::PartyView {
         zip: p.zip.clone(),
         town: p.town.clone(),
         siret: p.siret.clone(),
+        // Le SIREN et le NAF ne s'impriment pas sur le client : ce sont des
+        // identifiants du vendeur.
+        siren: None,
+        ape: None,
         tva_intra: p.tva_intra.clone(),
         legal_line: None,
     }

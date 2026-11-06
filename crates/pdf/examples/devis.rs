@@ -62,6 +62,8 @@ fn example(rows: usize) -> DocumentView {
             zip: Some("69450".to_string()),
             town: Some("Lyon".to_string()),
             siret: Some("123 456 789 00016".to_string()),
+            siren: None,
+            ape: None,
             tva_intra: Some("FR12345678900".to_string()),
         },
         customer: PartyView {
@@ -71,6 +73,8 @@ fn example(rows: usize) -> DocumentView {
             zip: Some("69370".to_string()),
             town: Some("Saint-Didier-au-Mont-d'Or".to_string()),
             siret: None,
+            siren: None,
+            ape: None,
             tva_intra: None,
         },
         lines,
