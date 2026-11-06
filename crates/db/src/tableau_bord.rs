@@ -56,3 +56,20 @@ pub fn ca_mensuel(
     }
     Ok(serie)
 }
+
+/// Delai moyen entre la date de facture et la date d'encaissement, en jours.
+///
+/// Rend 0.0 s'il n'y a aucun reglement rattache : mieux vaut zero affiche que
+/// « NaN » sur un tableau de bord.
+pub fn delai_moyen(pool: &Pool, entity: i64) -> Result<f64, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let jours: Option<f64> = conn.exec_first(
+        "SELECT AVG(DATEDIFF(p.datep, f.datef)) \
+         FROM llx_paiement_facture pf \
+         JOIN llx_paiement p ON p.rowid = pf.fk_paiement \
+         JOIN llx_facture f ON f.rowid = pf.fk_facture \
+         WHERE f.entity = :entity AND p.datep IS NOT NULL AND f.datef IS NOT NULL",
+        params! { "entity" => entity },
+    )?;
+    Ok(jours.unwrap_or(0.0))
+}
