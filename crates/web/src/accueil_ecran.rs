@@ -158,6 +158,17 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                 }
             }
 
+            @let ca_douze = db::tableau_bord::ca_mensuel(p, entite::courante(), 12).unwrap_or_default();
+            @if !ca_douze.is_empty() {
+                h2 {(crate::langue::tr("Chiffre d'affaires des douze derniers mois")) }
+                div .curve {
+                    (ui::barres(&ca_douze))
+                    p .aide.petite {
+                        (crate::langue::tr("Factures validées, hors avoirs, HT."))
+                    }
+                }
+            }
+
             @if alertes > 0 {
                 p .sous-titre style="margin:18px 0 0" {
                     (alertes.to_string()) " " (crate::langue::tr("point(s) à traiter — voir plus bas."))
