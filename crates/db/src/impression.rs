@@ -122,10 +122,7 @@ pub fn recentes(pool: &Pool, limite: u32) -> Result<Vec<Impression>, Box<dyn Err
             imprimante: texte(&r, 2),
             emplacement: texte(&r, 3),
             identifiant: texte(&r, 4),
-            copies: r
-                .get_opt::<i32, _>(5)
-                .and_then(|v| v.ok())
-                .unwrap_or(1),
+            copies: r.get_opt::<i32, _>(5).and_then(|v| v.ok()).unwrap_or(1),
             module: texte(&r, 6),
             pilote: texte(&r, 7),
             userid: r.get_opt::<i64, _>(8).and_then(|v| v.ok()),
