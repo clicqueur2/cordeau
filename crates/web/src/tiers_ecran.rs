@@ -14,10 +14,12 @@ pub(crate) async fn tiers(
     let type_ = q.get("type").cloned().unwrap_or_default();
     // `type` vient d'une liste fermee : la condition SQL est choisie ici, jamais
     // construite a partir du texte saisi.
-    let listes: Vec<_> = db::divers::tiers_filtres(&app.pool, entite::courante(), &type_, 500)?
+    let listes: Vec<_> = db::divers::tiers_filtres(&app.pool, entite::courante(), &type_, 2000)?
         .into_iter()
         .filter(|p| filtre.is_empty() || p.nom.to_lowercase().contains(&filtre))
         .collect();
+    let total_db = db::party::count(&app.pool, entite::courante()).unwrap_or(0);
+    let affiches = listes.len();
     let titre = match type_.as_str() {
         "prospect" => "Prospects",
         "fournisseur" => "Fournisseurs",
@@ -36,7 +38,7 @@ pub(crate) async fn tiers(
         titre,
         html! {
             h1 { (titre) }
-            p .sous-titre { (listes.len()) " fiche(s)" }
+            p .sous-titre { (affiches) " fiche(s)" (ui::compte_tronque(affiches, total_db)) }
             form method="get" action="/tiers" .actions {
                 input type="text" name="q" placeholder="Nom du client" value=(filtre);
                 @if !type_.is_empty() {
