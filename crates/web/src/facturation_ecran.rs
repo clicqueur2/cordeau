@@ -263,7 +263,7 @@ pub(crate) async fn factures_fiche(
                                 th {(crate::langue::tr("Destinataire")) }
                                 td {
                                     input type="email" name="destinataire" value=(courriel_tiers)
-                                          required style="width:300px";
+                                          required.champ-large;
                                 }
                             }
                             tr {
@@ -321,7 +321,7 @@ pub(crate) async fn factures_fiche(
                 h2 {(crate::langue::tr("Enregistrer un règlement")) }
                 form method="post" action={ "/factures/" (id) "/reglement" } .actions {
                     input type="number" name="montant" step="0.01" min="0.01"
-                          value=(solde.reste.to_string()) style="width:150px" aria-label="Montant";
+                          value=(solde.reste.to_string()).champ-moyen aria-label="Montant";
                     select name="mode" aria-label="Mode de règlement" {
                         option value="virement" {(crate::langue::tr("Virement")) }
                         option value="cheque" {(crate::langue::tr("Chèque")) }
@@ -586,7 +586,7 @@ pub(crate) async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
                             tr {
                                 td { input type="text" name=(format!("l{i}_lib")) class="pleine"; }
                                 td { input type="number" name=(format!("l{i}_qte")) step="0.01" min="0" value="1" class="champ-court"; }
-                                td { input type="number" name=(format!("l{i}_pu")) step="0.01" min="0" style="width:120px"; }
+                                td { input type="number" name=(format!("l{i}_pu")) step="0.01" min="0".champ-court; }
                                 td {
                                     select name=(format!("l{i}_tva")) {
                                         @for t in &tva {

@@ -58,17 +58,17 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             h2 { (crate::langue::tr("Nouvelle campagne")) }
             form method="post" action="/mailings" {
                 label for="titre" { (crate::langue::tr("Titre")) } " "
-                input type="text" name="titre" id="titre" required style="min-width:240px"
+                input type="text" name="titre" id="titre" required.champ-large
                       placeholder=(crate::langue::tr("Nom interne de la campagne"));
                 br;
                 label for="sujet" { (crate::langue::tr("Objet")) } " "
-                input type="text" name="sujet" id="sujet" required style="min-width:320px";
+                input type="text" name="sujet" id="sujet" required.champ-large;
                 br;
                 label for="email_from" { (crate::langue::tr("Expéditeur")) } " "
-                input type="email" name="email_from" id="email_from" required style="width:240px";
+                input type="email" name="email_from" id="email_from" required.champ-large;
                 " "
                 label for="cible" { (crate::langue::tr("Cible")) } " "
-                input type="text" name="cible" id="cible" style="width:200px"
+                input type="text" name="cible" id="cible".champ-moyen
                       placeholder=(crate::langue::tr("clients, prospects…"));
                 br;
                 label for="body" { (crate::langue::tr("Message")) }

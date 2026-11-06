@@ -65,7 +65,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/prets" {
                     label for="label" { (crate::langue::tr("Libellé")) } " "
-                    input type="text" name="label" id="label" required style="min-width:220px"
+                    input type="text" name="label" id="label" required.champ-moyen
                           placeholder=(crate::langue::tr("Prêt travaux, crédit véhicule…"));
                     " "
                     label for="fk_bank" { (crate::langue::tr("Compte")) } " "
@@ -76,13 +76,13 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     br;
                     label for="capital" { (crate::langue::tr("Capital")) } " "
-                    input type="text" name="capital" id="capital" required style="width:120px";
+                    input type="text" name="capital" id="capital" required.champ-court;
                     " "
                     label for="rate" { (crate::langue::tr("Taux %")) } " "
-                    input type="text" name="rate" id="rate" required style="width:80px";
+                    input type="text" name="rate" id="rate" required.champ-court;
                     " "
                     label for="nbterm" { (crate::langue::tr("Échéances")) } " "
-                    input type="text" name="nbterm" id="nbterm" value="12" style="width:80px";
+                    input type="text" name="nbterm" id="nbterm" value="12".champ-court;
                     " "
                     label for="datestart" { (crate::langue::tr("Départ")) } " "
                     input type="date" name="datestart" id="datestart" required;

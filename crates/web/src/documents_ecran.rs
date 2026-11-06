@@ -53,7 +53,7 @@ pub(crate) async fn agenda(State(app): State<App>) -> Res<Markup> {
             }
             h2 {(crate::langue::tr("Nouvel événement")) }
             form method="post" action="/agenda/nouveau" .actions {
-                input type="text" name="label" placeholder="Objet du rendez-vous" required style="width:320px";
+                input type="text" name="label" placeholder="Objet du rendez-vous" required.champ-large;
                 input type="date" name="date" aria-label="Date";
                 button type="submit" {(crate::langue::tr("Ajouter")) }
             }

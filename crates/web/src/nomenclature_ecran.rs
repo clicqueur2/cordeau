@@ -47,15 +47,15 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/nomenclatures" {
                     label for="ref" { (crate::langue::tr("Référence")) } " "
-                    input type="text" name="ref" id="ref" required style="width:160px"
+                    input type="text" name="ref" id="ref" required.champ-moyen
                           placeholder="MUR-PIERRE-M2";
                     " "
                     label for="label" { (crate::langue::tr("Libellé")) } " "
-                    input type="text" name="label" id="label" required style="min-width:240px"
+                    input type="text" name="label" id="label" required.champ-large
                           placeholder=(crate::langue::tr("Mur en pierre, au m²"));
                     br;
                     label for="fk_product" { (crate::langue::tr("Produit fini")) } " "
-                    select name="fk_product" id="fk_product" style="min-width:280px" {
+                    select name="fk_product" id="fk_product".champ-large {
                         @for p in &produits {
                             option value=(p.rowid) { (p.label.clone()) }
                         }
@@ -65,7 +65,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     input type="text" name="qty" id="qty" value="1" class="champ-court" required;
                     br;
                     label for="comp_product" { (crate::langue::tr("Composant")) } " "
-                    select name="comp_product" id="comp_product" style="min-width:280px" {
+                    select name="comp_product" id="comp_product".champ-large {
                         @for p in &produits {
                             option value=(p.rowid) { (p.label.clone()) }
                         }

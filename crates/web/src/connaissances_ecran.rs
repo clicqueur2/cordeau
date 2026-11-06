@@ -48,7 +48,7 @@ pub async fn page(
             h2 { (crate::langue::tr("Chercher")) }
             form method="get" action="/connaissances" {
                 input type="search" name="q" value=(terme) placeholder=(crate::langue::tr("un mot de la question ou de la réponse"))
-                      style="min-width:340px";
+                     .champ-large;
                 " "
                 button type="submit" class="petit" { (crate::langue::tr("Chercher")) }
             }

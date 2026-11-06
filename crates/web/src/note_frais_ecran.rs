@@ -93,16 +93,16 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     " "
                     label for="comments" { (crate::langue::tr("Commentaire")) } " "
                     input type="text" name="comments" id="comments" required
-                          style="min-width:240px" placeholder=(crate::langue::tr("repas client, péage…"));
+                         .champ-large placeholder=(crate::langue::tr("repas client, péage…"));
                     " "
                     label for="qty" { (crate::langue::tr("Qté")) } " "
-                    input type="text" name="qty" id="qty" value="1" style="width:70px";
+                    input type="text" name="qty" id="qty" value="1".champ-court;
                     " "
                     label for="subprice" { (crate::langue::tr("P.U. HT")) } " "
-                    input type="text" name="subprice" id="subprice" style="width:100px" required;
+                    input type="text" name="subprice" id="subprice".champ-court required;
                     " "
                     label for="tva_tx" { (crate::langue::tr("TVA %")) } " "
-                    input type="text" name="tva_tx" id="tva_tx" value="20" style="width:70px";
+                    input type="text" name="tva_tx" id="tva_tx" value="20".champ-court;
                     " "
                     button type="submit" { (crate::langue::tr("Créer")) }
                 }
@@ -240,7 +240,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                          class="haut" {
                         label for="motif" { (crate::langue::tr("Motif du refus")) } " "
                         input type="text" name="motif" id="motif" required
-                              style="min-width:340px" placeholder=(crate::langue::tr("justificatif manquant, montant erroné…"));
+                             .champ-large placeholder=(crate::langue::tr("justificatif manquant, montant erroné…"));
                         " "
                         button type="submit" class="petit secondaire" {
                             (crate::langue::tr("Refuser"))

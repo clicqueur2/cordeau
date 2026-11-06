@@ -74,10 +74,10 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/adherents" {
                     label for="lastname" { (crate::langue::tr("Nom")) } " "
-                    input type="text" name="lastname" id="lastname" required style="width:180px";
+                    input type="text" name="lastname" id="lastname" required.champ-moyen;
                     " "
                     label for="firstname" { (crate::langue::tr("Prénom")) } " "
-                    input type="text" name="firstname" id="firstname" style="width:150px";
+                    input type="text" name="firstname" id="firstname".champ-moyen;
                     " "
                     label for="fk_adherent_type" { (crate::langue::tr("Type")) } " "
                     select name="fk_adherent_type" id="fk_adherent_type" {
@@ -87,10 +87,10 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     br;
                     label for="email" { (crate::langue::tr("Courriel")) } " "
-                    input type="email" name="email" id="email" style="width:230px";
+                    input type="email" name="email" id="email".champ-large;
                     " "
                     label for="login" { (crate::langue::tr("Identifiant")) } " "
-                    input type="text" name="login" id="login" style="width:140px";
+                    input type="text" name="login" id="login".champ-moyen;
                     " "
                     button type="submit" { (crate::langue::tr("Inscrire")) }
                 }

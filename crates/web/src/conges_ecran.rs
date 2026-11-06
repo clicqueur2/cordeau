@@ -150,7 +150,7 @@ fn actions(c: &conges::Conge) -> maud::Markup {
             " "
             form method="post" action=(format!("/conges/{}/refuser", c.rowid)) class="en-ligne" {
                 input type="text" name="motif" placeholder=(crate::langue::tr("motif"))
-                      style="width:130px";
+                     .champ-moyen;
                 " "
                 button type="submit" class="petit secondaire" {
                     (crate::langue::tr("Refuser"))

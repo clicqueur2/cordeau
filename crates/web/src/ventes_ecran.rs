@@ -366,7 +366,7 @@ pub(crate) async fn devis_nouveau(State(app): State<App>) -> Res<Markup> {
                             tr {
                                 td { input type="text" name=(format!("l{i}_lib")) class="pleine"; }
                                 td { input type="number" name=(format!("l{i}_qte")) step="0.01" min="0" value="1" class="champ-court"; }
-                                td { input type="number" name=(format!("l{i}_pu")) step="0.01" min="0" style="width:120px"; }
+                                td { input type="number" name=(format!("l{i}_pu")) step="0.01" min="0".champ-court; }
                                 td {
                                     select name=(format!("l{i}_tva")) {
                                         @for t in &tva {
@@ -553,9 +553,9 @@ pub(crate) async fn devis_modifier(State(app): State<App>, Path(id): Path<i64>) 
                     tbody {
                         @for (i, (sec, lib, qte, pu, tva_l)) in prefill.iter().enumerate() {
                             tr {
-                                td { input type="text" name=(format!("r{}_sec", i + 1)) value=(sec) style="width:130px"; }
+                                td { input type="text" name=(format!("r{}_sec", i + 1)) value=(sec).champ-moyen; }
                                 td { input type="text" name=(format!("r{}_lib", i + 1)) value=(lib) class="pleine"; }
-                                td { input type="number" name=(format!("r{}_qte", i + 1)) step="0.01" min="0" value=(qte) style="width:80px"; }
+                                td { input type="number" name=(format!("r{}_qte", i + 1)) step="0.01" min="0" value=(qte).champ-court; }
                                 td { input type="number" name=(format!("r{}_pu", i + 1)) step="0.01" min="0" value=(pu) class="champ-court"; }
                                 td {
                                     select name=(format!("r{}_tva", i + 1)) {

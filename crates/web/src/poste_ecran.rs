@@ -39,11 +39,11 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             h2 { (crate::langue::tr("Nouveau poste")) }
             form method="post" action="/postes" {
                 label for="ref" { (crate::langue::tr("Référence")) } " "
-                input type="text" name="ref" id="ref" required style="width:180px"
+                input type="text" name="ref" id="ref" required.champ-moyen
                       placeholder=(crate::langue::tr("ATELIER-1"));
                 " "
                 label for="label" { (crate::langue::tr("Libellé")) } " "
-                input type="text" name="label" id="label" required style="min-width:240px";
+                input type="text" name="label" id="label" required.champ-large;
                 " "
                 label for="nb_operators" { (crate::langue::tr("Opérateurs")) } " "
                 input type="number" name="nb_operators" id="nb_operators" value="1" min="0" class="champ-court";
@@ -150,7 +150,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
             h2 { (crate::langue::tr("Modifier")) }
             form method="post" action=(format!("/postes/{}/modifier", p.rowid)) {
                 label for="label" { (crate::langue::tr("Libellé")) } " "
-                input type="text" name="label" id="label" value=(p.label.clone()) required style="min-width:240px";
+                input type="text" name="label" id="label" value=(p.label.clone()) required.champ-large;
                 " "
                 label for="nb_operators" { (crate::langue::tr("Opérateurs")) } " "
                 input type="number" name="nb_operators" id="nb_operators" value=(p.nb_operators) min="0" class="champ-court";

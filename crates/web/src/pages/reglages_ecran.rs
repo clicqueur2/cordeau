@@ -48,7 +48,7 @@ pub async fn reglages(
                                             option value="1" selected[valeurs[i] == "1"] {(crate::langue::tr("Oui")) }
                                         }
                                     } @else if c.genre == "nombre" {
-                                        input type="number" name=(c.cle) value=(valeurs[i]) style="width:130px";
+                                        input type="number" name=(c.cle) value=(valeurs[i]).champ-moyen;
                                     } @else if c.genre == "textarea" {
                                         textarea name=(c.cle) rows="4" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #e6e2dc" {
                                             (valeurs[i])

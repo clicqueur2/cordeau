@@ -65,14 +65,14 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             h2 { (crate::langue::tr("Nouvelle immobilisation")) }
             form method="post" action="/immobilisations" {
                 label for="label" { (crate::langue::tr("Libellé")) } " "
-                input type="text" name="label" id="label" required style="min-width:240px"
+                input type="text" name="label" id="label" required.champ-large
                       placeholder=(crate::langue::tr("Camionnette, outillage, ordinateur…"));
                 " "
                 label for="valeur" { (crate::langue::tr("Valeur HT")) } " "
                 input type="text" name="valeur" id="valeur" required class="champ-court";
                 " "
                 label for="duree" { (crate::langue::tr("Durée (ans)")) } " "
-                input type="text" name="duree" id="duree" value="5" style="width:70px";
+                input type="text" name="duree" id="duree" value="5".champ-court;
                 " "
                 label for="date" { (crate::langue::tr("Mise en service")) } " "
                 input type="date" name="date" id="date" required;

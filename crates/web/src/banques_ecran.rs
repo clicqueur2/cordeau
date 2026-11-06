@@ -67,11 +67,11 @@ pub(crate) async fn banques(
             form method="post" action="/banques" {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Référence")) } td { input type="text" name="ref" required style="width:140px"; } }
+                        tr { th {(crate::langue::tr("Référence")) } td { input type="text" name="ref" required.champ-moyen; } }
                         tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" required class="pleine"; } }
                         tr { th {(crate::langue::tr("Banque")) } td { input type="text" name="banque" class="pleine"; } }
                         tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" class="pleine"; } }
-                        tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" style="width:260px"; } }
+                        tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic".champ-large; } }
                     }
                 }
                 div .actions { button type="submit" {(crate::langue::tr("Créer le compte")) } }

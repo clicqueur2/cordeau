@@ -58,7 +58,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/marges" {
                     label for="libelle" { (crate::langue::tr("Libellé")) } " "
-                    input type="text" name="libelle" id="libelle" required style="min-width:240px"
+                    input type="text" name="libelle" id="libelle" required.champ-large
                           placeholder=(crate::langue::tr("Terrasse chez M. Dupont"));
                     " "
                     label for="fk_soc" { (crate::langue::tr("Client")) } " "
@@ -72,7 +72,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     input type="text" name="designation" id="designation" required class="champ-large";
                     " "
                     label for="quantite" { (crate::langue::tr("Qté")) } " "
-                    input type="text" name="quantite" id="quantite" value="1" style="width:80px" required;
+                    input type="text" name="quantite" id="quantite" value="1".champ-court required;
                     " "
                     label for="prix_vente_ht" { (crate::langue::tr("Vente HT")) } " "
                     input type="text" name="prix_vente_ht" id="prix_vente_ht" required class="champ-court";
@@ -205,16 +205,16 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
             @if a.statut == marge::STATUT_BROUILLON {
                 form method="post" action=(format!("/marges/{}/ligne", a.rowid)) {
                     label for="designation" { (crate::langue::tr("Ligne")) } " "
-                    input type="text" name="designation" id="designation" required style="width:240px";
+                    input type="text" name="designation" id="designation" required.champ-large;
                     " "
                     label for="quantite" { (crate::langue::tr("Qté")) } " "
-                    input type="text" name="quantite" id="quantite" value="1" style="width:70px" required;
+                    input type="text" name="quantite" id="quantite" value="1".champ-court required;
                     " "
                     label for="prix_vente_ht" { (crate::langue::tr("Vente")) } " "
-                    input type="text" name="prix_vente_ht" id="prix_vente_ht" required style="width:100px";
+                    input type="text" name="prix_vente_ht" id="prix_vente_ht" required.champ-court;
                     " "
                     label for="prix_achat_ht" { (crate::langue::tr("Achat")) } " "
-                    input type="text" name="prix_achat_ht" id="prix_achat_ht" required style="width:100px";
+                    input type="text" name="prix_achat_ht" id="prix_achat_ht" required.champ-court;
                     " "
                     button type="submit" class="petit" { (crate::langue::tr("Ajouter")) }
                 }

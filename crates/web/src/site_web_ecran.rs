@@ -39,14 +39,14 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             h2 { (crate::langue::tr("Nouveau site")) }
             form method="post" action="/sites" {
                 label for="ref" { (crate::langue::tr("Référence")) } " "
-                input type="text" name="ref" id="ref" required style="width:220px"
+                input type="text" name="ref" id="ref" required.champ-moyen
                       placeholder="maconnerie-architecture";
                 " "
                 label for="lang" { (crate::langue::tr("Langue")) } " "
                 input type="text" name="lang" id="lang" value="fr_FR" class="champ-court";
                 " "
                 label for="virtualhost" { (crate::langue::tr("Domaine")) } " "
-                input type="text" name="virtualhost" id="virtualhost" style="width:220px";
+                input type="text" name="virtualhost" id="virtualhost".champ-moyen;
                 " "
                 button type="submit" { (crate::langue::tr("Créer")) }
             }
@@ -131,14 +131,14 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
             form method="post" action=(format!("/sites/{}/pages", site.rowid)) {
                 label for="pageurl" { (crate::langue::tr("Adresse")) } " "
                 span class="muet" { "/" }
-                input type="text" name="pageurl" id="pageurl" required style="width:220px"
+                input type="text" name="pageurl" id="pageurl" required.champ-moyen
                       placeholder="contact";
                 " "
                 label for="title" { (crate::langue::tr("Titre")) } " "
-                input type="text" name="title" id="title" style="width:260px";
+                input type="text" name="title" id="title".champ-large;
                 br;
                 label for="description" { (crate::langue::tr("Description")) } " "
-                input type="text" name="description" id="description" style="width:420px";
+                input type="text" name="description" id="description".champ-large;
                 br;
                 label for="content" { (crate::langue::tr("Contenu")) }
                 textarea name="content" id="content" rows="5" required

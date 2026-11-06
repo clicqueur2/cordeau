@@ -68,7 +68,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/partenariats" {
                     label for="ref" { (crate::langue::tr("Référence")) } " "
-                    input type="text" name="ref" id="ref" required style="width:200px"
+                    input type="text" name="ref" id="ref" required.champ-moyen
                           placeholder=(crate::langue::tr("partenariat-ecole-2026"));
                     " "
                     label for="fk_type" { (crate::langue::tr("Type")) } " "
@@ -79,7 +79,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     br;
                     label for="fk_soc" { (crate::langue::tr("Tiers")) } " "
-                    select name="fk_soc" id="fk_soc" style="min-width:280px" {
+                    select name="fk_soc" id="fk_soc".champ-large {
                         @for c in &clients {
                             option value=(c.rowid) { (c.nom.clone()) }
                         }
@@ -154,7 +154,7 @@ fn actions(p: &partenariat::Partenariat) -> maud::Markup {
             " "
             form method="post" action=(format!("/partenariats/{}/refuser", p.rowid)) class="en-ligne" {
                 input type="text" name="motif" required placeholder=(crate::langue::tr("motif"))
-                      style="width:130px";
+                     .champ-moyen;
                 " "
                 button type="submit" class="petit secondaire" {
                     (crate::langue::tr("Refuser"))
@@ -163,7 +163,7 @@ fn actions(p: &partenariat::Partenariat) -> maud::Markup {
         } @else if p.est_accepte() {
             form method="post" action=(format!("/partenariats/{}/annuler", p.rowid)) class="en-ligne" {
                 input type="text" name="motif" required placeholder=(crate::langue::tr("motif"))
-                      style="width:130px";
+                     .champ-moyen;
                 " "
                 button type="submit" class="petit secondaire" {
                     (crate::langue::tr("Annuler"))

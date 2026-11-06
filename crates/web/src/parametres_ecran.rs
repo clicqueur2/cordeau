@@ -57,11 +57,11 @@ pub(crate) async fn parametres(
 
             div .actions {
                 form method="get" action="/parametres" {
-                    input type="text" name="siret" placeholder="SIRET ou SIREN" style="width:190px";
+                    input type="text" name="siret" placeholder="SIRET ou SIREN".champ-moyen;
                     button type="submit" {(crate::langue::tr("Chercher l'entreprise")) }
                 }
                 form method="get" action="/parametres" {
-                    input type="text" name="adresse" placeholder="12 rue des Peupliers, Saint-Cyr" style="width:330px";
+                    input type="text" name="adresse" placeholder="12 rue des Peupliers, Saint-Cyr".champ-large;
                     button type="submit" class="secondaire" {(crate::langue::tr("Chercher l'adresse")) }
                 }
             }
@@ -74,15 +74,15 @@ pub(crate) async fn parametres(
                         tr { th {(crate::langue::tr("Capital")) } td { input type="text" name="capital" value=(s.capital.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("RCS")) } td { input type="text" name="rcs" value=(s.rcs.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(s.adresse.clone().unwrap_or_default()) class="pleine"; } }
-                        tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(s.code_postal.clone().unwrap_or_default()) style="width:120px"; } }
+                        tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(s.code_postal.clone().unwrap_or_default()).champ-court; } }
                         tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(s.ville.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("SIRET")) } td { input type="text" name="siret" value=(s.siret.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("TVA intracommunautaire")) } td { input type="text" name="tva_intra" value=(s.tva_intra.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("Email")) } td { input type="text" name="email" value=(s.email.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" value=(s.iban.clone().unwrap_or_default()) class="pleine"; } }
-                        tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" value=(s.bic.clone().unwrap_or_default()) style="width:260px"; } }
+                        tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" value=(s.bic.clone().unwrap_or_default()).champ-large; } }
                         tr { th {(crate::langue::tr("Assurance décennale (assureur)")) } td { input type="text" name="assurance_assureur" value=(s.assurance_assureur.clone().unwrap_or_default()) class="pleine"; } }
-                        tr { th {(crate::langue::tr("Assurance (n° de police)")) } td { input type="text" name="assurance_police" value=(s.assurance_police.clone().unwrap_or_default()) style="width:260px"; } }
+                        tr { th {(crate::langue::tr("Assurance (n° de police)")) } td { input type="text" name="assurance_police" value=(s.assurance_police.clone().unwrap_or_default()).champ-large; } }
                         tr { th {(crate::langue::tr("Assurance (couverture)")) } td { input type="text" name="assurance_couverture" value=(s.assurance_couverture.clone().unwrap_or_default()) class="pleine"; } }
                         tr {
                             th {(crate::langue::tr("TVA taux réduit (travaux)")) }
@@ -322,7 +322,7 @@ pub(crate) async fn parametres_dictionnaires(State(app): State<App>) -> Res<Mark
             form method="post" action="/parametres/conditions-reglement" {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Code")) } td { input type="text" name="code" required placeholder="RECEPTION" style="width:180px"; } }
+                        tr { th {(crate::langue::tr("Code")) } td { input type="text" name="code" required placeholder="RECEPTION".champ-moyen; } }
                         tr { th {(crate::langue::tr("Libellé client")) } td { input type="text" name="libelle" required placeholder="Règlement à réception de facture, par virement" class="pleine"; } }
                         tr { th {(crate::langue::tr("Délai (jours)")) } td { input type="number" name="nbjour" min="0" value="0" class="champ-court"; } }
                         tr {

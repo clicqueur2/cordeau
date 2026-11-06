@@ -55,7 +55,7 @@ pub(crate) async fn achats(
                 table {
                     tbody {
                         tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required class="pleine"; } }
-                        tr { th {(crate::langue::tr("Code fournisseur")) } td { input type="text" name="code" placeholder="généré si vide" style="width:220px"; } }
+                        tr { th {(crate::langue::tr("Code fournisseur")) } td { input type="text" name="code" placeholder="généré si vide".champ-moyen; } }
                     }
                 }
                 div .actions { button type="submit" {(crate::langue::tr("Créer le fournisseur")) } }
@@ -153,7 +153,7 @@ pub(crate) async fn achat_facture_nouvelle(
                             tr {
                                 td { input type="text" name=(format!("l{i}_lib")) class="pleine"; }
                                 td { input type="number" name=(format!("l{i}_qte")) step="0.01" min="0" value="1" class="champ-court"; }
-                                td { input type="number" name=(format!("l{i}_pu")) step="0.01" min="0" style="width:120px"; }
+                                td { input type="number" name=(format!("l{i}_pu")) step="0.01" min="0".champ-court; }
                                 td {
                                     select name=(format!("l{i}_tva")) {
                                         @for t in &tva {

@@ -69,7 +69,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/transferts" {
                     label for="label" { (crate::langue::tr("Libellé")) } " "
-                    input type="text" name="label" id="label" style="min-width:220px"
+                    input type="text" name="label" id="label".champ-moyen
                           placeholder=(crate::langue::tr("Déplacement vers le chantier"));
                     br;
                     label for="source" { (crate::langue::tr("De")) } " "
@@ -94,7 +94,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     " "
                     label for="qty" { (crate::langue::tr("Quantité")) } " "
-                    input type="text" name="qty" id="qty" required style="width:100px";
+                    input type="text" name="qty" id="qty" required.champ-court;
                     " "
                     button type="submit" { (crate::langue::tr("Créer le bon")) }
                 }

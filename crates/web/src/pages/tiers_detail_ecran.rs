@@ -128,7 +128,7 @@ pub async fn compte_fiche(
                         tr { th {(crate::langue::tr("Libellé")) } td { input type="text" name="label" value=(c.label) required class="pleine"; } }
                         tr { th {(crate::langue::tr("Banque")) } td { input type="text" name="banque" value=(c.banque.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("IBAN")) } td { input type="text" name="iban" value=(c.iban.clone().unwrap_or_default()) class="pleine"; } }
-                        tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" value=(c.bic.clone().unwrap_or_default()) style="width:260px"; } }
+                        tr { th {(crate::langue::tr("BIC")) } td { input type="text" name="bic" value=(c.bic.clone().unwrap_or_default()).champ-large; } }
                         tr {
                             th {(crate::langue::tr("Compte clos")) }
                             td {
