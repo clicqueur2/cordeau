@@ -115,11 +115,18 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
 
     let alertes = retard.len() + sans_reponse.len() + stock.len();
 
+            let delai = db::tableau_bord::delai_moyen(p, entite::courante()).unwrap_or(0.0);
+    let panier = if chiffres.nb_factures > 0 {
+        chiffres.facture / rust_decimal::Decimal::from(chiffres.nb_factures)
+    } else {
+        rust_decimal::Decimal::ZERO
+    };
+
     Ok(ui::page(
         "accueil",
         "",
         "Tableau de bord",
-        html! {
+    html! {
             h1 { (crate::langue::tr("Tableau de bord")) }
             p .sous-titre { (crate::langue::tr("Exercice en cours")) " — " (jour.clone()) }
 
@@ -150,6 +157,16 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                     div .note {
                         (ui::euros(devis.signes)) " / " (ui::euros(devis.emis()))
                     }
+                }
+                div .kpi {
+                    div .titre { (crate::langue::tr("Délai de paiement")) }
+                    div .valeur { (format!("{:.0}", delai)) " j" }
+                    div .note { (crate::langue::tr("moyenne constatée")) }
+                }
+                div .kpi {
+                    div .titre { (crate::langue::tr("Panier moyen")) }
+                    div .valeur { (ui::euros(panier)) }
+                    div .note { (crate::langue::tr("par facture validée")) }
                 }
                 div .kpi.alerte {
                     div .titre { (crate::langue::tr("En retard")) }
