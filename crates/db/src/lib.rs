@@ -13,6 +13,7 @@ pub mod achat_ecriture;
 pub mod achat_paiement;
 pub mod adherent;
 pub mod analytique;
+pub mod audit;
 pub mod banque;
 pub mod caisse_journal;
 pub mod caisse_scelle;

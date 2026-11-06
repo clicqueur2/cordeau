@@ -223,10 +223,17 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                     @let entites = crate::entite::liste();
                     @if entites.len() > 1 {
                         form method="post" action="/entite" style="margin-left:8px" {
-                            select name="entity" onchange="this.form.submit()" aria-label="Societe" {
+                            select name="entity" onchange="this.form.submit()" aria-label="Societe"
+                                   title="Toutes les listes sont filtrées sur cette société." {
                                 @for (id, nom) in &entites {
                                     option value=(id) selected[*id == crate::entite::courante()] { (nom) }
                                 }
+                            }
+                            // Le selecteur ne suffit pas : rien ne dit qu'il **filtre**. Une
+                            // facture « absente » est alors cherchee pendant dix minutes.
+                            // Deux mots, et l'ambiguite tombe.
+                            span .muet style="font-size:12px;margin-left:6px" {
+                                (crate::langue::tr("listes filtrées"))
                             }
                         }
                     } @else {
