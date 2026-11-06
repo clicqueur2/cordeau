@@ -310,6 +310,16 @@ fn audit_cmd(args: &[String]) -> ExitCode {
         println!("  {id:>4}  {nom}");
     }
 
+    if !rapport.sans_nom.is_empty() {
+        println!("\nSociete(s) sans nom renseigne :");
+        for id in &rapport.sans_nom {
+            println!(
+                "  entite {id} — le libelle affiche est un repli. Renseigner MAIN_INFO_SOCIETE_NOM (entite {id})."
+            );
+        }
+        println!("  Sans nom, deux societes se ressemblent dans le selecteur, et l'on facture dans la mauvaise.");
+    }
+
     println!("\nObjets :");
     for c in &rapport.comptes {
         println!("  {:<24} {:>8}", c.libelle, c.lignes);
