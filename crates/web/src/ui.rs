@@ -24,7 +24,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                     meta name="viewport" content="width=device-width, initial-scale=1";
                     meta name="color-scheme" content="light dark";
                     title { (titre) " — " (app::PRODUIT) }
-                    style { (crate::theme::CSS) }
+                    style { (maud::PreEscaped(crate::theme::CSS)) }
                 }
                 body {
                     main id="contenu" {
@@ -65,7 +65,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                 meta name="viewport" content="width=device-width, initial-scale=1";
                 meta name="color-scheme" content="light dark";
                 title { (titre) " — " (app::PRODUIT) }
-                style { (crate::theme::CSS) }
+                style { (maud::PreEscaped(crate::theme::CSS)) }
             }
             body {
                 // Premier element focusable : qui tabule peut sauter le menu.
