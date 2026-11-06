@@ -109,5 +109,6 @@ fn example(rows: usize) -> DocumentView {
         notes: Some(
             "Acompte de 30 % a la commande.\nSolde a la reception des travaux.".to_string(),
         ),
+        margins: Default::default(),
     }
 }

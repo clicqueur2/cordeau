@@ -23,6 +23,40 @@ pub const PRODUIT: &str = "Cordeau";
 /// La mention affichee sous le nom : ce que le produit est, en trois mots.
 pub const SOUS_TITRE: &str = "gestion et facturation";
 
+/// Les marges du PDF, lues dans les constantes Dolibarr.
+///
+/// `MAIN_PDF_MARGIN_LEFT`, `_RIGHT`, `_TOP`, `_BOTTOM` sont les noms du coeur.
+/// Le gabarit n'a qu'une largeur : on prend **la plus grande** des deux marges
+/// laterales. Une marge trop petite se voit — le tableau touche le bord — alors
+/// qu'une marge trop grande ne fait que reduire la largeur utile.
+///
+/// Chaque valeur est bornee : une constante negative ou absurde (un `0` oublie,
+/// un `-5` recopie) donnerait un PDF illisible. On retombe alors sur le defaut
+/// du coeur, et rien ne casse.
+pub fn marges_pdf(pool: &db::Pool) -> pdf::Marges {
+    let lire = |cle: &str| -> Option<f32> {
+        db::company::get_const(pool, cle)
+            .ok()
+            .flatten()
+            .and_then(|v| v.trim().replace(',', ".").parse::<f32>().ok())
+    };
+    let defaut = pdf::Marges::default();
+    let borne = |v: Option<f32>, defaut: f32| -> f32 {
+        match v {
+            Some(x) if (2.0..=60.0).contains(&x) => x,
+            _ => defaut,
+        }
+    };
+
+    let gauche = borne(lire("MAIN_PDF_MARGIN_LEFT"), defaut.x);
+    let droite = borne(lire("MAIN_PDF_MARGIN_RIGHT"), defaut.x);
+    pdf::Marges {
+        x: gauche.max(droite),
+        top: borne(lire("MAIN_PDF_MARGIN_TOP"), defaut.top),
+        bottom: borne(lire("MAIN_PDF_MARGIN_BOTTOM"), defaut.bottom),
+    }
+}
+
 /// La configuration SMTP, lue dans `llx_const`.
 ///
 /// Elle vit ici et non dans la couche web : le courriel part aussi bien d'un
@@ -445,6 +479,7 @@ pub fn devis_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dyn 
         // Le document part chez le client : seules les notes publiques sortent.
         // Une note interne sur une facture, c'est une fuite.
         notes: p.note_public.clone().filter(|n| !n.trim().is_empty()),
+        margins: marges_pdf(pool),
     };
 
     let modele = modele_pdf(pool, entity, db::pdf_modele::Objet::Devis)?;
@@ -564,6 +599,7 @@ pub fn commande_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<d
             &conditions_legales(&emit, None),
         ),
         notes: c.note_public.clone().filter(|n| !n.trim().is_empty()),
+        margins: marges_pdf(pool),
     };
 
     let modele = modele_pdf(pool, entity, db::pdf_modele::Objet::Commande)?;
@@ -661,6 +697,7 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
             &conditions_legales(&emit, origine.as_deref()),
         ),
         notes: f.note_public.clone().filter(|n| !n.trim().is_empty()),
+        margins: marges_pdf(pool),
     };
 
     let modele = modele_pdf(pool, entity, db::pdf_modele::Objet::Facture)?;
