@@ -178,6 +178,42 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
     }
 }
 
+
+/// Un histogramme en SVG, sans bibliotheque ni JavaScript.
+///
+/// `serie` : `(etiquette, valeur)`, dans l'ordre d'affichage. Le maximum fixe la
+/// hauteur ; une serie toute a zero affiche un cadre vide plutot que de diviser
+/// par zero.
+pub fn barres(serie: &[(String, f64)]) -> Markup {
+    let max = serie.iter().map(|(_, v)| *v).fold(0.0f64, f64::max);
+    let largeur = 720.0;
+    let hauteur = 150.0;
+    let marge_bas = 18.0;
+    let n = serie.len().max(1) as f64;
+    let pas = largeur / n;
+    let largeur_barre = (pas * 0.62).max(4.0);
+
+    html! {
+        svg viewBox={ "0 0 720 168" } width="100%" height="168"
+            role="img" aria-label=(crate::langue::tr("Chiffre d'affaires par mois")) {
+            @for (i, (etiquette, valeur)) in serie.iter().enumerate() {
+                @let h = if max > 0.0 { (valeur / max) * (hauteur - marge_bas) } else { 0.0 };
+                @let x = i as f64 * pas + (pas - largeur_barre) / 2.0;
+                @let y = hauteur - h;
+                rect x=(format!("{x:.1}")) y=(format!("{y:.1}"))
+                     width=(format!("{largeur_barre:.1}")) height=(format!("{h:.1}"))
+                     rx="3" fill="currentColor" opacity="0.85" {
+                    title { (etiquette) " : " (euros(rust_decimal::Decimal::from_f64_retain(*valeur).unwrap_or_default())) }
+                }
+                text x=(format!("{:.1}", i as f64 * pas + pas / 2.0)) y="165"
+                     text-anchor="middle" font-size="10" fill="currentColor" opacity="0.55" {
+                    (etiquette.get(5..).unwrap_or(etiquette))
+                }
+            }
+        }
+    }
+}
+
 pub fn euros(v: rust_decimal::Decimal) -> String {
     let s = v.round_dp(2).normalize().to_string();
     let (entier, dec) = match s.split_once('.') {

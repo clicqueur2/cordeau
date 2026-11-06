@@ -94,6 +94,7 @@ pub mod site_web;
 pub mod situation;
 pub mod stats;
 pub mod stock;
+pub mod tableau_bord;
 pub mod tableau;
 pub mod tables;
 pub mod ticket;
