@@ -126,7 +126,7 @@ pub async fn cible(State(app): State<App>, Path(elementtype): Path<String>) -> R
                                 td .ref {
                                     (d.colonne())
                                     @if !presentes.contains(&d.colonne()) {
-                                        span style="color:#a33a2a" {(crate::langue::tr(" — absente")) }
+                                        span.rouge {(crate::langue::tr(" — absente")) }
                                     }
                                 }
                                 td {
@@ -192,19 +192,19 @@ pub async fn objet(
                                 tr {
                                     td {
                                         div { (d.libelle.clone()) }
-                                        div .ref style="color:#78736c;font-size:12.5px" {
+                                        div .ref.muet.petite {
                                             (d.nom.clone())
                                             @if d.requis {(crate::langue::tr(" · requis")) }
                                         }
                                     }
                                     td {
                                         @if !*existe {
-                                            span style="color:#a33a2a" {
+                                            span.rouge {
                                                 "colonne absente : " (d.colonne())
                                             }
                                         } @else if d.calcule_par_expression() {
                                             (valeur.clone().unwrap_or_else(|| "—".into()))
-                                            div style="color:#78736c;font-size:12.5px" {(crate::langue::tr("calcule, non saisissable"))
+                                            div.muet.petite {(crate::langue::tr("calcule, non saisissable"))
                                             }
                                         } @else {
                                             (champ(d, valeur.as_deref()))

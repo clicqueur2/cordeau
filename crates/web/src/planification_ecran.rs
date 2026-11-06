@@ -97,7 +97,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                                         span .pastille.p-brouillon { "inactif" }
                                     }
                                     @if let Some(r) = &t.resultat {
-                                        span style="color:#78736c;font-size:12.5px" { " " (r.clone()) }
+                                        span.muet.petite { " " (r.clone()) }
                                     }
                                 }
                                 td {
