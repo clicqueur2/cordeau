@@ -459,6 +459,98 @@ h1 .petite { font-weight: 400; color: var(--muet); letter-spacing: 0; }
   .carte .valeur, .kpi .valeur { font-size: 20px; }
 }
 
+/* ===== styles choisis par l'utilisateur ================================
+   Trois directions, plus celle du système. Elles ne changent que des jetons :
+   aucune page n'est reprise, aucun écran n'est dupliqué. `data-style` est posé
+   sur `<html>` ; sans attribut, c'est le style « systeme » qui s'applique.
+   ====================================================================== */
+
+/* « futuriste » : fond profond, halos froids, accent cyan. */
+html[data-style="futuriste"] {
+  --encre: #e8eaf6;
+  --encre-douce: #c3c8e6;
+  --muet: #8f96c4;
+  --pale: #6b729e;
+  --papier: #0a0b14;
+  --surface: #12131f;
+  --surface-2: #171929;
+  --surface-3: #1f2234;
+  --verre: rgba(18, 19, 31, .78);
+  --trait: rgba(120, 140, 255, .12);
+  --trait-fort: rgba(120, 140, 255, .26);
+  --accent: #22d3ee;
+  --accent-fonce: #67e8f9;
+  --accent-clair: rgba(34, 211, 238, .14);
+  --accent-trait: rgba(34, 211, 238, .34);
+  --anneau: rgba(34, 211, 238, .4);
+  --vert: #4ade80;
+  --vert-clair: rgba(74, 222, 128, .13);
+  --vert-trait: rgba(74, 222, 128, .3);
+  --rouge: #fb7185;
+  --rouge-clair: rgba(251, 113, 133, .13);
+  --rouge-trait: rgba(251, 113, 133, .3);
+  --bleu: #7dd3fc;
+  --bleu-clair: rgba(125, 211, 252, .13);
+  --bleu-trait: rgba(125, 211, 252, .3);
+  --ambre: #fbbf24;
+  --ambre-clair: rgba(251, 191, 36, .13);
+  --ambre-trait: rgba(251, 191, 36, .3);
+  --ombre-1: 0 0 0 0.5px rgba(120, 140, 255, .1), 0 0 24px rgba(34, 211, 238, .06);
+  --ombre-2: 0 0 0 0.5px rgba(120, 140, 255, .16), 0 8px 32px rgba(34, 211, 238, .1);
+  --ombre-3: 0 0 0 1px rgba(120, 140, 255, .2), 0 24px 60px rgba(0, 0, 0, .6);
+}
+html[data-style="futuriste"] header .marque .sceau,
+html[data-style="futuriste"] .connexion-marque .sceau {
+  background: linear-gradient(160deg, #22d3ee 0%, #6366f1 100%);
+  box-shadow: 0 0 18px rgba(34, 211, 238, .5);
+}
+html[data-style="futuriste"] h1 { letter-spacing: -.045em; }
+
+/* « classique » : papier, encre, aucune couleur d'action vive. Le Dolibarr
+   d'avant, resserre : celui qui ne deplace personne. */
+html[data-style="classique"] {
+  --encre: #1f1f1f;
+  --encre-douce: #3d3d3d;
+  --muet: #666;
+  --pale: #8c8c8c;
+  --papier: #f4f4f4;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --surface-3: #f0f0f0;
+  --verre: #ffffff;
+  --trait: #dddddd;
+  --trait-fort: #c4c4c4;
+  --accent: #264d73;
+  --accent-fonce: #1c3a57;
+  --accent-clair: #e8eef4;
+  --accent-trait: #c3d3e0;
+  --anneau: rgba(38, 77, 115, .3);
+  --vert: #2f6b45;
+  --vert-clair: #eaf3ee;
+  --vert-trait: #cbe0d3;
+  --rouge: #a33a2a;
+  --rouge-clair: #fbecea;
+  --rouge-trait: #efd3cd;
+  --bleu: #264d73;
+  --bleu-clair: #e8eef4;
+  --bleu-trait: #c3d3e0;
+  --ambre: #8a6a1f;
+  --ambre-clair: #fbf3de;
+  --ambre-trait: #ecdfb9;
+  --rayon: 2px;
+  --rayon-lg: 2px;
+  --ombre-1: none;
+  --ombre-2: none;
+  --ombre-3: none;
+}
+html[data-style="classique"] header { backdrop-filter: none; border-bottom: 1px solid #c4c4c4; }
+html[data-style="classique"] .menu-gauche { backdrop-filter: none; background: #fff; }
+html[data-style="classique"] header nav a.actif { background: transparent; border-bottom: 2px solid var(--accent); border-radius: 0; }
+html[data-style="classique"] table { border: 1px solid #c4c4c4; }
+html[data-style="classique"] thead th { background: #f0f0f0; border-bottom: 1px solid #c4c4c4; }
+html[data-style="classique"] td { border-bottom: 1px solid #e6e6e6; }
+html[data-style="classique"] h1 { font-size: 22px; letter-spacing: 0; font-weight: 600; }
+
 /* ===== mode sombre ===================================================== */
 @media (prefers-color-scheme: dark) {
   :root {
