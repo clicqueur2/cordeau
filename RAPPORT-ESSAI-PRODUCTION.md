@@ -204,6 +204,31 @@ affinez la recherche ». Une liste incomplète qui se présente comme complète 
 un mensonge par omission : 375 fiches étaient introuvables sans que rien ne le
 signale.
 
+### 11. Aucun vrai compte Dolibarr ne pouvait se connecter
+
+**Symptôme.** `pierreangulaire` et son vrai mot de passe : « Identifiant ou mot
+de passe incorrect ». Mon compte de test, lui, entrait.
+
+**Cause.** `authentifier` lisait `pass`. Dolibarr 24 écrit l'empreinte dans
+**`pass_crypted`** et met `pass` à `NULL` (`User::setPassword()` :
+`pass_crypted = dol_hash(...)`, puis `pass = null` quand `DATABASE_PWD_ENCRYPTED`
+est actif — c'est le cas normal). Sur la copie, **les dix-sept comptes** sont
+dans cet état. Seul le compte écrit à l'ancienne par Cordeau passait.
+
+**C'est bloquant** : sans ça, l'interface ne s'ouvre à personne.
+
+Et le défaut allait dans les deux sens : `pass` peut contenir le mot de passe
+**en clair** quand `DATABASE_PWD_ENCRYPTED` est désactivé, et le lire revenait à
+accepter un mot de passe non chiffré comme preuve.
+
+**Correction.** `pass_crypted` d'abord, `pass` seulement s'il porte une empreinte
+reconnaissable (md5 32, sha1 40, `$2…`, `$argon…`) ; le clair n'authentifie
+jamais. La création de compte et le changement de mot de passe écrivent au même
+endroit que Dolibarr — un mot de passe changé ici ouvre la porte des deux côtés.
+
+**Quatre tests**, dont un qui vérifie qu'un mot de passe en clair dans `pass`
+n'ouvre rien.
+
 ## Ce qui reste ouvert
 
 | Sujet | Constat | Pourquoi ce n'est pas corrigé ici |
@@ -216,13 +241,26 @@ signale.
 | Modules tiers (InfraS, Subtotal, multicompany) | 75 tables hors cœur | assumé : non portés, non lus |
 | Documents (GED) | la copie est faite **sans les fichiers** | le PDF est régénéré depuis les données, pas relu du disque |
 
+## Voir l'interface
+
+```powershell
+cd Z:\11_PROJETS_DIVERS\dolibarr-rs
+.\demarrer.ps1                    # sur la copie de production
+.\demarrer.ps1 -Base dolibarr    # sur la base de test
+.\demarrer.ps1 -Port 8091        # si le port est pris
+```
+
+Puis `http://127.0.0.1:8090/` — on entre avec **son compte Dolibarr habituel**,
+puisque la copie porte les vraies empreintes. Le sélecteur en haut à droite
+change de société.
+
 ## Ce qu'il faut retenir
 
 La base de test ne prouvait rien sur un point : elle ne contenait que des
 données écrites par Cordeau. Une heure sur une copie de production a trouvé
-**dix défauts**, dont un qui empêchait d'éditer la moindre facture de
-particulier — c'est-à-dire l'essentiel de l'activité — et quatre qui rendaient
-les champs libres invisibles sans le dire.
+**onze défauts**, dont **deux bloquants** — aucune facture de particulier ne
+pouvait s'éditer, et **aucun vrai compte ne pouvait se connecter** — et quatre
+qui rendaient les champs libres invisibles sans le dire.
 
 Deux règles en sortent :
 

@@ -114,12 +114,16 @@ pub fn creer(pool: &Pool, entity: i64, nouveau: &NouvelUtilisateur) -> Result<i6
     }
 
     let empreinte = auth::hash(&nouveau.mot_de_passe);
+    // Dolibarr 24 ecrit l'empreinte dans `pass_crypted` et laisse `pass` a NULL
+    // (`User::setPassword()` : `pass_crypted = dol_hash(...)` puis `pass = null`
+    // quand `DATABASE_PWD_ENCRYPTED`). Ecrire dans `pass` creerait un compte que
+    // Dolibarr refuserait.
     conn.exec_drop(
         "INSERT INTO llx_user \
-         (entity, login, pass, pass_encoding, lastname, firstname, email, admin, \
-          employee, statut, datec, lang) \
+         (entity, login, pass_crypted, pass_encoding, lastname, firstname, email, admin, \
+          employee, statut, datec, lang, datelastpassvalidation) \
          VALUES (:entity, :login, :pass, 'bcrypt', :nom, :prenom, :email, :admin, \
-          1, :statut, NOW(), 'fr_FR')",
+          1, :statut, NOW(), 'fr_FR', NOW())",
         params! {
             "entity" => entity,
             "login" => nouveau.login.trim(),
@@ -135,22 +139,48 @@ pub fn creer(pool: &Pool, entity: i64, nouveau: &NouvelUtilisateur) -> Result<i6
 }
 
 /// Verifie un couple identifiant / mot de passe. Met a jour la date de connexion.
+///
+/// L'empreinte vit dans `pass_crypted` : c'est la colonne que Dolibarr lit
+/// (`User::setPassword()`, puis `dol_verifyHash($password,
+/// $this->pass_indatabase_crypted)`). `pass` ne porte plus rien depuis la 13 —
+/// il n'est rempli qu'en clair quand `DATABASE_PWD_ENCRYPTED` est desactive, et
+/// comparer a lui reviendrait a accepter un mot de passe en clair.
+///
+/// Lire `pass` seul refusait **tous les comptes reels** : sur la copie de
+/// production, les dix-sept comptes ont `pass_crypted` et `pass` a NULL. Seul le
+/// compte de test, ecrit par Cordeau a l'ancienne, pouvait entrer.
 pub fn authentifier(
     pool: &Pool,
     login: &str,
     mot_de_passe: &str,
 ) -> Result<Option<Utilisateur>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
-    let ligne: Option<(i64, Option<String>, String)> = conn.exec_first(
-        "SELECT rowid, pass, IFNULL(pass_encoding, '') FROM llx_user \
-         WHERE login = :login AND statut = 1 AND pass IS NOT NULL LIMIT 1",
+    let ligne: Option<(i64, Option<String>, Option<String>, String)> = conn.exec_first(
+        "SELECT rowid, pass_crypted, pass, IFNULL(pass_encoding, '') FROM llx_user \
+         WHERE login = :login AND statut = 1 LIMIT 1",
         params! { "login" => login.trim() },
     )?;
-    let Some((rowid, empreinte, encodage)) = ligne else {
+    let Some((rowid, crypte, herite, encodage)) = ligne else {
         return Ok(None);
     };
-    let empreinte = empreinte.unwrap_or_default();
-    if !auth::verify(mot_de_passe, &empreinte, Some(&encodage)) {
+
+    // `pass_crypted` d'abord ; `pass` seulement s'il porte une empreinte
+    // reconnaissable (md5, sha1, bcrypt). Un mot de passe en clair n'authentifie
+    // personne.
+    let accepte = [crypte, herite]
+        .iter()
+        .filter_map(|e| e.as_deref())
+        .map(str::trim)
+        .filter(|e| {
+            !e.is_empty()
+                && (e.starts_with("$2")
+                    || e.starts_with("$argon")
+                    || e.len() == 32
+                    || e.len() == 40)
+        })
+        .any(|e| auth::verify(mot_de_passe, e, Some(&encodage)));
+
+    if !accepte {
         return Ok(None);
     }
     conn.exec_drop(
@@ -170,8 +200,10 @@ pub fn definir_mot_de_passe(
         return Err("le mot de passe doit faire au moins 8 caracteres".into());
     }
     let mut conn = pool.get_conn()?;
+    // Meme colonne que Dolibarr, et `pass` vide comme il le fait : un mot de
+    // passe change ici doit ouvrir la porte des deux cotes.
     conn.exec_drop(
-        "UPDATE llx_user SET pass = :pass, pass_encoding = 'bcrypt', \
+        "UPDATE llx_user SET pass_crypted = :pass, pass = NULL, pass_encoding = 'bcrypt', \
           datelastpassvalidation = NOW() WHERE rowid = :rowid",
         params! { "pass" => auth::hash(mot_de_passe), "rowid" => rowid },
     )?;

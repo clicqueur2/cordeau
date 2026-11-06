@@ -18,7 +18,9 @@ Dans tout ce guide, un chemin de menu est donné avec son adresse réelle entre 
 
 ### Démarrer et installer
 
-Le serveur écoute par défaut sur `http://127.0.0.1:8090` (variable `DOLIBARR_WEB_ADDR`), et se connecte à la base par `DOLIBARR_DSN`. Le binaire s'appelle `cordeau-web` : `cargo run -p cordeau --bin cordeau-web`. La console affiche l'adresse retenue au démarrage, et c'est la première chose à lire si la page ne s'ouvre pas.
+Le serveur écoute par défaut sur `http://127.0.0.1:8090` (variable `DOLIBARR_WEB_ADDR`), et se connecte à la base par `DOLIBARR_DSN`. Le binaire s'appelle `cordeau-web` : `cargo run -p web --bin cordeau-web`. La console affiche l'adresse retenue au démarrage, et c'est la première chose à lire si la page ne s'ouvre pas.
+
+Le plus court reste le script : `.\demarrer.ps1` lance l'interface sur la copie de production (`-Base dolibarr` pour la base de test, `-Port 8091` si le port est déjà pris). On entre avec **son compte Dolibarr habituel** : la copie porte les vraies empreintes, et c'est `pass_crypted` que lit la connexion.
 
 Au premier démarrage, ouvrez `/installation`. Cette page ne répare rien : elle constate. Elle affiche le nombre de tables présentes sur les tables attendues, la présence d'un administrateur, le nombre d'utilisateurs, les modules semés, le nom de la société, l'origine de la barre de menus et l'état du serveur d'e-mail. Tant qu'il n'y a aucun administrateur, elle propose de le créer : identifiant, mot de passe d'au moins huit caractères, e-mail, nom de la société. Le compte est créé avec le hachage bcrypt de Dolibarr, donc il fonctionnera aussi dans Dolibarr.
 
