@@ -234,6 +234,9 @@ pub async fn installation_page(
     let attendues = db::installation::TABLES_ATTENDUES;
     let etat = db::installation::etat(&app.pool, crate::entite::courante(), attendues)?;
 
+    // Ce que la base porte deja : sert a proposer un socle sur une base nue.
+    let actifs = db::module::actifs(&app.pool, crate::entite::courante()).unwrap_or_default();
+
     Ok(crate::ui::page(
         "accueil",
         "installation",
@@ -248,6 +251,29 @@ pub async fn installation_page(
                 (crate::ui::flash("Installation complète : le noyau peut servir."))
             } @else {
                 p .erreur {(crate::langue::tr("Installation incomplète : voir les points ci-dessous.")) }
+            }
+
+            // Une base neuve n'a presque aucun module allume : c'est ici qu'on
+            // choisit un socle, pas apres coup dans un menu de reglages qu'on ne
+            // trouve pas. La condition est le nombre de modules actifs, pas
+            // l'anciennete de la base : une installation ancienne mais nue doit
+            // voir la proposition elle aussi.
+            @if actifs.len() <= 3 {
+                h2 {(crate::langue::tr("Choisir un socle")) }
+                p style="color:#78736c;font-size:13.5px" {
+                    "Cette base n'a que " (actifs.len()) " module(s) actif(s). "
+                    "Un socle en allume d'un coup ceux dont un metier a besoin. "
+                    "Il n'en eteint aucun et n'ecrit aucune donnee."
+                }
+                @for p in db::preset::PRESETS {
+                    form method="post" action="/presets" style="display:inline-block;margin:0 8px 8px 0" {
+                        input type="hidden" name="code" value=(p.code);
+                        button type="submit" class="petit" { (p.libelle) }
+                    }
+                }
+                p style="color:#78736c;font-size:13px" {
+                    a href="/presets" { (crate::langue::tr("Voir le detail des socles")) }
+                }
             }
             table {
                 thead { tr { th {(crate::langue::tr("Point")) } th { "État" } th .num {(crate::langue::tr("Valeur")) } } }
