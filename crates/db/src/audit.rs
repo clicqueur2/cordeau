@@ -46,6 +46,10 @@ pub struct Rapport {
     pub comptes: Vec<Compte>,
     /// Nombre d'utilisateurs actifs, toutes entites.
     pub utilisateurs: i64,
+    /// Entites dont le nom n'est pas renseigne : leur libelle affiche est un
+    /// repli. Une societe sans nom s'affiche mal dans le selecteur, et c'est le
+    /// genre d'oubli qui ne se voit qu'en production.
+    pub sans_nom: Vec<i64>,
 }
 
 impl Rapport {
@@ -184,12 +188,22 @@ pub fn lire(pool: &Pool) -> Result<Rapport, Box<dyn Error>> {
 
         // Les societes de travail, pas les tiers : `llx_societe` porte les deux,
         // et confondre les deux donnerait une liste de trois cents lignes ou
-        // l'on ne verrait pas quelles entites existent. Une entite est un
-        // numero, et son nom vit dans `llx_const`.
-        let entites: Vec<(i64, String)> = conn.exec(
-            "SELECT c.entity, COALESCE(MAX(CASE WHEN c.name = 'MAIN_INFO_SOCIETE_NOM' \
-                                                 THEN c.value END), CONCAT('Entite ', c.entity)) \
-             FROM llx_const c WHERE c.entity > 0 GROUP BY c.entity ORDER BY c.entity",
+        // l'on ne verrait pas quelles entites existent.
+        //
+        // La lecture est celle de `company::entites` — la meme que le selecteur
+        // du bandeau. Deux copies d'une meme regle finissent toujours par
+        // diverger, et celle-ci porte un repli subtil (l'entite 1 prend le nom
+        // de l'entite 0 quand le sien manque).
+        let entites = crate::company::entites(pool)?;
+
+        // Les entites qui n'ont pas de nom propre : leur libelle est un repli,
+        // pas une donnee. On les rend a part, parce qu'une societe sans nom est
+        // une configuration incomplete, pas une anomalie de l'audit.
+        let sans_nom: Vec<(i64, String)> = conn.exec(
+            "SELECT e.entity, COALESCE(c.value, '') \
+             FROM (SELECT DISTINCT entity FROM llx_const WHERE entity > 0 AND name LIKE 'MAIN_MODULE%') e \
+             LEFT JOIN llx_const c ON c.entity = e.entity AND c.name = 'MAIN_INFO_SOCIETE_NOM' \
+             WHERE c.value IS NULL OR TRIM(c.value) = '' ORDER BY e.entity",
             (),
         )?;
 
@@ -232,6 +246,7 @@ pub fn lire(pool: &Pool) -> Result<Rapport, Box<dyn Error>> {
             entites,
             comptes,
             utilisateurs: utilisateurs.unwrap_or(0),
+            sans_nom: sans_nom.into_iter().map(|(id, _)| id).collect(),
         })
     })();
 
@@ -261,6 +276,7 @@ mod tests {
                 })
                 .collect(),
             utilisateurs: 1,
+            sans_nom: Vec::new(),
         }
     }
 
