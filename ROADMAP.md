@@ -26,18 +26,18 @@ secondaires. Ce qui manque est liste plus bas, avec un ordre.
 modules qui existent. Livrer un preset « BTP » dont la moitie des cases ne fait
 rien serait pire que pas de preset du tout.
 
-Restent, par ordre d'utilite reelle :
+Portes le 06/11 :
 
-| Module | Ce qu'il apporte | Pour qui |
+| Module | Ce qu'il apporte | Ce que la mesure a corrige |
 |---|---|---|
-| `variants` | declinaisons d'un produit (taille, teinte, finition) | commerce, negoce |
-| `workstation` | postes de charge, lie a la nomenclature | fabrication, atelier |
-| `salaries` | fiches de paie (la crate `paie` existe, non branchee) | tout employeur |
-| `recruitment` | offres et candidatures | 3 salaries et plus |
-| `eventorganization` | inscriptions a un evenement | formation, portes ouvertes |
-| `bookcal` | reservation de creneaux | rendez-vous, location |
-| `printing` | etiquettes et impressions | stock, atelier |
-| `barcode` | codes-barres | stock, caisse |
+| `variants` | declinaisons d'un produit | la table de combinaison PORTE une entity, contrairement aux deux tables de liaison |
+| `workstation` | postes de charge | pas de brouillon chez Dolibarr : `STATUS_DISABLED = 0` est l'etat de repos |
+| `salaries` | fiches de paie | aucune numerotation : la reference EST le rowid |
+| `recruitment` | offres et candidatures | le statut « en cours d'entretien » n'existe pas (commente dans la source) |
+| `eventorganization` | inscriptions | la table n'a pas d'entity ; le cloisonnement vient du projet |
+| `bookcal` | reservations | `day_of_week` n'existe pas, et les heures sont LOCALES |
+| `printing` | journal des impressions | la table n'a pas d'entity : une impression est un fait de l'installation |
+| `barcode` | codes-barres | Code 39 et Code 128 passent par un binaire externe chez Dolibarr |
 
 Ne seront **pas** portes : `asterisk`, `dav`, `ftp`, `webservices`, `webhook`,
 `zapier`, `paypal`, `stripe`, `ai`, `datapolicy`, `debugbar`, `modulebuilder`,
@@ -131,7 +131,10 @@ Aucun defaut de fond ouvert.
 
 | Chantier | Etat |
 |---|---|
-| 1. Finir le corps general | en cours (36 → 39 modules, 8 restants listes plus bas) |
-| 2. Presets de base par metier | **premiere version livree** le 06/11 |
-| 3. Passe d'interface (`ui-ux-pro-max`) | pas commence — apres 1 et 2 |
+| 1. Finir le corps general | **termine le 06/11** — 46 modules, la liste des 8 restants est close |
+| 2. Presets de base par metier | **premiere version livree** le 06/11 — restent les constantes par metier |
+| 3. Passe d'interface (`ui-ux-pro-max`) | pas commence — le perimetre est desormais stable |
 | 4. Multi-company par defaut | pas commence |
+
+Ce qui a ete porte pour clore le chantier 1 : variantes, postes de charge,
+codes-barres, salaires, recrutement, evenements, reservations, impressions.
