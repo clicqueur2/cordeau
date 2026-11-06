@@ -172,7 +172,7 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                     tbody {
                         @for m in &serie {
                             tr {
-                                td .ref style="width:70px" { (m.mois.clone()) }
+                                td .ref.champ-court { (m.mois.clone()) }
                                 td style="width:46%" {
                                     div .piste {
                                         div .vente style=(format!(
@@ -454,7 +454,7 @@ pub(crate) async fn recherche(
             form method="get" action="/recherche" {
                 div .actions {
                     input type="search" name="q" value=(terme) placeholder="Nom, référence, e-mail…"
-                          style="width:320px" aria-label="Recherche" autofocus;
+                         .champ-large aria-label="Recherche" autofocus;
                     button type="submit" {(crate::langue::tr("Chercher")) }
                 }
             }

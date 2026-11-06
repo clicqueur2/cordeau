@@ -61,7 +61,7 @@ pub async fn options_module(
                                                 option value="1" selected[valeurs[i] == "1"] {(crate::langue::tr("Oui")) }
                                             }
                                         } @else if o.genre == crate::plugin::Genre::Nombre {
-                                            input type="number" name=(o.cle) value=(valeurs[i]) style="width:130px";
+                                            input type="number" name=(o.cle) value=(valeurs[i]).champ-moyen;
                                         } @else {
                                             input type="text" name=(o.cle) value=(valeurs[i]) class="pleine";
                                         }

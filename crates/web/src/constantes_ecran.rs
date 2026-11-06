@@ -47,7 +47,7 @@ pub async fn page(
             form method="get" action="/parametres/constantes" {
                 div .actions {
                     input type="search" name="q" value=(filtre) placeholder="Filtrer par nom (SMTP, MAIN_…)"
-                          style="width:300px" aria-label=(crate::langue::tr("Filtrer"));
+                         .champ-large aria-label=(crate::langue::tr("Filtrer"));
                     button type="submit" class="petit" { (crate::langue::tr("Filtrer")) }
                     @if !filtre.is_empty() {
                         a .bouton.secondaire.petit href="/parametres/constantes" { (crate::langue::tr("Tout voir")) }

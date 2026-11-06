@@ -59,7 +59,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     br;
                     label for="description" { (crate::langue::tr("Désignation")) } " "
                     input type="text" name="description" id="description" required
-                          style="min-width:320px";
+                         .champ-large;
                     " "
                     label for="qty" { (crate::langue::tr("Quantité")) } " "
                     input type="text" name="qty" id="qty" value="1" class="champ-court" required;

@@ -259,11 +259,11 @@ pub(crate) async fn tiers_nouveau(
             h2 {(crate::langue::tr("Remplir automatiquement")) }
             div .actions {
                 form method="get" action="/tiers/nouveau" {
-                    input type="text" name="siret" placeholder="SIRET ou SIREN" style="width:190px";
+                    input type="text" name="siret" placeholder="SIRET ou SIREN".champ-moyen;
                     button type="submit" {(crate::langue::tr("Chercher l'entreprise")) }
                 }
                 form method="get" action="/tiers/nouveau" {
-                    input type="text" name="adresse" placeholder="17 chemin du Grimpillon, Saint-Cyr" style="width:330px";
+                    input type="text" name="adresse" placeholder="17 chemin du Grimpillon, Saint-Cyr".champ-large;
                     button type="submit" class="secondaire" {(crate::langue::tr("Chercher l'adresse")) }
                 }
             }
@@ -274,7 +274,7 @@ pub(crate) async fn tiers_nouveau(
                     tbody {
                         tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required value=(nom) class="pleine"; } }
                         tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(adresse) class="pleine"; } }
-                        tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(cp) style="width:120px"; } }
+                        tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(cp).champ-court; } }
                         tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(ville) class="pleine"; } }
                         tr { th {(crate::langue::tr("Email")) } td { input type="email" name="email" class="pleine"; } }
                         tr { th {(crate::langue::tr("Telephone")) } td { input type="text" name="tel" class="pleine"; } }
@@ -364,11 +364,11 @@ pub(crate) async fn tiers_modifier(
             h2 {(crate::langue::tr("Remplir automatiquement")) }
             div .actions {
                 form method="get" action={ "/tiers/" (id) "/modifier" } {
-                    input type="text" name="siret" placeholder="SIRET ou SIREN" style="width:190px";
+                    input type="text" name="siret" placeholder="SIRET ou SIREN".champ-moyen;
                     button type="submit" {(crate::langue::tr("Chercher l'entreprise")) }
                 }
                 form method="get" action={ "/tiers/" (id) "/modifier" } {
-                    input type="text" name="adresse" placeholder="17 chemin du Grimpillon, Saint-Cyr" style="width:330px";
+                    input type="text" name="adresse" placeholder="17 chemin du Grimpillon, Saint-Cyr".champ-large;
                     button type="submit" class="secondaire" {(crate::langue::tr("Chercher l'adresse")) }
                 }
             }
@@ -378,7 +378,7 @@ pub(crate) async fn tiers_modifier(
                     tbody {
                         tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" required value=(t.nom) class="pleine"; } }
                         tr { th {(crate::langue::tr("Adresse")) } td { input type="text" name="adresse" value=(t.address.clone().unwrap_or_default()) class="pleine"; } }
-                        tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(t.zip.clone().unwrap_or_default()) style="width:120px"; } }
+                        tr { th {(crate::langue::tr("Code postal")) } td { input type="text" name="cp" value=(t.zip.clone().unwrap_or_default()).champ-court; } }
                         tr { th {(crate::langue::tr("Ville")) } td { input type="text" name="ville" value=(t.town.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("Email")) } td { input type="email" name="email" value=(t.email.clone().unwrap_or_default()) class="pleine"; } }
                         tr { th {(crate::langue::tr("Telephone")) } td { input type="text" name="tel" value=(t.phone.clone().unwrap_or_default()) class="pleine"; } }

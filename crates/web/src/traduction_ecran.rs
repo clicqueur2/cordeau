@@ -101,7 +101,7 @@ pub async fn page(
             h2 { (crate::langue::tr("Mesurer une langue")) }
             form method="get" action="/parametres/traduction" {
                 label for="langue" { (crate::langue::tr("Langue")) } " "
-                select name="langue" id="langue" style="min-width:220px" {
+                select name="langue" id="langue".champ-moyen {
                     @for l in &langues {
                         option value=(l) selected[l == &examinee] { (l) }
                     }

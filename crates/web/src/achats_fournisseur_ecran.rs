@@ -56,16 +56,16 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     br;
                     label for="label" { (crate::langue::tr("Désignation")) } " "
-                    input type="text" name="label" id="label" required style="min-width:320px";
+                    input type="text" name="label" id="label" required.champ-large;
                     " "
                     label for="qty" { (crate::langue::tr("Qté")) } " "
-                    input type="text" name="qty" id="qty" value="1" style="width:80px" required;
+                    input type="text" name="qty" id="qty" value="1".champ-court required;
                     " "
                     label for="subprice" { (crate::langue::tr("Prix HT attendu")) } " "
-                    input type="text" name="subprice" id="subprice" required style="width:120px";
+                    input type="text" name="subprice" id="subprice" required.champ-court;
                     " "
                     label for="tva_tx" { (crate::langue::tr("TVA %")) } " "
-                    input type="text" name="tva_tx" id="tva_tx" value="20" style="width:70px";
+                    input type="text" name="tva_tx" id="tva_tx" value="20".champ-court;
                     " "
                     button type="submit" { (crate::langue::tr("Créer la demande")) }
                 }
@@ -80,19 +80,19 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                     }
                     " "
                     label for="ref_supplier" { (crate::langue::tr("Réf. fournisseur")) } " "
-                    input type="text" name="ref_supplier" id="ref_supplier" style="width:160px";
+                    input type="text" name="ref_supplier" id="ref_supplier".champ-moyen;
                     br;
                     label for="label_cmd" { (crate::langue::tr("Désignation")) } " "
-                    input type="text" name="label" id="label_cmd" required style="min-width:320px";
+                    input type="text" name="label" id="label_cmd" required.champ-large;
                     " "
                     label for="qty_cmd" { (crate::langue::tr("Qté")) } " "
-                    input type="text" name="qty" id="qty_cmd" value="1" style="width:80px" required;
+                    input type="text" name="qty" id="qty_cmd" value="1".champ-court required;
                     " "
                     label for="subprice_cmd" { (crate::langue::tr("Prix HT")) } " "
-                    input type="text" name="subprice" id="subprice_cmd" required style="width:120px";
+                    input type="text" name="subprice" id="subprice_cmd" required.champ-court;
                     " "
                     label for="tva_cmd" { (crate::langue::tr("TVA %")) } " "
-                    input type="text" name="tva_tx" id="tva_cmd" value="20" style="width:70px";
+                    input type="text" name="tva_tx" id="tva_cmd" value="20".champ-court;
                     " "
                     button type="submit" { (crate::langue::tr("Créer la commande")) }
                 }

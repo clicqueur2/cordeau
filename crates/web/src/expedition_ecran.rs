@@ -51,7 +51,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/expeditions/depuis-commande" {
                     label for="commande" { (crate::langue::tr("Depuis la commande")) } " "
-                    select name="commande" id="commande" style="min-width:320px" {
+                    select name="commande" id="commande".champ-large {
                         @for c in &commandes {
                             @let montant = c.total_ttc.map(ui::euros).unwrap_or_else(|| "—".to_string());
                             option value=(c.rowid) {

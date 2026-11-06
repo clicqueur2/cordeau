@@ -540,7 +540,7 @@ pub async fn chantier_modifier(
                         tr { th {(crate::langue::tr("Intitulé")) } td { input type="text" name="title" value=(c.title) required class="pleine"; } }
                         tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" value=(c.date_start.clone().unwrap_or_default()) class="champ-moyen"; } }
                         tr { th {(crate::langue::tr("Fin prévue")) } td { input type="date" name="fin" value=(c.date_end.clone().unwrap_or_default()) class="champ-moyen"; } }
-                        tr { th {(crate::langue::tr("Budget HT")) } td { input type="number" name="budget" step="0.01" min="0" value=(app::fmt_dec(c.budget)) style="width:150px"; } }
+                        tr { th {(crate::langue::tr("Budget HT")) } td { input type="number" name="budget" step="0.01" min="0" value=(app::fmt_dec(c.budget)).champ-moyen; } }
                         tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" value=(c.description.clone().unwrap_or_default()) class="pleine"; } }
                     }
                 }

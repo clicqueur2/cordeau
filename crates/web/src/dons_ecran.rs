@@ -57,16 +57,16 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             h2 { (crate::langue::tr("Nouveau don")) }
             form method="post" action="/dons" {
                 label for="lastname" { (crate::langue::tr("Nom")) } " "
-                input type="text" name="lastname" id="lastname" style="width:160px";
+                input type="text" name="lastname" id="lastname".champ-moyen;
                 " "
                 label for="firstname" { (crate::langue::tr("Prénom")) } " "
-                input type="text" name="firstname" id="firstname" style="width:140px";
+                input type="text" name="firstname" id="firstname".champ-moyen;
                 " "
                 label for="societe" { (crate::langue::tr("Société")) } " "
-                input type="text" name="societe" id="societe" style="width:200px";
+                input type="text" name="societe" id="societe".champ-moyen;
                 br;
                 label for="email" { (crate::langue::tr("Courriel")) } " "
-                input type="email" name="email" id="email" style="width:220px";
+                input type="email" name="email" id="email".champ-moyen;
                 " "
                 label for="amount" { (crate::langue::tr("Montant")) } " "
                 input type="text" name="amount" id="amount" required class="champ-court";

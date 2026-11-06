@@ -69,7 +69,7 @@ pub(crate) async fn chantiers(
                         tr { th {(crate::langue::tr("Intitulé")) } td { input type="text" name="title" required class="pleine"; } }
                         tr { th {(crate::langue::tr("Début")) } td { input type="date" name="debut" class="champ-moyen"; } }
                         tr { th {(crate::langue::tr("Fin prévue")) } td { input type="date" name="fin" class="champ-moyen"; } }
-                        tr { th {(crate::langue::tr("Budget HT")) } td { input type="number" name="budget" step="0.01" min="0" style="width:150px"; } }
+                        tr { th {(crate::langue::tr("Budget HT")) } td { input type="number" name="budget" step="0.01" min="0".champ-moyen; } }
                         tr { th {(crate::langue::tr("Description")) } td { input type="text" name="description" class="pleine"; } }
                     }
                 }

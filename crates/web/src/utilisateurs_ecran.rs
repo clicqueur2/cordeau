@@ -68,8 +68,8 @@ pub(crate) async fn utilisateurs(
             form method="post" action="/parametres/utilisateurs/nouveau" {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Identifiant")) } td { input type="text" name="login" required style="width:220px"; } }
-                        tr { th {(crate::langue::tr("Mot de passe")) } td { input type="text" name="mdp" required minlength="8" style="width:220px"; } }
+                        tr { th {(crate::langue::tr("Identifiant")) } td { input type="text" name="login" required.champ-moyen; } }
+                        tr { th {(crate::langue::tr("Mot de passe")) } td { input type="text" name="mdp" required minlength="8".champ-moyen; } }
                         tr { th {(crate::langue::tr("Prénom")) } td { input type="text" name="prenom" class="pleine"; } }
                         tr { th {(crate::langue::tr("Nom")) } td { input type="text" name="nom" class="pleine"; } }
                         tr { th {(crate::langue::tr("E-mail")) } td { input type="email" name="email" class="pleine"; } }

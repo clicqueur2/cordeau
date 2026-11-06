@@ -50,7 +50,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/inventaires" {
                     label for="title" { (crate::langue::tr("Titre")) } " "
-                    input type="text" name="title" id="title" required style="min-width:240px"
+                    input type="text" name="title" id="title" required.champ-large
                           placeholder=(crate::langue::tr("Comptage de fin d'année"));
                     " "
                     label for="date_inventory" { (crate::langue::tr("Date du comptage")) } " "

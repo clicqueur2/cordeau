@@ -59,7 +59,7 @@ pub(crate) async fn produit_fiche(
                 table {
                     tbody {
                         tr { th {(crate::langue::tr("Désignation")) } td { input type="text" name="label" value=(p.label) required class="pleine"; } }
-                        tr { th {(crate::langue::tr("Prix HT")) } td { input type="number" name="prix" step="0.01" min="0" value=(app::fmt_dec(p.price)) style="width:140px"; } }
+                        tr { th {(crate::langue::tr("Prix HT")) } td { input type="number" name="prix" step="0.01" min="0" value=(app::fmt_dec(p.price)).champ-moyen; } }
                         tr {
                             th {(crate::langue::tr("TVA")) }
                             td {
@@ -136,9 +136,9 @@ pub(crate) async fn produits_nouveau(State(app): State<App>) -> Res<Markup> {
             form method="post" action="/produits/nouveau" {
                 table {
                     tbody {
-                        tr { th {(crate::langue::tr("Reference")) } td { input type="text" name="ref" required style="width:220px"; } }
+                        tr { th {(crate::langue::tr("Reference")) } td { input type="text" name="ref" required.champ-moyen; } }
                         tr { th {(crate::langue::tr("Libelle")) } td { input type="text" name="label" required class="pleine"; } }
-                        tr { th {(crate::langue::tr("Prix HT")) } td { input type="number" name="prix" step="0.01" min="0" style="width:140px"; } }
+                        tr { th {(crate::langue::tr("Prix HT")) } td { input type="number" name="prix" step="0.01" min="0".champ-moyen; } }
                         tr {
                             th {(crate::langue::tr("Taux de TVA")) }
                             td {

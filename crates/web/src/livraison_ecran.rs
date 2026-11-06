@@ -46,21 +46,21 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             } @else {
                 form method="post" action="/livraisons" {
                     label for="fk_soc" { (crate::langue::tr("Client")) } " "
-                    select name="fk_soc" id="fk_soc" style="min-width:280px" {
+                    select name="fk_soc" id="fk_soc".champ-large {
                         @for c in &clients {
                             option value=(c.rowid) { (c.nom.clone()) }
                         }
                     }
                     " "
                     label for="ref_customer" { (crate::langue::tr("Réf. client")) } " "
-                    input type="text" name="ref_customer" id="ref_customer" style="width:160px";
+                    input type="text" name="ref_customer" id="ref_customer".champ-moyen;
                     br;
                     label for="description" { (crate::langue::tr("Désignation")) } " "
                     input type="text" name="description" id="description" required
-                          style="min-width:320px";
+                         .champ-large;
                     " "
                     label for="qty" { (crate::langue::tr("Qté")) } " "
-                    input type="text" name="qty" id="qty" value="1" style="width:80px" required;
+                    input type="text" name="qty" id="qty" value="1".champ-court required;
                     " "
                     label for="subprice" { (crate::langue::tr("P.U. HT")) } " "
                     input type="text" name="subprice" id="subprice" required class="champ-court";
