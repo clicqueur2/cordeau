@@ -43,9 +43,9 @@ pub(crate) async fn factures(
         "Factures",
         html! {
             h1 {(crate::langue::tr("Factures")) }
+            div .barre-outils {
             form method="get" action="/factures" {
-                div .actions {
-                    select name="statut" aria-label="Statut" {
+                select name="statut" aria-label="Statut" {
                         option value="" selected[statut.is_empty()] {(crate::langue::tr("Toutes")) }
                         option value="brouillon" selected[statut == "brouillon"] {(crate::langue::tr("Brouillons")) }
                         option value="validee" selected[statut == "validee"] {(crate::langue::tr("Validées, non payées")) }
@@ -53,17 +53,15 @@ pub(crate) async fn factures(
                     }
                     input type="search" name="q" value=(filtre) placeholder="Référence…" aria-label="Recherche";
                     button type="submit" class="petit" {(crate::langue::tr("Filtrer")) }
-                    @if !statut.is_empty() || !filtre.is_empty() {
-                        a .bouton.secondaire.petit href="/factures" {(crate::langue::tr("Tout voir")) }
-                    }
+                @if !statut.is_empty() || !filtre.is_empty() {
+                    a .bouton.secondaire.petit href="/factures" {(crate::langue::tr("Tout voir")) }
                 }
             }
-            p .sous-titre {
-                (listes.len()) " facture(s)"
-                @if listes.len() != total {
-                    " sur " (total.to_string())
-                }
+            span .pousse {}
+            p .compte-liste {
+                strong { (listes.len()) } " facture(s)"
                 (ui::compte_tronque(total, total_db))
+            }
             }
             form id="actions-factures" method="post" action="/factures/actions" {}
             div .actions {

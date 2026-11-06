@@ -149,25 +149,52 @@ pub(crate) async fn compte(
     ))
 }
 
+/// La page de connexion : la première chose qu'on voit du logiciel.
+///
+/// Elle portait ses libellés dans des cellules de tableau, sans `label` associé
+/// : un lecteur d'écran annonçait « formulaire, tableau, bouton » et rien
+/// d'autre. Chaque champ a maintenant son `<label for>`, ce qui le nomme pour
+/// un lecteur d'écran comme pour la saisie au clavier.
 pub(crate) async fn connexion_page(Query(q): Query<HashMap<String, String>>) -> Markup {
+    let erreur = q.contains_key("erreur");
     ui::page(
         "",
         "",
         "Connexion",
         html! {
-            h1 {(crate::langue::tr("Connexion")) }
-            @if q.contains_key("erreur") {
-                p .erreur {(crate::langue::tr("Identifiant ou mot de passe incorrect.")) }
-            }
-            p .sous-titre {(crate::langue::tr("Comptes de la base Dolibarr.")) }
-            form method="post" action="/connexion" {
-                table {
-                    tbody {
-                        tr { th {(crate::langue::tr("Identifiant")) } td { input type="text" name="login" required autofocus style="width:240px"; } }
-                        tr { th {(crate::langue::tr("Mot de passe")) } td { input type="password" name="mdp" required style="width:240px"; } }
+            div .connexion {
+                div .connexion-carte {
+                    div .connexion-marque {
+                        span .sceau { "C" }
+                        span .nom { (app::PRODUIT) }
+                    }
+                    h1 {(crate::langue::tr("Connexion")) }
+                    p .sous-titre {(crate::langue::tr("Comptes de la base Dolibarr.")) }
+
+                    @if erreur {
+                        p .erreur { (crate::langue::tr("Identifiant ou mot de passe incorrect.")) }
+                    }
+
+                    form method="post" action="/connexion" {
+                        div .champ {
+                            label for="login" { (crate::langue::tr("Identifiant")) }
+                            input type="text" id="login" name="login" required autofocus
+                                  autocomplete="username" .pleine;
+                        }
+                        div .champ {
+                            label for="mdp" { (crate::langue::tr("Mot de passe")) }
+                            input type="password" id="mdp" name="mdp" required
+                                  autocomplete="current-password" .pleine;
+                        }
+                        button type="submit" .pleine {
+                            (crate::langue::tr("Se connecter"))
+                        }
+                    }
+
+                    p .aide.petite.haut {
+                        (crate::langue::tr("Le même identifiant et le même mot de passe que dans Dolibarr."))
                     }
                 }
-                div .actions { button type="submit" {(crate::langue::tr("Se connecter")) } }
             }
         },
     )
