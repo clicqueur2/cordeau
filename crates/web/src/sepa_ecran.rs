@@ -103,7 +103,10 @@ pub async fn fichier(
     let factures =
         db::sepa::factures_fournisseurs_a_payer(&app.pool, crate::entite::courante(), 500)?;
     if factures.is_empty() {
-        return Err(crate::Erreur("aucune facture fournisseur a payer".into()));
+        // Rien a payer n'est pas une panne : c'est une bonne nouvelle. Servir
+        // une page d'erreur en 500 faisait croire le logiciel casse, et l'on
+        // cliquait trois fois de plus.
+        return Ok(axum::response::Redirect::to("/achats/sepa?ok=rien-a-payer").into_response());
     }
 
     let lire = |cle: &str| {

@@ -271,6 +271,21 @@ fn map_row(row: Row) -> Transfert {
 }
 
 /// Transferts de l'entité, du plus récent au plus ancien.
+/// Le module est-il installe ? Sa table existe-t-elle ?
+///
+/// Dolibarr cree `llx_stocktransfer_stocktransfer` a l'activation du module.
+/// Sur une base ou il n'a jamais ete active — c'est le cas en production — la
+/// table est absente, et toute lecture rend une erreur MySQL brute.
+pub fn installe(pool: &Pool) -> Result<bool, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let n: Option<i64> = conn.exec_first(
+        "SELECT COUNT(*) FROM information_schema.TABLES \
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'llx_stocktransfer_stocktransfer'",
+        (),
+    )?;
+    Ok(n.unwrap_or(0) > 0)
+}
+
 pub fn list(
     pool: &Pool,
     entity: i64,
