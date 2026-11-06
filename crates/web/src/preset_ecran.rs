@@ -41,6 +41,15 @@ pub async fn page(
                 .collect()
         })
         .unwrap_or_default();
+    let constantes: Vec<String> = q
+        .get("constantes")
+        .map(|v| {
+            v.split(',')
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
     let inconnus: Vec<String> = q
         .get("inconnus")
         .map(|v| {
@@ -75,6 +84,12 @@ pub async fn page(
                         actives.join(", ")
                     )))
                 }
+                @if !constantes.is_empty() {
+                    p style="color:#78736c;font-size:13px;margin:0 0 14px" {
+                        (crate::langue::tr("Réglages posés : "))
+                        (constantes.join(", "))
+                    }
+                }
                 @if !inconnus.is_empty() {
                     (ui::echec(&format!(
                         "Non activés, inconnus du catalogue : {}.",
@@ -107,6 +122,14 @@ pub async fn page(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+                @if !p.constantes.is_empty() {
+                    p style="color:#78736c;font-size:13px;margin:10px 0 0" {
+                        (crate::langue::tr("Pose aussi : "))
+                        @for (nom, valeur) in p.constantes {
+                            code { (nom) " = " (valeur) } " "
                         }
                     }
                 }
@@ -149,9 +172,10 @@ pub async fn appliquer(
     // Le libelle se relit de la liste : c'est lui qu'on affiche, pas le code.
     let libelle = preset::preset(&code).map(|p| p.libelle).unwrap_or("Preset");
     Ok(Redirect::to(&format!(
-        "/presets?applique={}&actives={}&inconnus={}",
+        "/presets?applique={}&actives={}&constantes={}&inconnus={}",
         urlencode(libelle),
         urlencode(&rapport.actives.join(",")),
+        urlencode(&rapport.constantes.join(",")),
         urlencode(&rapport.inconnus.join(",")),
     )))
 }

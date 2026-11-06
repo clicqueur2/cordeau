@@ -42,6 +42,14 @@ pub struct Preset {
     pub description: &'static str,
     /// Les codes de modules a activer, **tels que Dolibarr les nomme**.
     pub modules: &'static [&'static str],
+    /// Les constantes a poser, `(nom, valeur)`.
+    ///
+    /// On ne pose **que ce dont le socle a besoin pour que le premier document
+    /// sorte correctement** : le modele de PDF. Le reste — conditions de
+    /// reglement, unites, mentions — vit dans des dictionnaires ou depend de
+    /// l'entreprise, et un preset qui les imposerait ferait plus de degats que
+    /// de bien : une mention legale fausse sur une facture ne se rattrape pas.
+    pub constantes: &'static [(&'static str, &'static str)],
 }
 
 /// Les presets proposes.
@@ -60,6 +68,11 @@ pub const PRESETS: &[Preset] = &[
         libelle: "Base nue",
         description: "Le minimum vital : des tiers, des produits, des devis, des factures.",
         modules: &["SOCIETE", "PRODUCT", "PROPALE", "FACTURE", "USER", "AGENDA"],
+        constantes: &[
+            ("PROPALE_ADDON_PDF", "standard"),
+            ("FACTURE_ADDON_PDF", "standard"),
+            ("COMMANDE_ADDON_PDF", "standard"),
+        ],
     },
     Preset {
         code: "btp",
@@ -82,6 +95,11 @@ pub const PRESETS: &[Preset] = &[
             "ECM",
             "USER",
         ],
+        constantes: &[
+            ("PROPALE_ADDON_PDF", "standard"),
+            ("FACTURE_ADDON_PDF", "standard"),
+            ("COMMANDE_ADDON_PDF", "standard"),
+        ],
     },
     Preset {
         code: "logistique",
@@ -101,6 +119,11 @@ pub const PRESETS: &[Preset] = &[
             "COMPTABILITE",
             "USER",
         ],
+        constantes: &[
+            ("PROPALE_ADDON_PDF", "standard"),
+            ("FACTURE_ADDON_PDF", "standard"),
+            ("COMMANDE_ADDON_PDF", "standard"),
+        ],
     },
     Preset {
         code: "commerce",
@@ -116,6 +139,11 @@ pub const PRESETS: &[Preset] = &[
             "TICKET",
             "USER",
             "AGENDA",
+        ],
+        constantes: &[
+            ("PROPALE_ADDON_PDF", "compact"),
+            ("FACTURE_ADDON_PDF", "compact"),
+            ("COMMANDE_ADDON_PDF", "compact"),
         ],
     },
     Preset {
@@ -134,6 +162,11 @@ pub const PRESETS: &[Preset] = &[
             "BANQUE",
             "COMPTABILITE",
         ],
+        constantes: &[
+            ("PROPALE_ADDON_PDF", "epure"),
+            ("FACTURE_ADDON_PDF", "epure"),
+            ("COMMANDE_ADDON_PDF", "epure"),
+        ],
     },
     Preset {
         code: "association",
@@ -149,6 +182,11 @@ pub const PRESETS: &[Preset] = &[
             "USER",
             "PROJET",
         ],
+        constantes: &[
+            ("PROPALE_ADDON_PDF", "standard"),
+            ("FACTURE_ADDON_PDF", "standard"),
+            ("COMMANDE_ADDON_PDF", "standard"),
+        ],
     },
 ];
 
@@ -161,6 +199,8 @@ pub struct Rapport {
     pub deja_actifs: Vec<String>,
     /// Codes demandes mais inconnus du catalogue.
     pub inconnus: Vec<String>,
+    /// Constantes posees, par leur nom.
+    pub constantes: Vec<String>,
 }
 
 impl Rapport {
@@ -204,6 +244,17 @@ pub fn appliquer(pool: &Pool, entity: i64, code: &str) -> Result<Rapport, Box<dy
         }
         module::definir_actif(pool, entity, demande, true)?;
         rapport.actives.push((*demande).to_string());
+    }
+
+    // Les constantes, apres les modules : poser un reglage sur un module
+    // eteint ne sert a rien, et l'ordre se lit dans le rapport.
+    for (nom, valeur) in choix.constantes {
+        // Une constante n'est pas une donnee metier : elle change le
+        // comportement du noyau, pas le contenu de la base. On l'ecrit donc
+        // sans precaution particuliere, et on la **nomme** dans le rapport —
+        // un reglage pose en silence est un reglage qu'on ne saura pas defaire.
+        crate::constantes::ecrire(pool, entity, nom, valeur)?;
+        rapport.constantes.push((*nom).to_string());
     }
 
     Ok(rapport)
@@ -257,6 +308,51 @@ mod tests {
                     p.code
                 );
             }
+        }
+    }
+
+    /// Chaque preset pose un modele de PDF, et ce modele existe vraiment.
+    ///
+    /// Un preset qui ecrirait `FACTURE_ADDON_PDF = "joli"` ne casserait rien a
+    /// la compilation : le document sortirait simplement avec le modele par
+    /// defaut, et personne ne verrait que le reglage est faux. On verifie donc
+    /// contre la liste reelle des modeles.
+    #[test]
+    fn chaque_preset_pose_un_modele_de_pdf_connu() {
+        let connus = ["standard", "epure", "compact"];
+        for p in PRESETS {
+            assert!(
+                !p.constantes.is_empty(),
+                "{} ne pose aucune constante : le socle ne serait pas complet",
+                p.code
+            );
+            for (nom, valeur) in p.constantes {
+                assert!(!nom.trim().is_empty(), "{} : nom vide", p.code);
+                if nom.ends_with("_ADDON_PDF") {
+                    assert!(
+                        connus.contains(valeur),
+                        "{} pose {nom} = {valeur}, qui n'est pas un modele connu",
+                        p.code
+                    );
+                }
+            }
+        }
+    }
+
+    /// Les trois documents commerciaux sont couverts, sinon un devis et une
+    /// facture d'un meme socle sortiraient dans deux gabarits differents.
+    #[test]
+    fn les_trois_documents_suivent_le_meme_modele_dans_un_preset() {
+        for p in PRESETS {
+            let modele = |cle: &str| {
+                p.constantes
+                    .iter()
+                    .find(|(n, _)| *n == cle)
+                    .map(|(_, v)| *v)
+            };
+            let devis = modele("PROPALE_ADDON_PDF");
+            assert_eq!(devis, modele("FACTURE_ADDON_PDF"), "{}", p.code);
+            assert_eq!(devis, modele("COMMANDE_ADDON_PDF"), "{}", p.code);
         }
     }
 
