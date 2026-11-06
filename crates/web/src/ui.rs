@@ -115,7 +115,8 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
 
                     span .compte {
                         select id="style" aria-label=(crate::langue::tr("Style d'affichage"))
-                               title=(crate::langue::tr("Style d'affichage")) {
+                               title=(crate::langue::tr("Style d'affichage"))
+                               onchange="document.documentElement.setAttribute('data-style',this.value);try{localStorage.setItem('cordeau-style',this.value)}catch(e){}" {
                             option value="systeme" { (crate::langue::tr("Style système")) }
                             option value="futuriste" { (crate::langue::tr("Futuriste")) }
                             option value="minuit" { (crate::langue::tr("Minuit")) }
