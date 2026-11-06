@@ -58,6 +58,16 @@ Bureau d'etudes   + projets, ressources, temps passe, notes de frais
 Association       + adherents, dons, partenariats, evenements
 ```
 
+**Livre** : `db::preset` (6 socles : nue, BTP, logistique, commerce, bureau
+d'etudes, association) et l'ecran `/presets`, qui montre pour chaque socle quels
+modules sont deja allumes. Trois regles tenues par le code et par les tests :
+un preset **active sans jamais eteindre**, n'ecrit **aucune donnee metier**, et
+**dit ce qu'il ignore** (un module absent du catalogue ressort au rapport).
+
+Reste a faire : les constantes par metier (conditions de reglement, unites,
+mentions de pied de page), et l'application du preset depuis la page
+d'installation.
+
 Chaque preset est une **liste de modules actives** et de **constantes posees**,
 pas une base differente. Le schema reste identique a l'octet : c'est la
 selection qui change, et elle se defait.
@@ -110,7 +120,18 @@ Ces trois regles valent pour tous les chantiers ci-dessus.
 
 | Defaut | Etat |
 |---|---|
-| Acompte non deduit de la facture finale | **corrige** le 06/11 (test a l'appui) |
+| Acompte non deduit de la facture finale | **corrige** le 06/11 (840 EUR au lieu de 1 200, test a l'appui) |
 | `fk_projet` jamais renseigne | **corrige** le 06/11 (propage devis → commande → facture) |
-| Validation sans generation de PDF | ouvert |
-| Marges absentes du gabarit PDF | ouvert |
+| Marges du gabarit PDF non lues | **corrige** le 06/11 (lues dans `MAIN_PDF_MARGIN_*`) |
+| Validation sans PDF, en silence | **corrige** le 06/11 (l'echec se voit et part au journal) |
+
+Aucun defaut de fond ouvert.
+
+## Etat des chantiers
+
+| Chantier | Etat |
+|---|---|
+| 1. Finir le corps general | en cours (36 → 39 modules, 8 restants listes plus bas) |
+| 2. Presets de base par metier | **premiere version livree** le 06/11 |
+| 3. Passe d'interface (`ui-ux-pro-max`) | pas commence — apres 1 et 2 |
+| 4. Multi-company par defaut | pas commence |

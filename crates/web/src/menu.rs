@@ -277,6 +277,7 @@ pub const MODULES: &[Module] = &[
                 "/parametres/modeles-emails",
             ),
             e("greffons", "Greffons", "/parametres/greffons"),
+            e("presets", "Presets de base", "/presets"),
             e("modules", "Modules / Applications", "/parametres/modules"),
             e("affichage", "Affichage", "/parametres/reglage/affichage"),
             e("menus", "Menus", "/parametres/reglage/menus"),

@@ -392,12 +392,12 @@ const SQL_INSERER: &str = "INSERT INTO llx_accounting_bookkeeping \
      (entity, ref, piece_num, doc_date, doc_type, doc_ref, fk_doc, fk_docdet, \
       numero_compte, label_compte, label_operation, debit, credit, montant, sens, \
       code_journal, journal_label, fk_user_author, date_creation, import_key) \
-     VALUES (:entity, :ref, :piece, :doc_date, :doc_type, :doc_ref, 0, 0, \
+     VALUES (:entity, :ref, :piece, :doc_date, :doc_type, :doc_ref, :doc, 0, \
       :compte, :label_compte, :operation, :debit, :credit, :montant, :sens, \
       :journal, :journal_label, 0, NOW(), :import_key)";
 
 const SQL_EFFACER: &str = "DELETE FROM llx_accounting_bookkeeping \
-     WHERE entity = :entity AND ref = :ref";
+     WHERE entity = :entity AND ref = :ref AND (:doc = 0 OR fk_doc = :doc)";
 
 const SQL_PIECE_SUIVANTE: &str = "SELECT COALESCE(MAX(piece_num), 0) \
      FROM llx_accounting_bookkeeping \
@@ -414,12 +414,31 @@ const SQL_PIECE_SUIVANTE: &str = "SELECT COALESCE(MAX(piece_num), 0) \
 /// ou une valeur plus longue que sa colonne sont refusees **avant** toute
 /// ecriture : dans ce cas la base n'est pas touchee du tout, pas meme effacee.
 pub fn ecrire(pool: &Pool, entity: i64, e: &Ecriture) -> Result<usize, Box<dyn Error>> {
+    ecrire_document(pool, entity, e, 0)
+}
+
+/// Ecrit une ecriture en la rattachant a son document (`fk_doc`).
+///
+/// Dolibarr renseigne toujours `fk_doc` : c'est l'identifiant de la facture, du
+/// paiement, de la piece. Le laisser a zero marche tant qu'on ne relit que par
+/// la reference — et casse des que **deux documents portent la meme reference**,
+/// ce qui arrive sur une base de test nettoyee entre deux executions, ou apres
+/// une reinitialisation de la numerotation.
+///
+/// Avec `fk_doc`, l'ecriture d'une piece ne peut plus etre confondue avec celle
+/// d'une autre.
+pub fn ecrire_document(
+    pool: &Pool,
+    entity: i64,
+    e: &Ecriture,
+    fk_doc: i64,
+) -> Result<usize, Box<dyn Error>> {
     comptabilite::verifier(e)?;
     let prete = preparer(e)?;
 
     let mut conn = pool.get_conn()?;
     let mut tx = conn.start_transaction(options())?;
-    let n = ecrire_dans(&mut tx, entity, e, &prete)?;
+    let n = ecrire_dans(&mut tx, entity, e, &prete, fk_doc)?;
     tx.commit()?;
     Ok(n)
 }
@@ -429,10 +448,11 @@ fn ecrire_dans(
     entity: i64,
     e: &Ecriture,
     prete: &Prete,
+    fk_doc: i64,
 ) -> Result<usize, Box<dyn Error>> {
     tx.exec_drop(
         SQL_EFFACER,
-        params! { "entity" => entity, "ref" => e.numero.trim() },
+        params! { "entity" => entity, "ref" => e.numero.trim(), "doc" => fk_doc },
     )?;
 
     // Toutes les lignes d'une ecriture portent le meme numero de piece : c'est
@@ -458,6 +478,7 @@ fn ecrire_dans(
                 "doc_date" => prete.doc_date.as_str(),
                 "doc_type" => DOC_TYPE,
                 "doc_ref" => ligne.doc_ref.as_str(),
+                "doc" => fk_doc,
                 "compte" => ligne.numero_compte.as_str(),
                 "label_compte" => libelle_compte(&ligne.numero_compte),
                 "operation" => ligne.label_operation.as_deref(),
@@ -506,7 +527,7 @@ pub fn ecrire_journal(
     let mut tx = conn.start_transaction(options())?;
     let mut total = 0usize;
     for (e, prete) in ecritures.iter().zip(pretes.iter()) {
-        total += ecrire_dans(&mut tx, entity, e, prete)?;
+        total += ecrire_dans(&mut tx, entity, e, prete, 0)?;
     }
     tx.commit()?;
     Ok(total)
@@ -540,10 +561,10 @@ pub fn ecrire_facture_vente(
     facture_id: i64,
 ) -> Result<usize, Box<dyn Error>> {
     let ecriture = crate::ecritures::facture_vente(pool, entity, facture_id)?;
-    if deja_ecrite(pool, entity, &ecriture.numero)? {
+    if deja_ecrite_document(pool, entity, &ecriture.numero, facture_id)? {
         return Ok(0);
     }
-    ecrire(pool, entity, &ecriture)
+    ecrire_document(pool, entity, &ecriture, facture_id)
 }
 
 /// Ecrit les ecritures d'un reglement client dans `llx_accounting_bookkeeping`.
@@ -562,10 +583,33 @@ pub fn ecrire_reglement_client(
     paiement_id: i64,
 ) -> Result<usize, Box<dyn Error>> {
     let ecriture = crate::ecritures::reglement_client(pool, entity, paiement_id)?;
-    if deja_ecrite(pool, entity, &ecriture.numero)? {
+    if deja_ecrite_document(pool, entity, &ecriture.numero, paiement_id)? {
         return Ok(0);
     }
-    ecrire(pool, entity, &ecriture)
+    ecrire_document(pool, entity, &ecriture, paiement_id)
+}
+
+/// Cette ecriture est-elle deja en base **pour ce document** ?
+///
+/// La reference seule ne suffit pas : deux pieces peuvent la partager sur une
+/// base de test nettoyee entre deux executions, ou apres une reinitialisation
+/// de la numerotation. Avec le document, la confusion devient impossible.
+pub fn deja_ecrite_document(
+    pool: &Pool,
+    entity: i64,
+    numero: &str,
+    fk_doc: i64,
+) -> Result<bool, Box<dyn Error>> {
+    if numero.trim().is_empty() {
+        return Ok(false);
+    }
+    let mut conn = pool.get_conn()?;
+    let n: Option<i64> = conn.exec_first(
+        "SELECT COUNT(*) FROM llx_accounting_bookkeeping \
+         WHERE entity = :entity AND ref = :ref AND fk_doc = :doc",
+        params! { "entity" => entity, "ref" => numero.trim(), "doc" => fk_doc },
+    )?;
+    Ok(n.unwrap_or(0) > 0)
 }
 
 pub fn deja_ecrite(pool: &Pool, entity: i64, numero: &str) -> Result<bool, Box<dyn Error>> {
