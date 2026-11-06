@@ -373,6 +373,16 @@ pub(crate) async fn factures_valider(State(app): State<App>, Path(id): Path<i64>
         );
         // Le PDF part dans la GED : un document non archivé n'est pas une pièce.
         let _ = app::archiver_facture(&app.pool, entite::courante(), id);
+
+        // L'ecriture comptable, dans la table que Dolibarr lit. Une erreur ici
+        // ne defait pas la validation : la facture est validee, et le message
+        // dit que la comptabilite n'a pas suivi — un echec silencieux laisserait
+        // un grand livre incomplet sans que personne ne le sache.
+        if let Err(e) =
+            db::persist_ecritures::ecrire_facture_vente(&app.pool, entite::courante(), id)
+        {
+            eprintln!("[cordeau] ecriture comptable de la facture {id} impossible : {e}");
+        }
     }
     Ok(Redirect::to(&format!("/factures/{id}?ok=validee")))
 }

@@ -33,11 +33,29 @@ fn nettoyer(pool: &Pool) -> Result<(), Box<dyn Error>> {
             params! { "entity" => ENTITY, "soc" => id },
         )?;
         for f in factures {
+            // Purger aussi la comptabilite : une facture supprimee dont
+            // l'ecriture reste laisse un grand livre faux, et la reference
+            // reattribuee plus tard ferait croire l'ecriture deja ecrite.
+            let ref_facture: Option<String> = conn.exec_first(
+                "SELECT ref FROM llx_facture WHERE rowid = :f",
+                params! { "f" => f },
+            )?;
             let paiements: Vec<i64> = conn.exec(
                 "SELECT fk_paiement FROM llx_paiement_facture WHERE fk_facture = :f",
                 params! { "f" => f },
             )?;
             for p in paiements {
+                let ref_paiement: Option<String> = conn.exec_first(
+                    "SELECT ref FROM llx_paiement WHERE rowid = :p",
+                    params! { "p" => p },
+                )?;
+                if let Some(r) = ref_paiement {
+                    conn.exec_drop(
+                        "DELETE FROM llx_accounting_bookkeeping \
+                         WHERE entity = :entity AND doc_ref = :ref",
+                        params! { "entity" => ENTITY, "ref" => r },
+                    )?;
+                }
                 conn.exec_drop(
                     "DELETE FROM llx_paiement_facture WHERE fk_paiement = :p",
                     params! { "p" => p },
@@ -49,6 +67,13 @@ fn nettoyer(pool: &Pool) -> Result<(), Box<dyn Error>> {
                 conn.exec_drop(
                     "DELETE FROM llx_paiement WHERE rowid = :p",
                     params! { "p" => p },
+                )?;
+            }
+            if let Some(r) = ref_facture {
+                conn.exec_drop(
+                    "DELETE FROM llx_accounting_bookkeeping \
+                     WHERE entity = :entity AND doc_ref = :ref",
+                    params! { "entity" => ENTITY, "ref" => r },
                 )?;
             }
             conn.exec_drop(
@@ -92,7 +117,10 @@ fn la_partie_double_tombe_juste() -> Result<(), Box<dyn Error>> {
     );
     assert_eq!(debit, dec("1700"), "1000 + 100 + 500 + 500 + 100 = 1700");
 
-    let balance = db::grand_livre::balance(&pool, ENTITY, Some("2026-06-01"), Some("2026-06-30"))?;
+    // La balance se calcule sur les ecritures qu'on vient de lire : melanger
+    // une lecture derivee et une balance qui lit la table comparerait deux
+    // choses differentes.
+    let balance = db::grand_livre::balance_de(&ecritures);
     let clients = balance
         .iter()
         .find(|b| b.compte == "411000")

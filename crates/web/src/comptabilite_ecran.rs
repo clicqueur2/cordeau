@@ -117,12 +117,16 @@ pub(crate) async fn grand_livre(
         q.get("debut").cloned().unwrap_or_default(),
         q.get("fin").cloned().unwrap_or_default(),
     );
-    let ecritures = db::grand_livre::ecritures(
+    // La table que Dolibarr lit quand elle est remplie, la reconstitution
+    // depuis les documents sinon. Voir `grand_livre::ecritures_effectives`.
+    let ecritures = db::grand_livre::ecritures_effectives(
         &app.pool,
         entite::courante(),
         Some(debut.as_str()).filter(|d| !d.is_empty()),
         Some(fin.as_str()).filter(|d| !d.is_empty()),
     )?;
+    let source =
+        db::grand_livre::source(&app.pool, entite::courante()).unwrap_or("source inconnue");
     let balance = db::grand_livre::balance(
         &app.pool,
         entite::courante(),
@@ -139,8 +143,12 @@ pub(crate) async fn grand_livre(
         html! {
             h1 {(crate::langue::tr("Grand livre")) }
             p .sous-titre {
-                "Écritures dérivées des documents (plan comptable général simplifié). "
-                "Ce n'est pas une comptabilité tenue : c'est une proposition à valider par l'expert-comptable."
+                "Écritures lues dans llx_accounting_bookkeeping quand la base en porte, "
+                "reconstituées depuis les documents sinon. Ce n'est pas une comptabilité tenue : "
+                "c'est une proposition à valider par l'expert-comptable."
+            }
+            p style="color:#78736c;font-size:13px;margin:-14px 0 14px" {
+                (crate::langue::tr("Source des écritures : ")) (source)
             }
             form method="get" action="/comptabilite/grand-livre" .actions {
                 input type="date" name="debut" value=(debut) aria-label="Début";
@@ -315,7 +323,7 @@ pub(crate) async fn export_grand_livre(
             csv_date(&e.date),
             e.journal,
             e.compte,
-            csv_champ(e.libelle_compte),
+            csv_champ(&e.libelle_compte),
             csv_champ(&e.libelle),
             csv_champ(&e.reference),
             csv_nombre(e.debit),

@@ -21,10 +21,10 @@ use rust_decimal::Decimal;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ecriture {
     pub date: String,
-    /// `VE` ventes, `AC` achats, `BQ` banque.
-    pub journal: &'static str,
-    pub compte: &'static str,
-    pub libelle_compte: &'static str,
+    /// `VE` ventes, `AC` achats, `BQ` banque... Tel que la base le porte.
+    pub journal: String,
+    pub compte: String,
+    pub libelle_compte: String,
     pub libelle: String,
     pub reference: String,
     pub debit: Decimal,
@@ -81,9 +81,9 @@ fn ecrire(
     }
     out.push(Ecriture {
         date: date.to_string(),
-        journal,
-        compte,
-        libelle_compte: libelle_compte(compte),
+        journal: journal.to_string(),
+        compte: compte.to_string(),
+        libelle_compte: libelle_compte(compte).to_string(),
         libelle: libelle.to_string(),
         reference: reference.to_string(),
         debit,
@@ -265,6 +265,143 @@ impl SoldeCompte {
     }
 }
 
+/// Les ecritures telles que la base les porte : `llx_accounting_bookkeeping`.
+///
+/// C'est **la seule table que Dolibarr lit**. Tant qu'on ne lisait pas
+/// celle-ci, un ecran pouvait afficher un grand livre que Dolibarr n'avait
+/// jamais vu, et ignorer les ecritures qu'il avait produites : deux
+/// comptabilites dans la meme base, sans moyen de les rapprocher.
+///
+/// # Ce qu'on lit
+///
+/// Les colonnes que `BookKeeping::fetchAll` lit (`bookkeeping.class.php`,
+/// l. 1170-1200) : `doc_date`, `doc_ref`, `numero_compte`, `label_compte`,
+/// `label_operation`, `debit`, `credit`, `code_journal`. Rien d'autre : une
+/// ecriture se juge sur ces huit valeurs.
+///
+/// # Les comptes sans libelle
+///
+/// `label_compte` vient d'une ventilation Dolibarr et peut etre vide. On prend
+/// alors le libelle du plan comptable quand on le connait, sinon le numero.
+/// Afficher une ligne sans nom de compte rend un grand livre illisible.
+pub fn ecritures_comptables(
+    pool: &Pool,
+    entity: i64,
+    debut: Option<&str>,
+    fin: Option<&str>,
+) -> Result<Vec<Ecriture>, Box<dyn Error>> {
+    let (d, f) = (borne(debut, "1970-01-01"), borne(fin, "2099-12-31"));
+    let mut conn = pool.get_conn()?;
+    let rows: Vec<Row> = conn.exec(
+        "SELECT DATE_FORMAT(doc_date, '%Y-%m-%d'), COALESCE(doc_ref, ''), \
+                COALESCE(numero_compte, ''), COALESCE(label_compte, ''), \
+                COALESCE(label_operation, ''), CAST(debit AS CHAR), \
+                CAST(credit AS CHAR), COALESCE(code_journal, '') \
+         FROM llx_accounting_bookkeeping \
+         WHERE entity = :entity AND doc_date BETWEEN :d AND :f \
+         ORDER BY doc_date ASC, piece_num ASC, rowid ASC",
+        params! { "entity" => entity, "d" => d.as_str(), "f" => f.as_str() },
+    )?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| {
+            let compte = opt_s(&r, 2).unwrap_or_default();
+            let libelle_compte = {
+                let lu = opt_s(&r, 3).unwrap_or_default();
+                if lu.trim().is_empty() {
+                    libelle_compte(&compte).to_string()
+                } else {
+                    lu
+                }
+            };
+            Ecriture {
+                date: opt_s(&r, 0).unwrap_or_default(),
+                reference: opt_s(&r, 1).unwrap_or_default(),
+                journal: opt_s(&r, 7).unwrap_or_default().trim().to_string(),
+                compte,
+                libelle_compte,
+                libelle: opt_s(&r, 4).unwrap_or_default(),
+                debit: opt_dec(&r, 5),
+                credit: opt_dec(&r, 6),
+            }
+        })
+        .collect())
+}
+
+/// Vrai si la base porte au moins une ecriture comptable.
+///
+/// Sert a choisir entre les deux lectures : la table partagee quand elle est
+/// remplie, la reconstitution depuis les documents sinon. Une base neuve n'a
+/// aucune ecriture, et un grand livre vide se lirait « rien n'a ete fait »
+/// alors que les factures existent.
+pub fn a_des_ecritures(pool: &Pool, entity: i64) -> Result<bool, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let n: Option<i64> = conn.exec_first(
+        "SELECT COUNT(*) FROM llx_accounting_bookkeeping WHERE entity = :entity",
+        params! { "entity" => entity },
+    )?;
+    Ok(n.unwrap_or(0) > 0)
+}
+
+/// Les ecritures a montrer : celles de la base quand elle en porte, sinon
+/// celles reconstituees depuis les documents.
+///
+/// # Pourquoi ce choix, et pas un seul des deux
+///
+/// La table `llx_accounting_bookkeeping` est la seule que Dolibarr lit : c'est
+/// elle qui fait foi des qu'une ventilation a eu lieu. Mais une base neuve n'en
+/// porte aucune, et un grand livre vide se lirait « rien n'a ete fait » alors
+/// que les factures existent.
+///
+/// On lit donc la table **des qu'elle contient quelque chose**, et on
+/// reconstitue sinon. Le choix est visible : l'ecran affiche d'ou viennent les
+/// lignes, parce qu'un grand livre reconstitue et un grand livre constate ne
+/// se confondent pas.
+pub fn ecritures_effectives(
+    pool: &Pool,
+    entity: i64,
+    debut: Option<&str>,
+    fin: Option<&str>,
+) -> Result<Vec<Ecriture>, Box<dyn Error>> {
+    if a_des_ecritures(pool, entity)? {
+        ecritures_comptables(pool, entity, debut, fin)
+    } else {
+        ecritures(pool, entity, debut, fin)
+    }
+}
+
+/// D'ou viennent les lignes affichees.
+pub fn source(pool: &Pool, entity: i64) -> Result<&'static str, Box<dyn Error>> {
+    Ok(if a_des_ecritures(pool, entity)? {
+        "llx_accounting_bookkeeping"
+    } else {
+        "reconstitution depuis les documents"
+    })
+}
+
+/// Balance d'une liste d'ecritures : totaux par compte, dans l'ordre du plan.
+///
+/// Pure, et c'est le point : un appelant qui vient de lire un jeu d'ecritures
+/// n'a pas a decider d'ou elles viennent pour les totaliser. Deux sources, une
+/// seule facon de compter.
+pub fn balance_de(ecritures: &[Ecriture]) -> Vec<SoldeCompte> {
+    let mut cumul: BTreeMap<String, SoldeCompte> = BTreeMap::new();
+    for e in ecritures {
+        let entree = cumul
+            .entry(e.compte.clone())
+            .or_insert_with(|| SoldeCompte {
+                compte: e.compte.clone(),
+                libelle: e.libelle_compte.clone(),
+                debit: Decimal::ZERO,
+                credit: Decimal::ZERO,
+            });
+        entree.debit += e.debit;
+        entree.credit += e.credit;
+    }
+    cumul.into_values().collect()
+}
+
 /// Balance : totaux par compte, dans l'ordre du plan comptable.
 pub fn balance(
     pool: &Pool,
@@ -272,20 +409,8 @@ pub fn balance(
     debut: Option<&str>,
     fin: Option<&str>,
 ) -> Result<Vec<SoldeCompte>, Box<dyn Error>> {
-    let mut cumul: BTreeMap<String, SoldeCompte> = BTreeMap::new();
-    for e in ecritures(pool, entity, debut, fin)? {
-        let entree = cumul
-            .entry(e.compte.to_string())
-            .or_insert_with(|| SoldeCompte {
-                compte: e.compte.to_string(),
-                libelle: e.libelle_compte.to_string(),
-                debit: Decimal::ZERO,
-                credit: Decimal::ZERO,
-            });
-        entree.debit += e.debit;
-        entree.credit += e.credit;
-    }
-    Ok(cumul.into_values().collect())
+    let ecritures = ecritures_effectives(pool, entity, debut, fin)?;
+    Ok(balance_de(&ecritures))
 }
 
 #[cfg(test)]

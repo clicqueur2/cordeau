@@ -54,10 +54,10 @@ pub fn generer(
         params! { "entity" => entity, "debut" => debut, "fin" => fin },
     )?;
 
-    let mut numero: BTreeMap<&str, i64> = BTreeMap::new();
+    let mut numero: BTreeMap<String, i64> = BTreeMap::new();
     let mut inserees = 0usize;
     for e in &ecritures {
-        let compteur = numero.entry(e.journal).or_insert(0);
+        let compteur = numero.entry(e.journal.clone()).or_insert(0);
         *compteur += 1;
         let n = *compteur;
         tx.exec_drop(
@@ -74,13 +74,13 @@ pub fn generer(
                 "piece" => n,
                 "date" => e.date.as_str(),
                 "ref" => format!("{}#{}", e.reference, n),
-                "compte" => e.compte,
-                "libelle_compte" => e.libelle_compte,
+                "compte" => &e.compte,
+                "libelle_compte" => &e.libelle_compte,
                 "libelle" => e.libelle.as_str(),
                 "debit" => e.debit.to_string(),
                 "credit" => e.credit.to_string(),
-                "journal" => e.journal,
-                "journal_label" => libelle_journal(e.journal),
+                "journal" => &e.journal,
+                "journal_label" => libelle_journal(&e.journal),
             },
         )?;
         inserees += 1;
