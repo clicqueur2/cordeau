@@ -58,7 +58,7 @@ Deux choses à savoir :
   reconstitue une proposition depuis les documents — ce n'est pas une
   comptabilité tenue.
 
-## Cinq défauts trouvés, et corrigés
+## Dix défauts trouvés, et corrigés
 
 Tous les cinq étaient **invisibles sur la base de test** : elle a été remplie
 par Cordeau, qui écrit `NULL` ; Dolibarr écrit la **chaîne vide**.
