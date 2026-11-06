@@ -59,6 +59,9 @@ pub struct Invoice {
     pub situation_counter: Option<i32>,
     /// Dernière facture du cycle de situation.
     pub situation_final: bool,
+    /// Chantier auquel la facture se rattache, quand il est connu. C'est ce
+    /// lien qui alimente les statistiques par chantier et la marge d'affaire.
+    pub fk_projet: Option<i64>,
 }
 
 impl Invoice {
@@ -177,7 +180,7 @@ const SELECT_COLS: &str = "rowid, entity, ref, fk_soc, type, \
      DATE_FORMAT(date_lim_reglement, '%Y-%m-%d'), fk_statut, paye, \
      CAST(total_ht AS CHAR), CAST(total_tva AS CHAR), CAST(total_ttc AS CHAR), \
      note_private, note_public, fk_facture_source, ref_client, fk_cond_reglement, \
-     situation_counter, situation_final";
+     situation_counter, situation_final, fk_projet";
 const LINE_COLS: &str = "d.rowid, d.fk_facture, d.fk_product, d.label, d.description, \
      CAST(d.tva_tx AS CHAR), CAST(d.qty AS CHAR), CAST(d.remise_percent AS CHAR), \
      CAST(d.subprice AS CHAR), CAST(d.price AS CHAR), CAST(d.total_ht AS CHAR), \
@@ -218,6 +221,7 @@ fn map_row(row: Row) -> Invoice {
         fk_cond_reglement: opt_i(&row, 17),
         situation_counter: opt_i(&row, 18).map(|v| v as i32),
         situation_final: opt_i(&row, 19).unwrap_or(0) != 0,
+        fk_projet: opt_i(&row, 20),
     }
 }
 
@@ -877,6 +881,9 @@ pub fn create_from_commande(
     let mut new = NewInvoice::new(commande.fk_soc);
     new.note_private = commande.note_private.clone();
     new.note_public = commande.note_public.clone();
+    // Le chantier suit la commande : sans lui, la facture ne se range dans
+    // aucun projet et la marge par affaire reste incalculable.
+    new.fk_projet = commande.fk_projet;
     new.fk_cond_reglement = commande.fk_cond_reglement;
 
     new.lines = lignes

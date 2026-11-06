@@ -182,3 +182,61 @@ fn l_acompte_se_deduit_de_la_facture_finale() -> Result<(), Box<dyn Error>> {
     nettooyer_ou_pas(&pool, soc2, devis2, cmd2, Some(acompte));
     Ok(())
 }
+
+/// Le chantier suit du devis jusqu'a la facture.
+///
+/// C'etait un chainon manquant : `llx_facture.fk_projet` existe en base, mais
+/// rien ne le renseignait, si bien que les statistiques par chantier restaient
+/// vides. Le lien se pose maintenant a la creation du devis et se propage a la
+/// commande puis a la facture.
+#[test]
+fn le_chantier_suit_du_devis_jusqu_a_la_facture() -> Result<(), Box<dyn Error>> {
+    let Some(pool) = pool_or_skip() else {
+        return Ok(());
+    };
+    let nom = format!("ZZ-PROJET-{}", std::process::id());
+    let fk_soc = db::party::create(&pool, ENTITY, &db::party::NewParty::client(&nom))?;
+
+    // Un chantier a nous, pour ne pas dependre de ceux de l'instance.
+    let mut chantier = db::projet::NewProjet::new(&format!("{nom}-1"));
+    chantier.title = "Chantier de test".to_string();
+    let projet = db::projet::create(&pool, ENTITY, &chantier)?;
+
+    let mut nouveau = db::proposal::NewProposal::new(fk_soc);
+    nouveau.fk_projet = Some(projet);
+    nouveau.lines = vec![db::proposal::NewProposalLine::new(
+        "Travaux",
+        dec("1"),
+        dec("1000"),
+        dec("20"),
+    )];
+    let devis = db::proposal::create(&pool, ENTITY, &nouveau)?;
+    assert_eq!(
+        db::proposal::get(&pool, ENTITY, devis)?.unwrap().fk_projet,
+        Some(projet),
+        "le devis porte son chantier"
+    );
+
+    db::proposal::validate(&pool, ENTITY, devis)?;
+    db::proposal::cloturer(&pool, ENTITY, devis, 2)?;
+    let commande = db::commande::create_from_proposal(&pool, ENTITY, devis)?;
+    assert_eq!(
+        db::commande::get(&pool, ENTITY, commande)?
+            .unwrap()
+            .fk_projet,
+        Some(projet),
+        "la commande herite du chantier du devis"
+    );
+
+    db::commande::validate(&pool, ENTITY, commande)?;
+    let facture = db::invoice::create_from_commande(&pool, ENTITY, commande)?;
+    assert_eq!(
+        db::invoice::get(&pool, ENTITY, facture)?.unwrap().fk_projet,
+        Some(projet),
+        "la facture herite du chantier de la commande"
+    );
+
+    let _ = db::invoice::delete(&pool, ENTITY, facture);
+    nettoyer(&pool, fk_soc, devis, commande);
+    Ok(())
+}

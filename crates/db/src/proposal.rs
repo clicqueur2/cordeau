@@ -36,6 +36,9 @@ pub struct Proposal {
     pub deposit_percent: Option<Decimal>,
     /// Date de fin de validite du devis (`fin_validite`).
     pub fin_validite: Option<String>,
+    /// Chantier auquel le devis se rattache. Il suit jusqu'a la commande puis
+    /// la facture : c'est ce qui rend la marge par affaire calculable.
+    pub fk_projet: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -141,7 +144,7 @@ const SELECT_COLS: &str = "rowid, entity, ref, fk_soc, \
      fk_statut, CAST(total_ht AS CHAR), CAST(total_tva AS CHAR), \
      CAST(total_ttc AS CHAR), CAST(remise_percent AS CHAR), note_private, note_public, \
      fk_cond_reglement, CAST(deposit_percent AS CHAR), \
-     DATE_FORMAT(fin_validite, '%Y-%m-%d')";
+     DATE_FORMAT(fin_validite, '%Y-%m-%d'), fk_projet";
 
 /// `llx_propaldet` n'a pas de colonne `entity` : le filtre passe par la jointure
 /// sur `llx_propal`, d'ou les alias.
@@ -181,6 +184,7 @@ fn map_row(row: Row) -> Proposal {
         fk_cond_reglement: opt_i(&row, 13),
         deposit_percent: opt_dec(&row, 14),
         fin_validite: opt_s(&row, 15),
+        fk_projet: opt_i(&row, 16),
     }
 }
 

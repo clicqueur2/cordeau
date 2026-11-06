@@ -472,6 +472,10 @@ pub(crate) async fn factures_recurrence(
 
 pub(crate) async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
     let clients = db::party::list(&app.pool, entite::courante(), 500, 0)?;
+    // Le chantier est ce qui rend la marge par affaire calculable. Sans lui,
+    // une facture ne se range dans aucun projet et les statistiques par
+    // chantier restent vides.
+    let chantiers = db::projet::list(&app.pool, entite::courante(), 500, 0).unwrap_or_default();
     let tva = db::dict::taux_tva(&app.pool, entite::courante(), 1)?;
     let conditions = db::reglement::conditions(&app.pool, entite::courante())?;
     Ok(ui::page(
@@ -495,6 +499,17 @@ pub(crate) async fn factures_nouveau(State(app): State<App>) -> Res<Markup> {
                             }
                         }
                         tr { th {(crate::langue::tr("Bon de commande")) } td { input type="text" name="ref_client" style="width:100%"; } }
+                        tr {
+                            th {(crate::langue::tr("Chantier")) }
+                            td {
+                                select name="projet" style="width:100%" {
+                                    option value="0" { (crate::langue::tr("Aucun")) }
+                                    @for c in &chantiers {
+                                        option value=(c.rowid) { (c.title.clone()) }
+                                    }
+                                }
+                            }
+                        }
                         tr {
                             th {(crate::langue::tr("Règlement")) }
                             td {
@@ -588,6 +603,12 @@ pub(crate) async fn factures_creer(
         .get("date_prestation")
         .filter(|s| !s.trim().is_empty())
         .cloned();
+    // `0` veut dire « aucun chantier » : on ne pose pas un lien vers le projet
+    // zero, qui n'existe pas.
+    nouvelle.fk_projet = f
+        .get("projet")
+        .and_then(|v| v.parse::<i64>().ok())
+        .filter(|v| *v > 0);
     nouvelle.lines = lignes;
     let id = db::invoice::create(&app.pool, entite::courante(), &nouvelle)?;
     Ok(Redirect::to(&format!("/factures/{id}")))

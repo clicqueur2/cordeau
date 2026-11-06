@@ -34,6 +34,10 @@ pub struct Commande {
     pub note_public: Option<String>,
     pub fk_cond_reglement: Option<i64>,
     pub deposit_percent: Option<Decimal>,
+    /// Chantier auquel la commande se rattache. C'est lui qui permet de dire,
+    /// plus tard, si l'affaire a tenu ses marges : une facture sans chantier ne
+    /// se range dans aucun.
+    pub fk_projet: Option<i64>,
 }
 
 impl Commande {
@@ -70,7 +74,7 @@ impl CommandeLine {
 const SELECT_COLS: &str = "rowid, entity, ref, fk_soc, \
      DATE_FORMAT(date_commande, '%Y-%m-%d'), fk_statut, \
      CAST(total_ht AS CHAR), CAST(total_tva AS CHAR), CAST(total_ttc AS CHAR), \
-     note_private, note_public, fk_cond_reglement, CAST(deposit_percent AS CHAR)";
+     note_private, note_public, fk_cond_reglement, CAST(deposit_percent AS CHAR), fk_projet";
 
 const LINE_COLS: &str = "d.rowid, d.fk_commande, d.fk_product, d.label, d.description, \
      CAST(d.tva_tx AS CHAR), CAST(d.qty AS CHAR), CAST(d.remise_percent AS CHAR), \
@@ -104,6 +108,7 @@ fn map_row(row: Row) -> Commande {
         note_public: opt_s(&row, 10),
         fk_cond_reglement: opt_i(&row, 11),
         deposit_percent: opt_dec(&row, 12),
+        fk_projet: opt_i(&row, 13),
     }
 }
 
@@ -244,10 +249,10 @@ fn creer_sous_verrou(
             "INSERT INTO llx_commande \
              (entity, ref, fk_soc, date_creation, date_commande, fk_statut, \
               total_ht, total_tva, total_ttc, note_private, note_public, \
-              fk_cond_reglement, deposit_percent) \
+              fk_cond_reglement, deposit_percent, fk_projet) \
              VALUES (:entity, :ref, :fk_soc, NOW(), COALESCE(:datep, CURDATE()), :statut, \
               :total_ht, :total_tva, :total_ttc, :note_private, :note_public, \
-              :cond, :deposit)",
+              :cond, :deposit, :projet)",
             params! {
                 "entity" => entity,
                 "ref" => reference.as_str(),
@@ -260,7 +265,10 @@ fn creer_sous_verrou(
                 "note_private" => devis.note_private.as_deref(),
                 "note_public" => devis.note_public.as_deref(),
                 "cond" => devis.fk_cond_reglement,
+                // Le chantier suit le devis jusqu'a la facture : sans ce
+                // passage, la marge par affaire ne se calcule nulle part.
                 "deposit" => devis.deposit_percent.map(|d| d.to_string()),
+                "projet" => devis.fk_projet
             },
         );
         match insere {
