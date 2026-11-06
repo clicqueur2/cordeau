@@ -339,7 +339,7 @@ pub enum ErreurStatut {
     Inconnu(i16),
     /// Le statut 2, commenté dans la source : jamais écrit.
     RetireParDolibarr(i16),
-    /// Un état terminal : plus rien n'en sort (sauf réouverture explicite).
+    /// Transition absente de la séquence (état terminal compris).
     HorsSequence { depuis: i16, vers: i16 },
 }
 
@@ -524,9 +524,11 @@ fn email_plausible(valeur: &str) -> bool {
 pub fn valider_offre(new: &NouvelleOffre) -> Result<(), Box<dyn Error>> {
     let reference = new.ref_.trim();
     if reference.is_empty() {
-        return Err("la référence de l'offre est obligatoire : sans elle, l'offre \
+        return Err(
+            "la référence de l'offre est obligatoire : sans elle, l'offre \
                     n'est identifiable ni dans la liste ni dans un lien"
-            .into());
+                .into(),
+        );
     }
     if reference.len() > REF_MAX {
         return Err(format!(
@@ -562,14 +564,15 @@ pub fn valider_offre(new: &NouvelleOffre) -> Result<(), Box<dyn Error>> {
         .into());
     }
 
-    if let Some(date) = date_renseignee(new.date_planned.as_deref()) {
-        if !date_valide(date) {
-            return Err(format!(
-                "date prévue invalide : {date} — une date s'écrit AAAA-MM-JJ et doit \
-                 exister au calendrier"
-            )
-            .into());
-        }
+    // Un champ vide n'est pas une date invalide : `date_planned` est nullable,
+    // et seule une valeur renseignée doit être une date.
+    let date_prevue = date_renseignee(new.date_planned.as_deref()).unwrap_or("");
+    if !date_prevue.is_empty() && !date_valide(date_prevue) {
+        return Err(format!(
+            "date prévue invalide : {date_prevue} — une date s'écrit AAAA-MM-JJ et doit \
+             exister au calendrier"
+        )
+        .into());
     }
 
     // La colonne n'existe pas. Refuser vaut mieux que perdre la valeur en
@@ -607,56 +610,56 @@ pub fn valider_candidature(new: &NouvelleCandidature) -> Result<(), Box<dyn Erro
         .into());
     }
 
-    if let Some(prenom) = texte_renseigne(new.firstname.as_deref()) {
-        if prenom.len() > PRENOM_MAX {
-            return Err(format!(
-                "le prénom du candidat dépasse {PRENOM_MAX} octets ({})",
-                prenom.len()
-            )
-            .into());
-        }
+    // Les champs facultatifs sont ramenés à la chaîne vide quand ils sont
+    // absents : une chaîne vide passe tous les plafonds, donc les contrôles
+    // ci-dessous ne s'appliquent de fait qu'aux valeurs réellement fournies.
+    let prenom = texte_renseigne(new.firstname.as_deref()).unwrap_or("");
+    if prenom.len() > PRENOM_MAX {
+        return Err(format!(
+            "le prénom du candidat dépasse {PRENOM_MAX} octets ({})",
+            prenom.len()
+        )
+        .into());
     }
 
-    if let Some(email) = texte_renseigne(new.email.as_deref()) {
-        if !email_plausible(email) {
-            return Err(format!(
-                "l'adresse email « {email} » n'en est pas une : il faut une arobase, \
-                 quelque chose avant, quelque chose après, pas de blanc, et au plus \
-                 {EMAIL_MAX} octets"
-            )
-            .into());
-        }
+    let email = texte_renseigne(new.email.as_deref()).unwrap_or("");
+    if !email.is_empty() && !email_plausible(email) {
+        return Err(format!(
+            "l'adresse email « {email} » n'en est pas une : il faut une arobase, \
+             quelque chose avant, quelque chose après, pas de blanc, et au plus \
+             {EMAIL_MAX} octets"
+        )
+        .into());
     }
 
-    if let Some(telephone) = texte_renseigne(new.phone.as_deref()) {
-        if telephone.len() > PHONE_MAX {
-            return Err(format!(
-                "le téléphone dépasse {PHONE_MAX} octets ({})",
-                telephone.len()
-            )
-            .into());
-        }
+    let telephone = texte_renseigne(new.phone.as_deref()).unwrap_or("");
+    if telephone.len() > PHONE_MAX {
+        return Err(format!(
+            "le téléphone dépasse {PHONE_MAX} octets ({})",
+            telephone.len()
+        )
+        .into());
     }
 
-    if let Some(naissance) = texte_renseigne(new.date_birth.as_deref()) {
-        if !date_valide(naissance) {
-            return Err(format!(
-                "date de naissance invalide : {naissance} — une date s'écrit AAAA-MM-JJ \
-                 et doit exister au calendrier"
-            )
-            .into());
-        }
+    let naissance = texte_renseigne(new.date_birth.as_deref()).unwrap_or("");
+    if !naissance.is_empty() && !date_valide(naissance) {
+        return Err(format!(
+            "date de naissance invalide : {naissance} — une date s'écrit AAAA-MM-JJ \
+             et doit exister au calendrier"
+        )
+        .into());
     }
 
     // `Some(0)` n'est pas « pas d'origine », c'est un identifiant faux : Dolibarr
     // écrirait une ligne de dictionnaire qui n'existe pas.
-    if let Some(origine) = new.fk_origin {
-        if origine <= 0 {
-            return Err(format!(
-                "fk_origin vaut {origine} : soit une origine réelle, soit None"
-            )
-            .into());
-        }
+    verifier_valeur_origine(new.fk_origin)
+}
+
+/// `Some(0)` (ou négatif) n'est pas « pas d'origine » : c'est un identifiant
+/// faux, que `fk_recruitment_origin` accepterait sans broncher.
+fn verifier_valeur_origine(valeur: Option<i64>) -> Result<(), Box<dyn Error>> {
+    if let Some(id) = valeur.filter(|identifiant| *identifiant <= 0) {
+        return Err(format!("fk_origin vaut {id} : soit une origine réelle, soit None").into());
     }
     Ok(())
 }
@@ -754,7 +757,9 @@ fn statut_offre(pool: &Pool, entity: i64, rowid: i64) -> Result<i16, Box<dyn Err
 /// date de naissance parfaitement valide (ou accepter un futur).
 fn aujourdhui_base(pool: &Pool) -> Result<String, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
-    let jour: Option<String> = conn.exec_first("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')")?;
+    // `query_first` et non `exec_first` : la requête ne prend aucun paramètre,
+    // et le noyau lit déjà la date du serveur de cette façon (`lib::aujourdhui`).
+    let jour: Option<String> = conn.query_first("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')")?;
     Ok(jour.unwrap_or_default())
 }
 
@@ -832,10 +837,7 @@ pub fn offres(pool: &Pool, entity: i64, limite: u32) -> Result<Vec<Offre>, Box<d
          WHERE j.entity = :entity \
          ORDER BY j.date_creation DESC, j.rowid DESC LIMIT :limite"
     );
-    let rows: Vec<Row> = conn.exec(
-        sql,
-        params! { "entity" => entity, "limite" => limite },
-    )?;
+    let rows: Vec<Row> = conn.exec(sql, params! { "entity" => entity, "limite" => limite })?;
     Ok(rows.iter().map(map_offre).collect())
 }
 
@@ -862,10 +864,7 @@ pub fn candidatures(
          WHERE c.entity = :entity AND c.fk_recruitmentjobposition = :offre \
          ORDER BY c.date_creation DESC, c.rowid DESC"
     );
-    let rows: Vec<Row> = conn.exec(
-        sql,
-        params! { "entity" => entity, "offre" => fk_offre },
-    )?;
+    let rows: Vec<Row> = conn.exec(sql, params! { "entity" => entity, "offre" => fk_offre })?;
     Ok(rows.iter().map(map_candidature).collect())
 }
 
@@ -1011,40 +1010,54 @@ pub fn creer_candidature(
 
     // Existence de l'offre **dans l'entité** : c'est ce contrôle qui tient lieu
     // de clé étrangère, et c'est lui qui cloisonne la candidature.
-    let statut_offre = statut_offre(pool, entity, new.fk_offre)?;
+    let statut_de_l_offre = statut_offre(pool, entity, new.fk_offre)?;
     if let Some(origine) = new.fk_origin {
         verifier_origine(pool, origine)?;
     }
 
     // La date de naissance ne peut pas être dans le futur : la référence est la
-    // date du serveur, jamais celle du poste.
-    let naissance = texte_renseigne(new.date_birth.as_deref());
-    if let Some(jour_naissance) = naissance {
-        let aujourdhui = aujourdhui_base(pool)?;
-        if !aujourdhui.is_empty() && jour_naissance > aujourdhui.as_str() {
-            return Err(format!(
-                "la date de naissance ({jour_naissance}) est dans le futur : \
-                 le serveur de base est au {aujourdhui}"
-            )
-            .into());
-        }
+    // date du serveur, jamais celle du poste. `AAAA-MM-JJ` se compare comme du
+    // texte dans l'ordre chronologique, d'où la comparaison directe. La date du
+    // serveur n'est demandée que si une naissance est renseignée.
+    let naissance = texte_renseigne(new.date_birth.as_deref()).unwrap_or("");
+    let aujourdhui = if naissance.is_empty() {
+        String::new()
+    } else {
+        aujourdhui_base(pool)?
+    };
+    if !naissance.is_empty() && !aujourdhui.is_empty() && naissance > aujourdhui.as_str() {
+        return Err(format!(
+            "la date de naissance ({naissance}) est dans le futur : le serveur de base \
+             est au {aujourdhui}"
+        )
+        .into());
     }
 
     // Le signalement : une mention dans la note interne, et un drapeau rendu.
-    let hors_publication = statut_offre != STATUT_PUBLIEE;
-    let mut note = texte_renseigne(new.note.as_deref()).unwrap_or("").to_string();
-    if hors_publication {
+    let hors_publication = statut_de_l_offre != STATUT_PUBLIEE;
+    let note = texte_renseigne(new.note.as_deref()).unwrap_or("");
+    let note = if hors_publication {
         let mention = format!(
-            "Candidature reçue sur une offre non publiée (statut {statut_offre} : {}).",
-            libelle_statut_offre(statut_offre)
+            "Candidature reçue sur une offre non publiée (statut {statut_de_l_offre} : {}).",
+            libelle_statut_offre(statut_de_l_offre)
         );
         if note.is_empty() {
-            note = mention;
+            mention
         } else {
-            note = format!("{note}\n{mention}");
+            format!("{note}\n{mention}")
         }
-    }
+    } else {
+        note.to_string()
+    };
     let note_sql = if note.is_empty() { None } else { Some(note) };
+
+    // Une date absente s'écrit **NULL**, jamais `''` : la colonne est un `date`,
+    // et une chaîne vide y est une valeur invalide (refusée en mode strict).
+    let naissance_sql = if naissance.is_empty() {
+        None
+    } else {
+        Some(naissance)
+    };
 
     let reference = divers::suivant_ref(
         pool,
@@ -1071,7 +1084,7 @@ pub fn creer_candidature(
             "nom" => new.lastname.trim(),
             "email" => texte_renseigne(new.email.as_deref()),
             "telephone" => texte_renseigne(new.phone.as_deref()),
-            "naissance" => naissance,
+            "naissance" => naissance_sql,
             "origine" => new.fk_origin,
         },
     )?;
@@ -1109,15 +1122,14 @@ pub fn publier_offre(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn
                 .into())
         }
         STATUT_CLOTUREE => {
-            return Err("cette offre est clôturée : sa réouverture (reopen de Dolibarr) \
+            return Err(
+                "cette offre est clôturée : sa réouverture (reopen de Dolibarr) \
                         n'est pas exposée par ce module"
-                .into())
+                    .into(),
+            )
         }
         autre => {
-            return Err(format!(
-                "statut d'offre inattendu ({autre}) : rien n'est publié"
-            )
-            .into())
+            return Err(format!("statut d'offre inattendu ({autre}) : rien n'est publié").into())
         }
     }
 
@@ -1185,23 +1197,30 @@ pub fn changer_statut_candidature(
     nouveau: i16,
 ) -> Result<(), Box<dyn Error>> {
     match nouveau {
-        CANDIDATURE_CONTRAT_PROPOSE => {}
         CANDIDATURE_ENTRETIEN_PLANIFIE_RETIRE => {
             return Err(ErreurStatut::RetireParDolibarr(nouveau).into())
         }
         CANDIDATURE_BROUILLON => {
-            return Err("le retour au brouillon n'est pas exposé : Dolibarr le nomme \
+            return Err(
+                "le retour au brouillon n'est pas exposé : Dolibarr le nomme \
                         setDraft, et une candidature reçue ne redevient pas une note \
                         de travail"
-                .into())
+                    .into(),
+            )
         }
         CANDIDATURE_CONTRAT_REFUSE => {
-            return Err("le statut 6 (contrat refusé) se pose depuis la fiche du contrat \
+            return Err(
+                "le statut 6 (contrat refusé) se pose depuis la fiche du contrat \
                         dans Dolibarr : ce n'est pas une étape de ce module, même s'il \
                         est relu comme un état possible"
-                .into())
+                    .into(),
+            )
         }
-        CANDIDATURE_RECUE | CANDIDATURE_RETENUE | CANDIDATURE_REFUSEE | CANDIDATURE_ANNULEE => {}
+        CANDIDATURE_RECUE
+        | CANDIDATURE_CONTRAT_PROPOSE
+        | CANDIDATURE_RETENUE
+        | CANDIDATURE_REFUSEE
+        | CANDIDATURE_ANNULEE => {}
         autre => return Err(ErreurStatut::Inconnu(autre).into()),
     }
 

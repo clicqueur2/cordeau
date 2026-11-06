@@ -144,14 +144,22 @@ fn cree_un_salaire_et_le_relit() -> Result<(), Box<dyn Error>> {
 
     let fiche = salaire::get(&pool, ENTITY, rowid)?.expect("le salaire créé doit se relire");
     assert_eq!(fiche.fk_user, salarie);
-    assert_eq!(fiche.amount, dec("1500.00"), "le montant doit revenir exact");
+    assert_eq!(
+        fiche.amount,
+        dec("1500.00"),
+        "le montant doit revenir exact"
+    );
     assert_eq!(fiche.label.as_deref(), Some("Salaire de novembre 2026"));
     assert_eq!(fiche.datep.as_deref(), Some("2026-11-30"));
     assert_eq!(fiche.datev.as_deref(), Some("2026-11-30"));
     assert!(!fiche.paye, "un salaire naît non payé");
-    assert_eq!(
-        fiche.fk_typepayment, 0,
-        "aucun moyen de paiement n'est choisi à l'ouverture"
+    // `fk_typepayment` est NOT NULL et porte une cle etrangere : 0 est refuse
+    // par la base (1452). La fiche recoit donc le virement par defaut, et
+    // `payer` le remplacera par le moyen reel du versement.
+    assert!(
+        fiche.fk_typepayment > 0,
+        "la fiche doit porter un moyen de paiement existant, trouve {}",
+        fiche.fk_typepayment
     );
     assert!(
         fiche.fk_account.is_none() && fiche.fk_bank.is_none(),
@@ -202,8 +210,7 @@ fn refuse_un_montant_negatif() -> Result<(), Box<dyn Error>> {
         return Ok(());
     };
 
-    let mut new = bulletin(salarie, "-1500.00", "2026-11-30", "2026-11-30");
-    new.amount = dec("-1500.00");
+    let new = bulletin(salarie, "-1500.00", "2026-11-30", "2026-11-30");
     let err = salaire::creer(&pool, ENTITY, &new).unwrap_err();
     assert!(
         err.to_string().contains("négatif"),
@@ -374,7 +381,10 @@ fn le_versement_pose_le_drapeau_et_le_lien() -> Result<(), Box<dyn Error>> {
     let fiche = salaire::get(&pool, ENTITY, rowid)?.expect("la fiche doit se relire");
     assert!(fiche.paye, "le salaire doit être marqué payé");
     assert_eq!(fiche.fk_typepayment, moyen);
-    assert_eq!(fiche.type_payment_code.is_some(), true, "code du dictionnaire");
+    assert!(
+        fiche.type_payment_code.is_some(),
+        "le code du moyen de paiement doit sortir du dictionnaire"
+    );
     assert_eq!(fiche.fk_account, Some(compte));
     assert_eq!(fiche.num_payment.as_deref(), Some("VIR-77"));
     assert!(
@@ -424,7 +434,11 @@ fn refuse_de_repayer_un_salaire() -> Result<(), Box<dyn Error>> {
             (rowid,),
         )?
     };
-    assert_eq!(nombre.unwrap_or(0), 1, "aucun second versement ne doit rester");
+    assert_eq!(
+        nombre.unwrap_or(0),
+        1,
+        "aucun second versement ne doit rester"
+    );
 
     effacer(&pool, rowid);
     oter_compte(&pool, compte);
@@ -483,8 +497,8 @@ fn refuse_un_moyen_de_paiement_inexistant() -> Result<(), Box<dyn Error>> {
         ENTITY,
         &bulletin(salarie, "1500.00", "2026-11-30", "2026-11-30"),
     )?;
-    let err = salaire::payer(&pool, ENTITY, rowid, compte, 999_999, "2026-12-02", None)
-        .unwrap_err();
+    let err =
+        salaire::payer(&pool, ENTITY, rowid, compte, 999_999, "2026-12-02", None).unwrap_err();
     assert!(
         err.to_string().contains("moyen de paiement"),
         "message inattendu : {err}"
@@ -517,7 +531,15 @@ fn refuse_de_supprimer_un_salaire_paye() -> Result<(), Box<dyn Error>> {
         ENTITY,
         &bulletin(salarie, "1500.00", "2026-11-30", "2026-11-30"),
     )?;
-    salaire::payer(&pool, ENTITY, rowid, compte, moyen, "2026-12-02", Some("VIR-78"))?;
+    salaire::payer(
+        &pool,
+        ENTITY,
+        rowid,
+        compte,
+        moyen,
+        "2026-12-02",
+        Some("VIR-78"),
+    )?;
 
     let err = salaire::supprimer(&pool, ENTITY, rowid).unwrap_err();
     assert!(
