@@ -1,7 +1,7 @@
 //! Ecran des champs libres : les definitions, et leurs valeurs.
 //!
 //! Dolibarr ajoute une **colonne** a la table de l'objet pour chaque champ
-//! libre (`options_<nom>`), et tient la definition dans `llx_extrafields`.
+//! libre (une colonne qui porte son nom), et tient la definition dans `llx_extrafields`.
 //! Jusqu'ici le noyau n'en montrait rien : les donnees existaient, saisies
 //! dans Dolibarr, et restaient invisibles.
 //!
@@ -11,7 +11,8 @@
 //! - `/parametres/extrafields/:elementtype` : les champs de cet objet ;
 //! - `/extrafields/:elementtype/:id` : les valeurs d'un objet, modifiables.
 //!
-//! Le formulaire emploie les noms de Dolibarr (`options_<nom>`) : ce qu'on poste
+//! Le formulaire emploie les noms de Dolibarr (`options_<nom>`, sa convention de
+//! POST) : ce qu'on poste
 //! ici serait accepte par son `action=update`, et l'inverse est vrai.
 
 use std::collections::HashMap;

@@ -1,4 +1,4 @@
-//! Cas d'usage partages par le CLI et le web.
+﻿//! Cas d'usage partages par le CLI et le web.
 //!
 //! Cette couche ne fait ni SQL ni mise en page : elle prend les objets de `db`,
 //! les traduit en vues `pdf` et en contexte `legal`, et rend le document.
@@ -11,7 +11,7 @@ use rust_decimal::Decimal;
 
 /// Le nom du produit, **defini une seule fois**.
 ///
-/// Tout ce qui l'affiche — le titre des pages, la banniere du binaire — lit
+/// Tout ce qui l'affiche â€” le titre des pages, la banniere du binaire â€” lit
 /// cette constante. Changer le nom du logiciel, c'est changer cette ligne ; les
 /// documents se renomment avec `tools/renommer.ps1`.
 ///
@@ -27,7 +27,7 @@ pub const SOUS_TITRE: &str = "gestion et facturation";
 ///
 /// `MAIN_PDF_MARGIN_LEFT`, `_RIGHT`, `_TOP`, `_BOTTOM` sont les noms du coeur.
 /// Le gabarit n'a qu'une largeur : on prend **la plus grande** des deux marges
-/// laterales. Une marge trop petite se voit — le tableau touche le bord — alors
+/// laterales. Une marge trop petite se voit â€” le tableau touche le bord â€” alors
 /// qu'une marge trop grande ne fait que reduire la largeur utile.
 ///
 /// Chaque valeur est bornee : une constante negative ou absurde (un `0` oublie,
@@ -74,7 +74,7 @@ pub fn smtp_config(pool: &db::Pool) -> Result<mail::Config, String> {
     let hote = const_ou("DOLIBARR_RS_SMTP_HOST");
     if hote.trim().is_empty() {
         return Err(
-            "serveur SMTP non renseigné (Paramètres > Constantes : DOLIBARR_RS_SMTP_HOST)".into(),
+            "serveur SMTP non renseignÃ© (ParamÃ¨tres > Constantes : DOLIBARR_RS_SMTP_HOST)".into(),
         );
     }
     let port = const_ou("DOLIBARR_RS_SMTP_PORT")
@@ -105,7 +105,7 @@ pub fn smtp_config(pool: &db::Pool) -> Result<mail::Config, String> {
     };
 
     if config.expediteur.is_empty() {
-        return Err("adresse d'expédition non renseignée (Paramètres > Constantes : DOLIBARR_RS_EMAIL_EXPEDITEUR)".into());
+        return Err("adresse d'expÃ©dition non renseignÃ©e (ParamÃ¨tres > Constantes : DOLIBARR_RS_EMAIL_EXPEDITEUR)".into());
     }
     Ok(config)
 }
@@ -130,7 +130,7 @@ pub fn fmt_dec(d: Option<Decimal>) -> String {
     d.map(|x| x.normalize().to_string()).unwrap_or_default()
 }
 
-/// Montant en euros, ecriture francaise : `3 736,00 €`.
+/// Montant en euros, ecriture francaise : `3 736,00 â‚¬`.
 ///
 /// Le symbole et les deux decimales sont obligatoires sur une facture ; le
 /// separateur de milliers est une espace insecable, pour qu'un montant ne soit
@@ -139,6 +139,15 @@ pub fn fmt_eur(d: Option<Decimal>) -> String {
     let Some(v) = d else {
         return String::new();
     };
+    let montant = compte(v);
+    format!("{montant}\u{a0}â‚¬")
+}
+
+/// Le nombre seul, sans devise : `31 602,83`.
+///
+/// Sert aux libelles qui portent deja l'euro, comme les echeanciers de
+/// paiement ou Dolibarr ecrit Â« Ã€ la signature (50 %) : â€¦ â‚¬ Â».
+pub fn compte(v: Decimal) -> String {
     let arrondi = money::round_money(v);
     let negatif = arrondi.is_sign_negative() && arrondi != Decimal::ZERO;
     let texte = format!("{:.2}", arrondi.abs());
@@ -151,10 +160,7 @@ pub fn fmt_eur(d: Option<Decimal>) -> String {
         groupes.push(c);
     }
     let entier: String = groupes.chars().rev().collect();
-    format!(
-        "{}{entier},{decimales}\u{a0}€",
-        if negatif { "-" } else { "" }
-    )
+    format!("{}{entier},{decimales}", if negatif { "-" } else { "" })
 }
 
 /// Quantite en ecriture francaise : `2,5` (virgule, zeros inutiles retires).
@@ -217,7 +223,7 @@ pub fn societe_legale(c: &db::company::Company) -> legal::Societe {
 /// Le capital tel qu'il doit s'ecrire : `5100` devient `5 100 EUR`.
 ///
 /// Dolibarr stocke un nombre nu, sans devise. Un capital sans unite sur une
-/// facture se lit mal, et « 5100 » colle a la suite du nom ne se lit pas du
+/// facture se lit mal, et Â« 5100 Â» colle a la suite du nom ne se lit pas du
 /// tout. Une valeur qui n'est pas un nombre est rendue telle quelle : on ne
 /// reformate pas ce qu'on ne comprend pas.
 fn capital_lisible(brut: &str) -> String {
@@ -236,10 +242,10 @@ fn capital_lisible(brut: &str) -> String {
     }
     let groupe: String = out.chars().rev().collect();
     if d.fract() == rust_decimal::Decimal::ZERO {
-        format!("{groupe}\u{a0}€")
+        format!("{groupe}\u{a0}â‚¬")
     } else {
         format!(
-            "{groupe},{}\u{a0}€",
+            "{groupe},{}\u{a0}â‚¬",
             d.fract().to_string().trim_start_matches("0.")
         )
     }
@@ -248,7 +254,7 @@ fn capital_lisible(brut: &str) -> String {
 /// Professionnel des qu'il porte un SIRET ou un numero de TVA intracommunautaire.
 ///
 /// La chaine vide ne compte pas : Dolibarr ecrit `''` dans ces colonnes pour
-/// dire « rien ». La lire comme une valeur rendait professionnel un particulier
+/// dire Â« rien Â». La lire comme une valeur rendait professionnel un particulier
 /// sur deux, et faisait refuser ses factures.
 pub fn client_legal(p: &db::party::Party) -> legal::Client {
     let renseigne =
@@ -278,12 +284,12 @@ pub fn conditions_legales(c: &db::company::Company, origine: Option<&str>) -> le
     }
 }
 
-/// Un libelle qui commence par « Règlement » ferait doublon avec
+/// Un libelle qui commence par Â« RÃ¨glement Â» ferait doublon avec
 /// l'intitule de la ligne du PDF : on retire le mot de tete.
 pub fn nettoyer_condition(libelle: &str) -> String {
     let bas = libelle.to_lowercase();
-    if bas.starts_with("règlement ") {
-        libelle["règlement ".len()..].trim().to_string()
+    if bas.starts_with("rÃ¨glement ") {
+        libelle["rÃ¨glement ".len()..].trim().to_string()
     } else if bas.starts_with("reglement ") {
         libelle["reglement ".len()..].trim().to_string()
     } else {
@@ -291,13 +297,13 @@ pub fn nettoyer_condition(libelle: &str) -> String {
     }
 }
 
-/// Titre imprimé sur le PDF : le type Dolibarr ne dit pas tout.
+/// Titre imprimÃ© sur le PDF : le type Dolibarr ne dit pas tout.
 pub fn titre_document(type_: i16, situation: Option<i32>) -> Option<String> {
     if type_ != db::invoice::TYPE_SITUATION {
         return None;
     }
     match situation {
-        Some(n) => Some(format!("Facture de situation n° {n}")),
+        Some(n) => Some(format!("Facture de situation nÂ° {n}")),
         None => Some("Facture de situation".to_string()),
     }
 }
@@ -319,10 +325,83 @@ pub fn coordonnees_bancaires(c: &db::company::Company) -> Option<String> {
     let iban = c.iban.as_deref().map(str::trim).filter(|s| !s.is_empty())?;
     let bic = c.bic.as_deref().map(str::trim).unwrap_or("");
     Some(if bic.is_empty() {
-        format!("RIB — IBAN {iban}")
+        format!("RIB â€” IBAN {iban}")
     } else {
-        format!("RIB — IBAN {iban} — BIC {bic}")
+        format!("RIB â€” IBAN {iban} â€” BIC {bic}")
     })
+}
+
+/// Les champs libres d'un document, indexes par nom en majuscules.
+///
+/// Dolibarr stocke les pourcentages et montants d'echeancier en champs libres
+/// (`llx_propal_extrafields.pct_sign`, `mnt_signature`â€¦). Un libelle de
+/// condition de reglement peut les appeler ; sans eux, le devis annonce un
+/// echeancier sans montants.
+pub fn champs_libres(
+    pool: &Pool,
+    elementtype: &str,
+    entity: i64,
+    id: i64,
+) -> BTreeMap<String, String> {
+    let mut map = BTreeMap::new();
+    if let Ok(valeurs) = db::extrafields::valeurs(pool, elementtype, entity, id) {
+        for (definition, valeur, _) in valeurs {
+            if let Some(v) = valeur.filter(|v| !v.trim().is_empty()) {
+                map.insert(
+                    definition.nom.trim().to_ascii_uppercase(),
+                    v.trim().to_string(),
+                );
+            }
+        }
+    }
+    map
+}
+
+/// Remplace les jetons `__EXTRAFIELD_<NOM>__` d'un libelle par la valeur du champ.
+///
+/// Un jeton qui ne trouve pas sa valeur **reste visible**. Le masquer ferait
+/// disparaitre une ligne d'echeancier sans que personne ne sache pourquoi ;
+/// affiche, il dit exactement quel champ manque.
+pub fn remplacer_jetons(texte: &str, champs: &BTreeMap<String, String>) -> String {
+    // Dolibarr stocke les retours a la ligne en `\n` litteral dans les constantes.
+    let texte = texte.replace("\\n", "\n");
+    let mut sortie = String::with_capacity(texte.len());
+    let mut reste = texte.as_str();
+    const DEBUT: &str = "__EXTRAFIELD_";
+    const FIN: &str = "__";
+    while let Some(i) = reste.find(DEBUT) {
+        sortie.push_str(&reste[..i]);
+        let apres = &reste[i + DEBUT.len()..];
+        let Some(j) = apres.find(FIN) else {
+            sortie.push_str(&reste[i..]);
+            return sortie;
+        };
+        let nom = &apres[..j];
+        match valeur_du_jeton(nom, champs) {
+            Some(v) => sortie.push_str(&v),
+            None => {
+                sortie.push_str(DEBUT);
+                sortie.push_str(nom);
+                sortie.push_str(FIN);
+            }
+        }
+        reste = &apres[j + FIN.len()..];
+    }
+    sortie.push_str(reste);
+    sortie
+}
+
+fn valeur_du_jeton(nom: &str, champs: &BTreeMap<String, String>) -> Option<String> {
+    let nom = nom.trim().to_ascii_uppercase();
+    if let Some(v) = champs.get(&nom) {
+        return Some(v.clone());
+    }
+    // Les montants sont appeles `<champ>_FORMATED` : c'est ainsi que le module
+    // Dolibarr construit le nom du jeton, le champ n'ayant pas ce suffixe.
+    let base = nom.strip_suffix("_FORMATED")?;
+    let brut = champs.get(base)?;
+    let valeur = brut.trim().parse::<Decimal>().ok()?;
+    Some(compte(valeur))
 }
 
 /// RIB du compte designe par le document (`llx_facture.fk_account`), sinon
@@ -338,7 +417,13 @@ pub fn rib_du_document(
             return Some(ligne);
         }
     }
-    coordonnees_bancaires(emit)
+    if let Some(ligne) = coordonnees_bancaires(emit) {
+        return Some(ligne);
+    }
+    // Ni la facture ni les constantes : le compte principal est la seule
+    // reponse honnete. Un devis n'a pas de `fk_account`, et partir sans RIB
+    // laisse le client sans moyen de payer.
+    db::banque::compte_principal(pool, entity).ok().flatten()
 }
 
 pub fn client_pdf(p: &db::party::Party) -> pdf::PartyView {
@@ -476,6 +561,10 @@ pub fn devis_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dyn 
     for l in &lignes {
         *vat.entry(fmt_qte(l.tva_tx)).or_default() += l.total_tva.unwrap_or_default();
     }
+    // Un taux sans montant (les sections et sous-totaux portent 0 %) n'apprend
+    // rien au client : Dolibarr ne l'imprime pas, et « TVA 0 % : 0,00 € » sur un
+    // devis fait douter du reste.
+    vat.retain(|_, montant| !montant.is_zero());
 
     let doc = pdf::DocumentView {
         kind: pdf::DocKind::Quote,
@@ -488,10 +577,20 @@ pub fn devis_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dyn 
         payment_terms: p
             .fk_cond_reglement
             .and_then(|id| db::reglement::condition(pool, entity, id).ok().flatten())
-            .map(|c| nettoyer_condition(&c.libelle_fr())),
+            // Dolibarr imprime le libelle du **document** sur un devis comme sur
+            // une facture ; celui du dictionnaire sert aux listes. Et ce libelle
+            // porte des jetons d'echeancier (`__EXTRAFIELD_MNT_SIGNATURE_FORMATED__`)
+            // que remplit le module de facturation : sans eux, le client lit
+            // Â« Acomptes selon echeancier Â» sans savoir combien.
+            .map(|c| {
+                remplacer_jetons(
+                    &nettoyer_condition(&c.libelle_facture_fr()),
+                    &champs_libres(pool, "propal", entity, id),
+                )
+            }),
         deposit: p.deposit_percent.map(|pct| {
             format!(
-                "{} % — {}",
+                "{} % â€” {}",
                 fmt_qte(Some(pct)),
                 fmt_eur(Some(money::round_money(
                     p.total_ttc.unwrap_or_default() * pct / Decimal::from(100)
@@ -500,7 +599,7 @@ pub fn devis_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dyn 
         }),
         customer_ref: None,
         service_date: None,
-        bank: coordonnees_bancaires(&emit),
+        bank: rib_du_document(pool, entity, None, &emit),
         cgv: emit.cgv.clone(),
         seller: vendeur_pdf(&emit),
         customer: client_pdf(&soc),
@@ -586,6 +685,10 @@ pub fn commande_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<d
     for l in &lignes {
         *vat.entry(fmt_qte(l.tva_tx)).or_default() += l.total_tva.unwrap_or_default();
     }
+    // Un taux sans montant (les sections et sous-totaux portent 0 %) n'apprend
+    // rien au client : Dolibarr ne l'imprime pas, et « TVA 0 % : 0,00 € » sur un
+    // devis fait douter du reste.
+    vat.retain(|_, montant| !montant.is_zero());
     let condition = c
         .fk_cond_reglement
         .and_then(|cid| db::reglement::condition(pool, entity, cid).ok().flatten());
@@ -597,10 +700,15 @@ pub fn commande_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<d
         date: fmt_date_fr(c.date_commande.as_deref()),
         due_date: None,
         valid_until: None,
-        payment_terms: condition.map(|x| nettoyer_condition(&x.libelle_fr())),
+        payment_terms: condition.map(|x| {
+            remplacer_jetons(
+                &nettoyer_condition(&x.libelle_facture_fr()),
+                &champs_libres(pool, "commande", entity, id),
+            )
+        }),
         deposit: c.deposit_percent.map(|pct| {
             format!(
-                "{} % — {}",
+                "{} % â€” {}",
                 fmt_qte(Some(pct)),
                 fmt_eur(Some(money::round_money(
                     c.total_ttc.unwrap_or_default() * pct / Decimal::from(100)
@@ -609,7 +717,7 @@ pub fn commande_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<d
         }),
         customer_ref: None,
         service_date: None,
-        bank: coordonnees_bancaires(&emit),
+        bank: rib_du_document(pool, entity, None, &emit),
         cgv: emit.cgv.clone(),
         seller: vendeur_pdf(&emit),
         customer: client_pdf(&soc),
@@ -665,7 +773,7 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
 
     // Seule l'identite du vendeur bloque : c'est notre propre fiche, on la
     // complete avant d'emettre. Les identifiants du client, eux, ne bloquent
-    // pas — un particulier n'a ni SIRET ni numero de TVA, et refuser sa facture
+    // pas â€” un particulier n'a ni SIRET ni numero de TVA, et refuser sa facture
     // reviendrait a refuser l'essentiel des clients d'un macon. Ils sont
     // signales sur la fiche de la facture (`legal::mentions_client_manquantes`).
     let manquants = legal::champs_manquants(&vendeur, &client);
@@ -682,6 +790,10 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
     for l in &lignes {
         *vat.entry(fmt_qte(l.tva_tx)).or_default() += l.total_tva.unwrap_or_default();
     }
+    // Un taux sans montant (les sections et sous-totaux portent 0 %) n'apprend
+    // rien au client : Dolibarr ne l'imprime pas, et « TVA 0 % : 0,00 € » sur un
+    // devis fait douter du reste.
+    vat.retain(|_, montant| !montant.is_zero());
 
     let doc = pdf::DocumentView {
         kind: if est_avoir {
@@ -696,7 +808,12 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
         payment_terms: db::reglement::condition(pool, entity, f.fk_cond_reglement.unwrap_or(0))
             .ok()
             .flatten()
-            .map(|c| nettoyer_condition(&c.libelle_facture_fr()))
+            .map(|c| {
+                remplacer_jetons(
+                    &nettoyer_condition(&c.libelle_facture_fr()),
+                    &champs_libres(pool, "facture", entity, id),
+                )
+            })
             .filter(|l| !l.trim().is_empty()),
         deposit: None,
         valid_until: None,
