@@ -163,8 +163,16 @@ impl IntoResponse for Erreur {
     fn into_response(self) -> Response {
         // Toute erreur servie au navigateur laisse une trace.
         crate::journal_erreurs::enregistrer("erreur", &self.0);
+        // Un document qui n'existe pas n'est pas une panne du serveur : c'est
+        // une adresse qui ne mene nulle part. Repondre 500 fait croire a un
+        // incident, et les sondes de disponibilite crient au loup.
+        let code = if self.0.to_lowercase().contains("introuvable") {
+            StatusCode::NOT_FOUND
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        };
         (
-            StatusCode::INTERNAL_SERVER_ERROR,
+            code,
             ui::page(
                 "",
                 "",

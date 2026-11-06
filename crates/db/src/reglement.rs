@@ -17,8 +17,15 @@ use mysql::{params, Pool};
 pub struct Condition {
     pub rowid: i64,
     pub code: String,
-    /// Libelle affiche au client (celui du document : `libelle_facture`).
+    /// Libelle du devis et des autres documents (`llx_c_payment_term.libelle`).
     pub libelle: String,
+    /// Libelle propre a la **facture** (`libelle_facture`).
+    ///
+    /// Dolibarr separe les deux : sur un devis on lit « Paiement integral a la
+    /// signature », sur la facture « Le reglement est du a reception de la
+    /// facture, par virement ». Imprimer le libelle du devis sur la facture
+    /// annonce au client une echeance qui n'est pas la sienne.
+    pub libelle_facture: String,
     pub nbjour: i64,
     pub decalage: i64,
     /// Pourcentage d'acompte attache a la condition, si le dictionnaire en fixe un.
@@ -32,6 +39,25 @@ impl Condition {
     /// se fait a l'affichage dans le cœur PHP, pas en base) : on la refait ici
     /// pour que le PDF reste francais quel que soit le dictionnaire.
     pub fn libelle_fr(&self) -> String {
+        self.nettoyer(self.libelle.clone())
+    }
+
+    /// Le libelle a imprimer sur une **facture**.
+    ///
+    /// Dolibarr distingue `libelle` (devis) et `libelle_facture`. Sur la
+    /// production, la condition 83 dit « Paiement integral a la signature »
+    /// pour un devis, et « Le reglement est du a reception de la facture, par
+    /// virement » pour la facture. Imprimer le premier sur la seconde annonce
+    /// au client une echeance qui n'est pas la sienne.
+    pub fn libelle_facture_fr(&self) -> String {
+        if self.libelle_facture.trim().is_empty() {
+            self.libelle_fr()
+        } else {
+            self.nettoyer(self.libelle_facture.clone())
+        }
+    }
+
+    fn nettoyer(&self, brut: String) -> String {
         let brut = match self.code.as_str() {
             "RECEP" => "À réception".to_string(),
             "PT_ORDER" => "À la commande".to_string(),
@@ -49,7 +75,7 @@ impl Condition {
             code if code.starts_with("45D") => "45 jours".to_string(),
             code if code.starts_with("14D") => "14 jours".to_string(),
             code if code.starts_with("10D") => "10 jours".to_string(),
-            _ => self.libelle.clone(),
+            _ => brut,
         };
         let brut = if self.code.ends_with("ENDMONTH") && !brut.contains("fin de mois") {
             format!("{brut} fin de mois")
@@ -90,23 +116,45 @@ pub fn conditions(pool: &Pool, entity: i64) -> Result<Vec<Condition>, Box<dyn Er
              ORDER BY sortorder ASC, rowid ASC",
         params! { "entity" => entity },
     )?;
-    Ok(lignes
-        .into_iter()
-        .map(
-            |(rowid, code, libelle, facture, nbjour, decalage, acompte)| Condition {
-                rowid,
-                code: code.unwrap_or_default(),
-                libelle: match (libelle, facture) {
-                    (Some(l), _) if !l.trim().is_empty() => l,
-                    (_, Some(f)) => f,
-                    _ => String::new(),
-                },
-                nbjour: nbjour.unwrap_or(0) as i64,
-                decalage: decalage.unwrap_or(0) as i64,
-                deposit_percent: acompte.filter(|d| !d.trim().is_empty()),
-            },
-        )
-        .collect())
+    Ok(lignes.into_iter().map(depuis).collect())
+}
+
+/// Une ligne du dictionnaire, quelle que soit la societe qui la porte.
+fn depuis(ligne: LigneDico) -> Condition {
+    let (rowid, code, libelle, facture, nbjour, decalage, acompte) = ligne;
+    Condition {
+        rowid,
+        code: code.unwrap_or_default(),
+        libelle: match (libelle.clone(), facture.clone()) {
+            (Some(l), _) if !l.trim().is_empty() => l,
+            (_, Some(f)) => f,
+            _ => String::new(),
+        },
+        libelle_facture: match (facture, libelle) {
+            (Some(f), _) if !f.trim().is_empty() => f,
+            (_, Some(l)) => l,
+            _ => String::new(),
+        },
+        nbjour: nbjour.unwrap_or(0) as i64,
+        decalage: decalage.unwrap_or(0) as i64,
+        deposit_percent: acompte.filter(|d| !d.trim().is_empty()),
+    }
+}
+
+/// Une condition designee par son `rowid`, **quelle que soit sa societe**.
+///
+/// Un document porte un `fk_cond_reglement` : c'est une reference, pas une
+/// saisie. Sur la base de production, la condition 83 appartient a l'entite 1
+/// et les factures de l'entite 7 la referencent. Filtrer par entite ici faisait
+/// disparaitre l'echeance du PDF — une facture sans condition de reglement.
+pub fn condition_par_id(pool: &Pool, rowid: i64) -> Result<Option<Condition>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let ligne: Option<LigneDico> = conn.exec_first(
+        "SELECT rowid, code, libelle, libelle_facture, nbjour, decalage, deposit_percent \
+             FROM llx_c_payment_term WHERE rowid = :rowid LIMIT 1",
+        params! { "rowid" => rowid },
+    )?;
+    Ok(ligne.map(depuis))
 }
 
 /// Cree une condition de reglement dans le dictionnaire.
@@ -183,9 +231,13 @@ pub fn condition(
     entity: i64,
     rowid: i64,
 ) -> Result<Option<Condition>, Box<dyn Error>> {
-    Ok(conditions(pool, entity)?
+    if let Some(c) = conditions(pool, entity)?
         .into_iter()
-        .find(|c| c.rowid == rowid))
+        .find(|c| c.rowid == rowid)
+    {
+        return Ok(Some(c));
+    }
+    condition_par_id(pool, rowid)
 }
 
 /// Premier jour de la periode de reglement : la condition la plus courante.
@@ -343,5 +395,37 @@ mod tests {
     #[test]
     fn une_date_invalide_ne_produit_rien() {
         assert!(echeance("pas une date", "30D", 30, 0).is_none());
+    }
+
+    fn condition(libelle: &str, facture: &str) -> Condition {
+        Condition {
+            rowid: 83,
+            code: "PA100SIG".to_string(),
+            libelle: libelle.to_string(),
+            libelle_facture: facture.to_string(),
+            nbjour: 0,
+            decalage: 0,
+            deposit_percent: None,
+        }
+    }
+
+    /// Le cas de la production : le devis et la facture n'annoncent pas la meme
+    /// echeance pour la meme condition.
+    #[test]
+    fn la_facture_porte_son_propre_libelle() {
+        let c = condition(
+            "Paiement intégral à la signature",
+            "Le règlement est dû à réception de la facture, par virement bancaire.",
+        );
+        assert!(c.libelle_fr().contains("signature"));
+        assert!(c.libelle_facture_fr().contains("réception de la facture"));
+    }
+
+    /// Sans libelle de facture, on retombe sur celui du devis : mieux vaut un
+    /// libelle approximatif qu'une ligne vide.
+    #[test]
+    fn sans_libelle_de_facture_on_garde_celui_du_devis() {
+        let c = condition("Paiement intégral à la signature", "   ");
+        assert_eq!(c.libelle_facture_fr(), c.libelle_fr());
     }
 }

@@ -25,12 +25,20 @@ pub(crate) fn en_retard(echeance: Option<&str>, statut: i16, paye: i16, jour: &s
 }
 
 pub fn nom_tiers(pool: &Pool, fk: Option<i64>) -> Res<String> {
-    match fk {
-        None => Ok(String::new()),
-        Some(id) => Ok(db::party::get(pool, entite::courante(), id)?
-            .map(|p| p.nom)
-            .unwrap_or_else(|| format!("(tiers {id} absent)"))),
+    let Some(id) = fk else {
+        return Ok(String::new());
+    };
+    let entity = entite::courante();
+    if let Some(p) = db::party::get(pool, entity, id)? {
+        return Ok(p.nom);
     }
+    // Le tiers existe, mais dans une autre societe : ce n'est pas une donnee
+    // manquante, c'est un rattachement a corriger. Le dire evite de chercher
+    // un tiers qu'on a sous les yeux dans l'autre entite.
+    Ok(match db::party::entity_du_tiers(pool, id)? {
+        Some(autre) => format!("(tiers {id} de la societe {autre})"),
+        None => format!("(tiers {id} absent)"),
+    })
 }
 
 pub(crate) fn pluriel(n: usize, singulier: &str, pluriel: &str) -> String {
