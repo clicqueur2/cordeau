@@ -65,6 +65,16 @@ Etape "Schéma (empreinte Dolibarr 24.0.1)" {
     if ($LASTEXITCODE -ne 0) { throw "schéma incompatible" }
 }
 
+# --- 4b. Chaîne de migration ------------------------------------------------
+# Ne touche à aucune base : vérifie que 12, 19 et 23 montent encore en 24, et
+# que les quatre empreintes sont là. Une version ajoutée ou un script renommé
+# casserait la chaîne en silence ; ce garde-fou le dit.
+Etape "Chaînes de migration (12, 19, 23 → 24)" {
+    $sortie = powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "verifier-migrations.ps1") 2>&1
+    $sortie | ForEach-Object { Write-Host "    $_" }
+    if ($LASTEXITCODE -ne 0) { throw "chaîne de migration incomplète" }
+}
+
 # --- 5. Chaîne de bout en bout (système) ------------------------------------
 Etape "Chaîne métier (devis → facture → règlement → PDF)" {
     $d = cargo run -q -p cordeau -- party add --nom "Verif Bout-en-Bout" 2>&1
