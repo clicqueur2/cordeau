@@ -162,6 +162,23 @@ struct App {
 
 pub struct Erreur(pub String);
 
+/// Quel code HTTP pour quel message.
+///
+/// « introuvable » et « inconnue » disent qu'une adresse ne mene nulle part :
+/// c'est un 404, pas une panne. Tout le reste est un 500, et se journalise.
+fn code_pour(message: &str) -> StatusCode {
+    let m = message.to_lowercase();
+    if m.contains("introuvable") || m.contains("inconnu") {
+        StatusCode::NOT_FOUND
+    } else if m.contains("obligatoire") || m.contains("invalide") {
+        // Un champ manquant n'est pas une adresse morte : c'est une demande
+        // mal formee.
+        StatusCode::BAD_REQUEST
+    } else {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+}
+
 impl IntoResponse for Erreur {
     fn into_response(self) -> Response {
         // Toute erreur servie au navigateur laisse une trace.
@@ -169,11 +186,7 @@ impl IntoResponse for Erreur {
         // Un document qui n'existe pas n'est pas une panne du serveur : c'est
         // une adresse qui ne mene nulle part. Repondre 500 fait croire a un
         // incident, et les sondes de disponibilite crient au loup.
-        let code = if self.0.to_lowercase().contains("introuvable") {
-            StatusCode::NOT_FOUND
-        } else {
-            StatusCode::INTERNAL_SERVER_ERROR
-        };
+        let code = code_pour(&self.0);
         (
             code,
             ui::page(
@@ -335,3 +348,34 @@ fn urlencode(s: &str) -> String {
 // --- import / export --------------------------------------------------------
 
 // --- sauvegarde -------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Une adresse qui ne mene nulle part n'est pas un incident.
+    #[test]
+    fn une_liste_inconnue_repond_404() {
+        assert_eq!(code_pour("liste inconnue : Product"), StatusCode::NOT_FOUND);
+        assert_eq!(code_pour("Tiers introuvable"), StatusCode::NOT_FOUND);
+    }
+
+    /// Un champ manquant est une demande mal formee, pas une adresse morte.
+    #[test]
+    fn un_champ_obligatoire_repond_400() {
+        assert_eq!(
+            code_pour("nom du contact obligatoire"),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(code_pour("statut invalide"), StatusCode::BAD_REQUEST);
+    }
+
+    /// Le reste est une vraie panne, et se journalise comme telle.
+    #[test]
+    fn une_erreur_de_base_repond_500() {
+        assert_eq!(
+            code_pour("Table 'llx_facture' doesn't exist"),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+    }
+}
