@@ -188,12 +188,23 @@ pub struct NouveauSalaire {
 }
 
 /// Colonnes lues, dans l'ordre attendu par [`map_row`].
-const SELECT_COLS: &str = "s.rowid, s.entity, s.ref, s.fk_user, u.login, \
+fn select_cols(num_payment: bool) -> String {
+    let numero = if num_payment { "s.num_payment" } else { "NULL" };
+    format!(
+        "s.rowid, s.entity, s.ref, s.fk_user, u.login, \
      DATE_FORMAT(s.datep, '%Y-%m-%d'), DATE_FORMAT(s.datev, '%Y-%m-%d'), \
      DATE_FORMAT(s.datec, '%Y-%m-%d %H:%i:%s'), \
      DATE_FORMAT(s.datesp, '%Y-%m-%d'), DATE_FORMAT(s.dateep, '%Y-%m-%d'), \
      CAST(s.amount AS CHAR), CAST(s.salary AS CHAR), s.label, s.fk_projet, \
-     s.fk_typepayment, cp.code, s.fk_bank, s.fk_account, s.paye";
+     s.fk_typepayment, cp.code, {numero}, s.fk_bank, s.fk_account, s.paye"
+    )
+}
+
+/// La production de Pierre Angulaire n'a pas `llx_salary.num_payment` ; une
+/// installation neuve l'a. On interroge la base plutot que de choisir.
+fn a_num_payment(pool: &Pool) -> bool {
+    crate::colonnes::existe(pool, "llx_salary", "num_payment").unwrap_or(false)
+}
 
 /// Jointures communes : le login du salarié et le code du moyen de paiement.
 ///
@@ -244,13 +255,10 @@ fn map_row(row: &Row) -> Salaire {
         fk_project: opt_i(row, 13),
         fk_typepayment: opt_i(row, 14).unwrap_or(0),
         type_payment_code: opt_s(row, 15),
-        // `llx_salary` n'a pas de colonne `num_payment` : le numero de
-        // paiement vit dans `llx_payment_salary`. On laisse le champ vide
-        // plutot que de lire une colonne qui n'existe pas.
-        num_payment: None,
-        fk_bank: opt_i(row, 16),
-        fk_account: opt_i(row, 17),
-        paye: opt_i(row, 18).unwrap_or(0) != 0,
+        num_payment: opt_s(row, 16),
+        fk_bank: opt_i(row, 17),
+        fk_account: opt_i(row, 18),
+        paye: opt_i(row, 19).unwrap_or(0) != 0,
     }
 }
 
@@ -268,10 +276,11 @@ pub fn list(
 ) -> Result<Vec<Salaire>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let sql = format!(
-        "SELECT {SELECT_COLS} FROM llx_salary s {JOINTURES} \
+        "SELECT {} FROM llx_salary s {JOINTURES} \
          WHERE s.entity = :entity \
          ORDER BY COALESCE(s.datep, DATE(s.datec)) DESC, s.rowid DESC \
-         LIMIT :limite OFFSET :offset"
+         LIMIT :limite OFFSET :offset",
+        select_cols(a_num_payment(pool))
     );
     let rows: Vec<Row> = conn.exec(
         sql,
@@ -284,8 +293,9 @@ pub fn list(
 pub fn get(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Salaire>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let sql = format!(
-        "SELECT {SELECT_COLS} FROM llx_salary s {JOINTURES} \
-         WHERE s.entity = :entity AND s.rowid = :rowid"
+        "SELECT {} FROM llx_salary s {JOINTURES} \
+         WHERE s.entity = :entity AND s.rowid = :rowid",
+        select_cols(a_num_payment(pool))
     );
     let row: Option<Row> =
         conn.exec_first(sql, params! { "entity" => entity, "rowid" => rowid })?;
@@ -549,13 +559,24 @@ pub fn payer(
 
     // Le `AND paye = 0` double le verrou : si une autre transaction a validé
     // entre-temps, on n'écrase pas son versement, on annule le nôtre.
+    // `num_payment` n'existe pas sur toutes les bases : on l'ecrit quand il
+    // est la, sinon on se tait. Le numero reste de toute facon dans
+    // `llx_payment_salary`, qui est sa vraie place.
+    let colonne_numero = if a_num_payment(pool) {
+        "num_payment = :numero, "
+    } else {
+        ""
+    };
     tx.exec_drop(
-        "UPDATE llx_salary SET paye = :paye, fk_typepayment = :moyen, \
-         fk_account = :compte \
-         WHERE entity = :entity AND rowid = :rowid AND paye = 0",
+        format!(
+            "UPDATE llx_salary SET paye = :paye, fk_typepayment = :moyen, \
+         {colonne_numero}fk_account = :compte \
+         WHERE entity = :entity AND rowid = :rowid AND paye = 0"
+        ),
         params! {
             "paye" => STATUT_PAYE,
             "moyen" => fk_typepayment,
+            "numero" => numero,
             "compte" => fk_bank,
             "entity" => entity,
             "rowid" => rowid,
