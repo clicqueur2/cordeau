@@ -237,18 +237,33 @@ fn schema_migrer(args: &[String]) -> ExitCode {
                 return ExitCode::FAILURE;
             }
         };
-        let (prepare, _) = schema::prepare_file(&sql, 1);
-        let instructions: Vec<String> = prepare
-            .split(";\n")
+        // `split_statements` decoupe hors guillemets et ne touche pas au texte :
+        // c'est le decodeur des migrations. `prepare_file` est celui des scripts
+        // d'installation, ou il recolle les lignes — sur une migration, il
+        // coupait au milieu des identifiants (`fk_facture_foun` au lieu de
+        // `fk_facture_fourn`).
+        let instructions: Vec<String> = sql
+            .split(';')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
         println!("{}. {} ({} instructions)", i + 1, etape.fichier, instructions.len());
 
-        if let Err(e) = db::migration::executer(&pool, &instructions) {
-            eprintln!("  {e}");
-            eprintln!("  transaction annulee — la base reste en {}", etape.de);
-            return ExitCode::FAILURE;
+        match db::migration::executer(&pool, &instructions) {
+            Ok(ignorees) if ignorees.is_empty() => {}
+            Ok(ignorees) => {
+                println!(
+                    "  {} instruction(s) ignoree(s) : le schema de la base differe de celui du script",
+                    ignorees.len()
+                );
+                for ligne in ignorees.iter().take(3) {
+                    println!("    {ligne}");
+                }
+            }
+            Err(e) => {
+                eprintln!("  transaction impossible : {e}");
+                return ExitCode::FAILURE;
+            }
         }
     }
 
