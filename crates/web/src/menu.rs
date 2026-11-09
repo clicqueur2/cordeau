@@ -72,7 +72,10 @@ pub const MODULES: &[Module] = &[
         cle: "chantiers",
         code: "Projet",
         libelle: "Chantiers",
-        entrees: &[e("liste", "Chantiers et tâches", "/chantiers")],
+        entrees: &[
+            e("liste", "Chantiers et tâches", "/chantiers"),
+            e("marges", "Marge par chantier", "/chantiers/marges"),
+        ],
     },
     Module {
         cle: "devis",
@@ -82,6 +85,7 @@ pub const MODULES: &[Module] = &[
             e("nouveau", "Nouvelle proposition", "/devis/nouveau"),
             e("liste", "Liste des propositions", "/devis"),
             e("commandes", "Commandes", "/commandes"),
+            e("carnet", "Carnet de commandes", "/commandes/carnet"),
             e(
                 "commandes-fournisseurs",
                 "Commandes fournisseurs",

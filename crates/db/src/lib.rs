@@ -17,6 +17,7 @@ pub mod audit;
 pub mod banque;
 pub mod caisse_journal;
 pub mod caisse_scelle;
+pub mod carnet;
 pub mod categorie;
 pub mod cloture;
 pub mod code_barre;

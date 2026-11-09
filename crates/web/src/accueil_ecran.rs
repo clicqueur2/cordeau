@@ -116,6 +116,10 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
     let alertes = retard.len() + sans_reponse.len() + stock.len();
 
     let delai = db::tableau_bord::delai_moyen(p, entite::courante()).unwrap_or(0.0);
+    let carnet = db::carnet::ouvertes(p, entity)?;
+    let carnet_total = db::carnet::total(&carnet);
+    let carnet_a_facturer = db::carnet::a_facturer(&carnet);
+    let carnet_pieces = carnet.len();
     let panier = if chiffres.nb_factures > 0 {
         chiffres.facture / rust_decimal::Decimal::from(chiffres.nb_factures)
     } else {
@@ -182,6 +186,15 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                     div .titre { (crate::langue::tr("En retard")) }
                     div .valeur { (ui::euros(total_retard)) }
                     div .note { (retard.len().to_string()) " " (crate::langue::tr("factures à relancer")) }
+                }
+                div .kpi {
+                    div .titre { a href="/commandes/carnet" { (crate::langue::tr("Carnet de commandes")) } }
+                    div .valeur { (ui::euros(carnet_total)) }
+                    div .note {
+                        (crate::langue::tr("dont")) " " (ui::euros(carnet_a_facturer))
+                        " " (crate::langue::tr("livré à facturer"))
+                        " — " (pluriel(carnet_pieces, "commande ouverte", "commandes ouvertes"))
+                    }
                 }
             }
 
