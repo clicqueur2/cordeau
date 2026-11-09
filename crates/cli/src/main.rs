@@ -215,6 +215,36 @@ fn schema_planifier(args: &[String]) -> ExitCode {
     }
 }
 
+
+/// Les tables qui appartiennent a un module, et lequel.
+///
+/// Dolibarr nomme ses fichiers d'installation `<table>-<module>.sql` pour les
+/// tables de module, et `<table>.sql` pour celles du coeur. C'est la seule
+/// source fiable : le contenu des fichiers ne le dit pas.
+fn modules_de_table(dossier: Option<&str>) -> std::collections::BTreeMap<String, String> {
+    let mut map = std::collections::BTreeMap::new();
+    let Some(dossier) = dossier else {
+        return map;
+    };
+    let Ok(entrees) = std::fs::read_dir(dossier) else {
+        return map;
+    };
+    for e in entrees.flatten() {
+        let nom = e.file_name().to_string_lossy().to_string();
+        let Some(base) = nom.strip_suffix(".sql") else {
+            continue;
+        };
+        if let Some((table, module)) = base.rsplit_once('-') {
+            // Le suffixe doit ressembler a un nom de module, pas a un morceau
+            // de date ou de cle (`llx_x-2020`).
+            if !module.is_empty() && module.chars().all(|c| c.is_ascii_lowercase() || c == '_') {
+                map.insert(table.to_string(), module.to_string());
+            }
+        }
+    }
+    map
+}
+
 fn schema_verify(args: &[String]) -> ExitCode {
     let dsn = dsn_or_env(args);
     let schema_name = flag(args, "--schema").unwrap_or("dolibarr");
@@ -268,8 +298,29 @@ fn schema_verify(args: &[String]) -> ExitCode {
     println!("tables en plus     {} (modules)", rep.module_tables.len());
     println!("tables inconnues   {}", rep.unknown_tables.len());
 
-    for m in rep.missing_tables.iter().take(10) {
+    // Une table absente n'est pas forcement une faute : Dolibarr ne cree les
+    // tables d'un module qu'a son activation. Le nom du fichier d'installation
+    // le dit — `llx_quickmemo_memo-quickmemo.sql` porte son module en suffixe,
+    // `llx_facture.sql` n'en a pas. Sans ce tri, l'outil criait au loup sur
+    // toute base reelle : 14 « absentes » sur la production, toutes des modules
+    // non installes.
+    let modules = modules_de_table(flag(args, "--modules"));
+    let (de_module, du_coeur): (Vec<&String>, Vec<&String>) = rep
+        .missing_tables
+        .iter()
+        .partition(|t| modules.contains_key(*t));
+    for m in du_coeur.iter().take(10) {
         println!("  table absente   {m}");
+    }
+    if !de_module.is_empty() {
+        println!(
+            "  {} table(s) de module non installe (normal) :",
+            de_module.len()
+        );
+        for m in de_module.iter().take(10) {
+            let module = modules.get(*m).map(String::as_str).unwrap_or("?");
+            println!("    {m}  (module {module})");
+        }
     }
     for m in rep.missing_columns.iter().take(10) {
         println!("  colonne absente {m}");
