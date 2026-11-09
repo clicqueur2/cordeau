@@ -961,6 +961,22 @@ pub fn reservations(
         .collect())
 }
 
+/// Le module BookCal est-il installe sur cette base ?
+///
+/// Dolibarr ne cree `llx_bookcal_calendar` qu'a l'activation du module. Une base
+/// qui ne l'a pas n'est pas cassee : elle n'a simplement pas de calendrier. On
+/// demande donc a `information_schema` avant de lire, plutot que de laisser
+/// remonter une erreur 500 que personne ne comprend.
+pub fn installe(pool: &Pool) -> Result<bool, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let n: Option<i64> = conn.exec_first(
+        "SELECT COUNT(*) FROM information_schema.TABLES \
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'llx_bookcal_calendar'",
+        (),
+    )?;
+    Ok(n.unwrap_or(0) > 0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

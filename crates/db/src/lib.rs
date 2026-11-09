@@ -74,6 +74,7 @@ pub mod persist_ecritures;
 pub mod planification;
 pub mod pos_ventes;
 pub mod poste_charge;
+pub mod preferences;
 pub mod preset;
 pub mod pret;
 pub mod product;

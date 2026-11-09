@@ -215,6 +215,137 @@ pub fn barres(serie: &[(String, f64)]) -> Markup {
     }
 }
 
+/// Une barre de Gantt : ce qu'on montre, et de quand a quand.
+pub struct BarreGantt {
+    pub label: String,
+    /// `AAAA-MM-JJ`, ou `AAAA-MM-JJ HH:MM:SS` (les taches de Dolibarr portent
+    /// l'heure, les projets non).
+    pub debut: String,
+    pub fin: String,
+    /// Avancement en pourcentage, 0 a 100.
+    pub avancement: i32,
+}
+
+/// Jours depuis l'epoque civile, d'apres l'algorithme de Howard Hinnant.
+///
+/// Rend `None` si la date n'est pas lisible : une barre sans date n'a pas sa
+/// place sur une echelle de temps, et l'inventer serait pire que l'oublier.
+pub fn jours_depuis_epoque(date: &str) -> Option<i64> {
+    let jour = date.trim().get(..10)?;
+    let mut morceaux = jour.split('-');
+    let annee: i64 = morceaux.next()?.parse().ok()?;
+    let mois: i64 = morceaux.next()?.parse().ok()?;
+    let j: i64 = morceaux.next()?.parse().ok()?;
+    if !(1..=12).contains(&mois) || !(1..=31).contains(&j) {
+        return None;
+    }
+    let a = if mois <= 2 { annee - 1 } else { annee };
+    let ere = if a >= 0 { a } else { a - 399 } / 400;
+    let annee_ere = a - ere * 400;
+    let mois_0 = if mois > 2 { mois - 3 } else { mois + 9 };
+    let jour_annee = (153 * mois_0 + 2) / 5 + j - 1;
+    let jour_ere = annee_ere * 365 + annee_ere / 4 - annee_ere / 100 + jour_annee;
+    Some(ere * 146_097 + jour_ere - 719_468)
+}
+
+/// Le diagramme de Gantt : une ligne par tache, une barre par duree.
+///
+/// L'echelle est commune a toutes les barres : c'est ce qui rend les
+/// chevauchements lisibles, et donc les retards aussi.
+pub fn gantt(barres: &[BarreGantt], aujourdhui: &str) -> Markup {
+    let debut = barres
+        .iter()
+        .filter_map(|b| jours_depuis_epoque(&b.debut))
+        .min();
+    let fin = barres
+        .iter()
+        .filter_map(|b| jours_depuis_epoque(&b.fin))
+        .max();
+    let (Some(debut), Some(fin)) = (debut, fin) else {
+        return html! { p.vide { (crate::langue::tr("Aucune date : pas d'echelle de temps.")) } };
+    };
+    // Une echelle d'un seul jour ne se divise pas : on ouvre d'un jour de
+    // chaque cote pour que la barre ait une largeur visible.
+    let etendue = (fin - debut).max(1) as f64;
+    let largeur = 860.0;
+    let colonne = 210.0;
+    let hauteur_ligne = 26.0;
+    let haut = 10.0;
+    let hauteur = haut + hauteur_ligne * barres.len() as f64 + 24.0;
+    let utile = largeur - colonne;
+    let x = |jour: i64| colonne + (jour - debut) as f64 / etendue * utile;
+
+    html! {
+        div .defile {
+            svg viewBox=(format!("0 0 {largeur:.0} {hauteur:.0}"))
+                width="100%" height=(format!("{hauteur:.0}"))
+                role="img"
+                aria-label=(crate::langue::tr("Diagramme de Gantt des taches")) {
+                @for (i, b) in barres.iter().enumerate() {
+                    @let y = haut + i as f64 * hauteur_ligne;
+                    @let d = jours_depuis_epoque(&b.debut);
+                    @let f = jours_depuis_epoque(&b.fin);
+                    text x="0" y=(format!("{:.0}", y + 15.0)) font-size="11.5"
+                         fill="currentColor" { (b.label.clone()) }
+                    @if let (Some(d), Some(f)) = (d, f) {
+                        @let gauche = x(d);
+                        @let droite = x(f.max(d)).max(x(d) + 2.0);
+                        @let largeur_barre = (droite - gauche).max(2.0);
+                        @let rempli = largeur_barre * (b.avancement.clamp(0, 100) as f64 / 100.0);
+                        rect x=(format!("{gauche:.1}")) y=(format!("{:.1}", y + 5.0))
+                             width=(format!("{largeur_barre:.1}")) height="14" rx="3"
+                             fill="currentColor" opacity="0.16" {}
+                        rect x=(format!("{gauche:.1}")) y=(format!("{:.1}", y + 5.0))
+                             width=(format!("{rempli:.1}")) height="14" rx="3"
+                             fill="currentColor" opacity="0.75" {
+                            title { (b.label.clone()) " — " (b.avancement) " %" }
+                        }
+                    } @else {
+                        text x=(format!("{:.0}", colonne + 4.0)) y=(format!("{:.0}", y + 15.0))
+                             font-size="11" fill="currentColor" opacity="0.5" {
+                            (crate::langue::tr("sans date"))
+                        }
+                    }
+                }
+                // La ligne du jour : ce qui est en retard se voit d'un coup d'oeil.
+                @if let Some(j) = jours_depuis_epoque(aujourdhui) {
+                    @if j >= debut && j <= fin {
+                        line x1=(format!("{:.1}", x(j))) y1=(format!("{:.0}", haut))
+                             x2=(format!("{:.1}", x(j))) y2=(format!("{:.0}", haut + hauteur_ligne * barres.len() as f64))
+                             stroke="currentColor" stroke-width="1" opacity="0.45"
+                             stroke-dasharray="3 3" {}
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_gantt {
+    use super::*;
+
+    /// Trois dates connues, verifiees une fois pour toutes.
+    #[test]
+    fn les_jours_depuis_l_epoque_sont_justes() {
+        assert_eq!(jours_depuis_epoque("1970-01-01"), Some(0));
+        assert_eq!(jours_depuis_epoque("2000-01-01"), Some(10_957));
+        assert_eq!(jours_depuis_epoque("2026-11-09"), Some(20_766));
+    }
+
+    /// L'heure ne compte pas pour une echelle en jours, et une date illisible
+    /// ne devient jamais « aujourd'hui ».
+    #[test]
+    fn l_heure_est_ignoree_et_le_dechet_refuse() {
+        assert_eq!(
+            jours_depuis_epoque("2026-11-09 14:32:10"),
+            jours_depuis_epoque("2026-11-09")
+        );
+        assert_eq!(jours_depuis_epoque("pas une date"), None);
+        assert_eq!(jours_depuis_epoque("2026-13-01"), None);
+    }
+}
+
 pub fn euros(v: rust_decimal::Decimal) -> String {
     let s = v.round_dp(2).normalize().to_string();
     let (entier, dec) = match s.split_once('.') {

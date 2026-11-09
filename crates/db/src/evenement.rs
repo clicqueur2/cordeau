@@ -1035,3 +1035,26 @@ pub fn annuler(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error
 pub fn marquer_present(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>> {
     changer_statut(pool, entity, rowid, INSCRIPTION_PRESENTE)
 }
+
+/// Les evenements d'agenda de l'entite, du plus proche au plus lointain.
+///
+/// Un evenement n'est pas une table du module : c'est un `llx_actioncomm`
+/// (voir l'en-tete). Pour proposer une inscription, il faut bien en lire la
+/// liste quelque part, et c'est ici.
+pub fn evenements(
+    pool: &Pool,
+    entity: i64,
+    limite: u32,
+) -> Result<Vec<(i64, String)>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let lignes: Vec<(i64, Option<String>)> = conn.exec(
+        "SELECT id, label FROM llx_actioncomm \
+         WHERE entity = :entity AND (active IS NULL OR active <> 'disabled') \
+         ORDER BY datep DESC, id DESC LIMIT :limite",
+        params! { "entity" => entity, "limite" => limite.clamp(1, 500) },
+    )?;
+    Ok(lignes
+        .into_iter()
+        .map(|(id, label)| (id, label.unwrap_or_else(|| format!("evenement {id}"))))
+        .collect())
+}

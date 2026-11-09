@@ -34,7 +34,9 @@ pub(crate) use achats_ecran::{
 };
 mod achats_ecran;
 mod achats_fournisseur_ecran;
-pub(crate) use chantiers_ecran::{chantier_creer, chantier_fiche, chantier_tache_creer, chantiers};
+pub(crate) use chantiers_ecran::{
+    chantier_creer, chantier_fiche, chantier_tache_creer, chantiers, gantt_chantiers,
+};
 mod chantiers_ecran;
 pub(crate) use commandes_ecran::{
     commande_acompte, commande_facturer, commande_fiche, commande_pdf, commande_valider, commandes,
@@ -42,6 +44,11 @@ pub(crate) use commandes_ecran::{
 mod commandes_ecran;
 pub(crate) use carnet_ecran::{carnet, marges_chantiers};
 mod carnet_ecran;
+pub(crate) use contrats_ecran::{
+    contrat_clore, contrat_creer, contrat_fiche, contrat_ligne, contrat_ligne_basculer,
+    contrat_valider, contrats,
+};
+mod contrats_ecran;
 pub(crate) use facturation_ecran::{
     factures, factures_avoir, factures_creer, factures_fiche, factures_nouveau, factures_pdf,
     factures_recurrence, factures_reglement, factures_valider, relances,
@@ -68,6 +75,7 @@ mod accueil_ecran;
 mod campagnes;
 mod categories_ecran;
 mod cloture_ecran;
+mod colonnes;
 mod conges_ecran;
 mod connaissances_ecran;
 mod constantes_ecran;
@@ -94,6 +102,11 @@ mod marge_ecran;
 mod menu;
 mod menu_actif;
 mod modeles_ecran;
+pub(crate) use salaires_ecran::{salaire_creer, salaire_payer, salaire_supprimer, salaires};
+mod salaires_ecran;
+pub(crate) use ressources_ecran::{
+    ressource_affecter, ressource_creer, ressource_fiche, ressources,
+};
 mod mrp_ecran;
 mod nomenclature_ecran;
 mod note_frais_ecran;
@@ -108,7 +121,26 @@ mod poste_ecran;
 mod preset_ecran;
 mod pret_ecran;
 mod rapprochement_ecran;
+mod ressources_ecran;
+pub(crate) use recrutement_ecran::{
+    recrutement, recrutement_candidature, recrutement_clore, recrutement_offre,
+    recrutement_offre_creer, recrutement_publier, recrutement_statut_candidature,
+};
+pub(crate) use variantes_ecran::{
+    produit_variante_creer, produit_variante_supprimer, produit_variantes, variante_attribut,
+    variante_valeur, variantes,
+};
+mod variantes_ecran;
+pub(crate) use reservations_ecran::{
+    calendrier_creer, plage_creer, reservation_calendrier, reservations, reserver,
+};
+mod reservations_ecran;
+pub(crate) use inscriptions_ecran::{
+    inscriptions, inscrire, inscrire_annuler, inscrire_confirmer, inscrire_present,
+};
+mod inscriptions_ecran;
 mod reception_ecran;
+mod recrutement_ecran;
 mod recur_ecran;
 mod routes;
 mod securite_ecran;

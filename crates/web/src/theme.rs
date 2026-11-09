@@ -262,6 +262,10 @@ p { margin: 0 0 var(--e3); }
 .col-26 { width: 26%; }
 .col-20 { width: 20%; }
 
+.reglage { border: 1px solid var(--trait); border-radius: var(--rayon); padding: 8px 12px; margin: var(--e3) 0; background: var(--surface-2); }
+.reglage > summary { cursor: pointer; font-size: 12.5px; color: var(--muet); }
+.reglage[open] > summary { margin-bottom: 8px; }
+
 /* ===== tableaux ======================================================== */
 table {
   width: 100%; border-collapse: separate; border-spacing: 0;
