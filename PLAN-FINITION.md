@@ -119,3 +119,25 @@ signé, converti en facture, réglé, relancé.
 - Que la 25 soit suivie dans la semaine. Elle sera **anticipée**, pas courue après.
 - Que « prêt » veuille dire « meilleur que Dolibarr ». Il veut dire **utilisable
   à la place de Dolibarr**, sur cette base-là, sans rien perdre.
+
+
+---
+
+## Programme de l executuer de migration (a ecrire)
+
+cordeau schema migrer --dsn <base> --depuis 12.0.5 --vers 24.0.1 --src <migration> [--simuler]
+
+1. lire MAIN_VERSION_LAST_UPGRADE, refuser si inconnue ou plus recente que la cible ;
+2. appeler migration::chemin (deja ecrit, 5 tests) : il refuse un trou dans la chaine ;
+3. --simuler (defaut) : afficher le plan, ne rien jouer ;
+4. sinon, pour chaque script : START TRANSACTION, lire le fichier, decouper par
+   schema::split_statements, jouer instruction par instruction, COMMIT ;
+   au premier echec : ROLLBACK, ecrire le numero d instruction et le message,
+   s arreter. Jamais de demi-migration.
+5. journal : un fichier horodate par etape, avec le nom du script et le nombre
+   d instructions jouees ;
+6. a la fin : comparer l empreinte obtenue a schema-<version>.json, et le dire.
+
+**Pre-requis** : travailler sur une copie. La commande doit refuser de s executer
+si la base est celle de production (constante MAIN_INFO_SOCIETE_NOM differente
+de la copie attendue, ou absence de marqueur ZZ_COPIE).
