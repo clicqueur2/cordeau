@@ -95,7 +95,35 @@ pub fn routes() -> Router<App> {
         .route("/banques", get(banques))
 }
 
-async fn ping(headers: HeaderMap) -> ApiResult {
+/// Les memes routes sous les noms de Dolibarr (`proposals`, `invoices`…).
+///
+/// C'est ce routeur qui rend Cordeau **remplacable** et non seulement
+/// concurrent : une integration ecrite pour Dolibarr n'a rien a changer.
+pub fn routes_dolibarr() -> Router<App> {
+    Router::new()
+        .route("/status", get(ping))
+        .route("/thirdparties", get(tiers).post(tiers_creer))
+        .route("/products", get(produits))
+        .route("/proposals", get(devis).post(devis_creer))
+        .route("/proposals/:id", get(devis_fiche))
+        .route("/proposals/:id/validate", post(devis_valider))
+        .route("/proposals/:id/situation", post(devis_situation))
+        .route("/proposals/:id/order", post(devis_commande))
+        .route("/invoices", get(factures))
+        .route("/invoices/:id", get(facture_fiche))
+        .route("/invoices/:id/payments", post(facture_reglement))
+        .route("/orders", get(commandes))
+        .route("/orders/:id/validate", post(commande_valider))
+        .route("/orders/:id/invoice", post(commande_facturer))
+        .route("/bankaccounts", get(banques))
+        .route("/documents/download", get(document_telecharger))
+        .route(
+            "/documents/builddoc",
+            axum::routing::put(document_construire),
+        )
+}
+
+pub(crate) async fn ping(headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
@@ -104,6 +132,146 @@ async fn ping(headers: HeaderMap) -> ApiResult {
         "version": env!("CARGO_PKG_VERSION"),
         "schema": "dolibarr 24.0.1",
     })))
+}
+
+/// Telecharge un document archive : `?modulepart=facture&original_file=F-…/F-….pdf`
+///
+/// Dolibarr renvoie le fichier brut ; on fait pareil, avec le meme chemin
+/// relatif. Un PDF absent est un 404, pas un 500.
+pub(crate) async fn document_telecharger(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Query(q): Query<HashMap<String, String>>,
+) -> Result<Response, ApiErreur> {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let modulepart = q
+        .get("modulepart")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| {
+            ApiErreur(
+                axum::http::StatusCode::BAD_REQUEST,
+                "modulepart requis".into(),
+            )
+        })?;
+    let original = q
+        .get("original_file")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| {
+            ApiErreur(
+                axum::http::StatusCode::BAD_REQUEST,
+                "original_file requis".into(),
+            )
+        })?;
+
+    // Deux garde-fous : pas de `..` (traversee de dossier) et pas de chemin
+    // absolu. Le parametre vient d'un client HTTP.
+    if original.contains("..") || original.starts_with('/') || modulepart.contains("..") {
+        return Err(ApiErreur(
+            axum::http::StatusCode::BAD_REQUEST,
+            "chemin refuse".into(),
+        ));
+    }
+
+    let chemin = db::ged::racine().join(&modulepart).join(&original);
+    match std::fs::read(&chemin) {
+        Ok(octets) => {
+            let nom = chemin
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("document.pdf")
+                .to_string();
+            Ok((
+                [
+                    (
+                        axum::http::header::CONTENT_TYPE,
+                        "application/pdf".to_string(),
+                    ),
+                    (
+                        axum::http::header::CONTENT_DISPOSITION,
+                        format!("attachment; filename=\"{nom}\""),
+                    ),
+                ],
+                octets,
+            )
+                .into_response())
+        }
+        Err(_) => Err(ApiErreur(
+            axum::http::StatusCode::NOT_FOUND,
+            format!("document introuvable : {modulepart}/{original}"),
+        )),
+    }
+}
+
+/// Construit le PDF d'une piece et rend le fichier : `{ modulepart, id }`.
+///
+/// C'est l'appel que fait n8n avant d'attacher un devis a un brouillon. On
+/// repond le PDF directement, comme Dolibarr.
+pub(crate) async fn document_construire(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Json(corps): Json<Value>,
+) -> Result<Response, ApiErreur> {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let modulepart = corps
+        .get("modulepart")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let id = corps
+        .get("id")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| ApiErreur(axum::http::StatusCode::BAD_REQUEST, "id requis".into()))?;
+    let entity = entity();
+
+    let (ref_, octets) = match modulepart.as_str() {
+        "propale" | "proposal" => {
+            let devis = db::proposal::get(&app.pool, entity, id)?.ok_or_else(|| {
+                ApiErreur(
+                    axum::http::StatusCode::NOT_FOUND,
+                    "devis introuvable".into(),
+                )
+            })?;
+            let pdf = app::devis_pdf(&app.pool, entity, id)?.bytes;
+            (devis.ref_, pdf)
+        }
+        "facture" | "invoice" => {
+            let facture = db::invoice::get(&app.pool, entity, id)?.ok_or_else(|| {
+                ApiErreur(
+                    axum::http::StatusCode::NOT_FOUND,
+                    "facture introuvable".into(),
+                )
+            })?;
+            let pdf = app::facture_pdf(&app.pool, entity, id)?.bytes;
+            (facture.ref_, pdf)
+        }
+        autre => {
+            return Err(ApiErreur(
+                axum::http::StatusCode::BAD_REQUEST,
+                format!("modulepart \"{autre}\" non gere : propale ou facture"),
+            ))
+        }
+    };
+
+    Ok((
+        [
+            (
+                axum::http::header::CONTENT_TYPE,
+                "application/pdf".to_string(),
+            ),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{ref_}.pdf\""),
+            ),
+        ],
+        octets,
+    )
+        .into_response())
 }
 
 async fn tiers(
@@ -130,7 +298,7 @@ async fn tiers(
         .collect::<Vec<_>>())))
 }
 
-async fn tiers_creer(
+pub(crate) async fn tiers_creer(
     State(app): State<App>,
     headers: HeaderMap,
     Json(corps): Json<Value>,
@@ -166,7 +334,7 @@ async fn tiers_creer(
     Ok(Json(json!({ "id": id })))
 }
 
-async fn produits(State(app): State<App>, headers: HeaderMap) -> ApiResult {
+pub(crate) async fn produits(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
@@ -183,7 +351,7 @@ async fn produits(State(app): State<App>, headers: HeaderMap) -> ApiResult {
         .collect::<Vec<_>>())))
 }
 
-async fn devis(State(app): State<App>, headers: HeaderMap) -> ApiResult {
+pub(crate) async fn devis(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
@@ -202,7 +370,11 @@ async fn devis(State(app): State<App>, headers: HeaderMap) -> ApiResult {
         .collect::<Vec<_>>())))
 }
 
-async fn devis_fiche(State(app): State<App>, headers: HeaderMap, Path(id): Path<i64>) -> ApiResult {
+pub(crate) async fn devis_fiche(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
@@ -238,7 +410,7 @@ async fn devis_fiche(State(app): State<App>, headers: HeaderMap, Path(id): Path<
     })))
 }
 
-async fn devis_creer(
+pub(crate) async fn devis_creer(
     State(app): State<App>,
     headers: HeaderMap,
     Json(corps): Json<Value>,
@@ -285,7 +457,7 @@ async fn devis_creer(
     Ok(Json(json!({ "id": id })))
 }
 
-async fn devis_valider(
+pub(crate) async fn devis_valider(
     State(app): State<App>,
     headers: HeaderMap,
     Path(id): Path<i64>,
@@ -297,7 +469,7 @@ async fn devis_valider(
     Ok(Json(json!({ "id": id, "statut": 1 })))
 }
 
-async fn devis_situation(
+pub(crate) async fn devis_situation(
     State(app): State<App>,
     headers: HeaderMap,
     Path(id): Path<i64>,
@@ -321,7 +493,7 @@ async fn devis_situation(
     Ok(Json(json!({ "facture": facture })))
 }
 
-async fn devis_commande(
+pub(crate) async fn devis_commande(
     State(app): State<App>,
     headers: HeaderMap,
     Path(id): Path<i64>,
@@ -333,7 +505,7 @@ async fn devis_commande(
     Ok(Json(json!({ "commande": commande })))
 }
 
-async fn factures(State(app): State<App>, headers: HeaderMap) -> ApiResult {
+pub(crate) async fn factures(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
@@ -357,7 +529,7 @@ async fn factures(State(app): State<App>, headers: HeaderMap) -> ApiResult {
         .collect::<Vec<_>>())))
 }
 
-async fn facture_fiche(
+pub(crate) async fn facture_fiche(
     State(app): State<App>,
     headers: HeaderMap,
     Path(id): Path<i64>,
@@ -391,7 +563,7 @@ async fn facture_fiche(
     })))
 }
 
-async fn facture_reglement(
+pub(crate) async fn facture_reglement(
     State(app): State<App>,
     headers: HeaderMap,
     Path(id): Path<i64>,
@@ -436,7 +608,7 @@ async fn facture_reglement(
     Ok(Json(json!({ "paiement": paiement })))
 }
 
-async fn commandes(State(app): State<App>, headers: HeaderMap) -> ApiResult {
+pub(crate) async fn commandes(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }
@@ -453,7 +625,7 @@ async fn commandes(State(app): State<App>, headers: HeaderMap) -> ApiResult {
         .collect::<Vec<_>>())))
 }
 
-async fn commande_valider(
+pub(crate) async fn commande_valider(
     State(app): State<App>,
     headers: HeaderMap,
     Path(id): Path<i64>,
@@ -465,7 +637,7 @@ async fn commande_valider(
     Ok(Json(json!({ "id": id, "statut": 1 })))
 }
 
-async fn commande_facturer(
+pub(crate) async fn commande_facturer(
     State(app): State<App>,
     headers: HeaderMap,
     Path(id): Path<i64>,
@@ -477,7 +649,7 @@ async fn commande_facturer(
     Ok(Json(json!({ "facture": facture })))
 }
 
-async fn banques(State(app): State<App>, headers: HeaderMap) -> ApiResult {
+pub(crate) async fn banques(State(app): State<App>, headers: HeaderMap) -> ApiResult {
     if !autorise(&headers) {
         return Err(refus());
     }

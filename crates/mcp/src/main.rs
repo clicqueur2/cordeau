@@ -169,6 +169,34 @@ fn outils() -> Value {
             json!({"type":"object"})
         ),
         outil(
+            "carnet_commandes",
+            "Le carnet : commandes validees et livrees, et ce qui est livre sans facture.",
+            json!({"type":"object"})
+        ),
+        outil(
+            "marge_chantiers",
+            "Marge par chantier : facture client moins facture fournisseur.",
+            json!({"type":"object"})
+        ),
+        outil(
+            "lister_chantiers",
+            "Liste les chantiers avec leur budget et leurs dates.",
+            json!({"type":"object","properties":{"limite":{"type":"integer"}}})
+        ),
+        outil(
+            "stock_niveaux",
+            "Niveaux de stock par produit et par entrepot.",
+            json!({"type":"object"})
+        ),
+        outil(
+            "pdf_devis",
+            "Ecrit le PDF d'un devis sur le disque et rend son chemin.",
+            json!({"type":"object","properties":{
+                  "id":{"type":"integer"},
+                  "chemin":{"type":"string","description":"defaut : repertoire temporaire"}
+              },"required":["id"]})
+        ),
+        outil(
             "solde_tva",
             "TVA collectee, deductible et solde a payer.",
             json!({"type":"object"})
@@ -181,7 +209,11 @@ fn outil(nom: &str, description: &str, schema: Value) -> Value {
 }
 
 fn arg<'a>(corps: &'a Value, nom: &str) -> Option<&'a Value> {
-    corps.get("arguments").and_then(|a| a.get(nom))
+    // `corps` **est** l'objet `arguments` : on le lit directement. La version
+    // precedente cherchait `corps["arguments"][nom]`, c'est-a-dire un niveau de
+    // trop, et tous les outils retombaient silencieusement sur leurs valeurs
+    // par defaut — ou refusaient un argument pourtant fourni.
+    corps.get(nom).filter(|v| !v.is_null())
 }
 
 fn arg_i64(corps: &Value, nom: &str) -> Result<i64, Box<dyn Error>> {
@@ -375,6 +407,69 @@ fn appeler_outil(pool: &db::Pool, requete: &Value) -> Result<Value, Box<dyn Erro
                 "collectee": collectee.normalize().to_string(),
                 "deductible": deductible.normalize().to_string(),
                 "a_payer": solde.normalize().to_string(),
+            }))
+        }
+        "carnet_commandes" => {
+            let lignes = db::carnet::ouvertes(pool, ENTITY)?;
+            Ok(json!({
+                "pieces": lignes.len(),
+                "total_ttc": db::carnet::total(&lignes).normalize().to_string(),
+                "livre_non_facture": db::carnet::a_facturer(&lignes).normalize().to_string(),
+                "commandes": lignes.iter().map(|l| json!({
+                    "id": l.rowid, "ref": l.ref_, "tiers": l.tiers,
+                    "date": l.date, "statut": l.statut,
+                    "total_ttc": l.total_ttc.normalize().to_string(),
+                    "facturee": l.facturee, "a_facturer": l.a_facturer(),
+                })).collect::<Vec<_>>(),
+            }))
+        }
+        "marge_chantiers" => Ok(json!(db::carnet::marge_par_chantier(pool, ENTITY)?
+            .iter()
+            .map(|m| json!({
+                "chantier": m.projet, "titre": m.titre, "ref": m.ref_,
+                "facture": m.ca.normalize().to_string(),
+                "achats": m.achats.normalize().to_string(),
+                "marge": m.marge().normalize().to_string(),
+                "taux": m.taux().map(|t| t.normalize().to_string()),
+            }))
+            .collect::<Vec<_>>())),
+        "lister_chantiers" => {
+            let limite = arg(&corps, "limite").and_then(|v| v.as_u64()).unwrap_or(30) as u32;
+            Ok(json!(db::projet::list(pool, ENTITY, limite, 0)?
+                .iter()
+                .map(|p| json!({
+                    "id": p.rowid, "ref": p.ref_, "titre": p.title,
+                    "client": p.fk_soc, "debut": p.date_start, "fin": p.date_end,
+                    "budget": p.budget.map(|b| b.normalize().to_string()),
+                    "ouvert": p.est_ouvert(),
+                }))
+                .collect::<Vec<_>>()))
+        }
+        "stock_niveaux" => Ok(json!(db::stock::niveaux(pool, ENTITY)?
+            .iter()
+            .map(|n| json!({
+                "produit": n.ref_produit, "designation": n.label_produit,
+                "entrepot": n.entrepot,
+                "quantite": n.quantite.normalize().to_string(),
+            }))
+            .collect::<Vec<_>>())),
+        "pdf_devis" => {
+            let id = arg_i64(&corps, "id")?;
+            let chemin = arg(&corps, "chemin")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+                .unwrap_or_else(|| {
+                    std::env::temp_dir()
+                        .join(format!("devis-{id}.pdf"))
+                        .display()
+                        .to_string()
+                });
+            let rendu = app::devis_pdf(pool, ENTITY, id)?;
+            std::fs::write(&chemin, &rendu.bytes)?;
+            Ok(json!({
+                "chemin": chemin,
+                "octets": rendu.bytes.len(),
+                "pages": rendu.pages,
             }))
         }
         autre => return Err(format!("outil inconnu : {autre}").into()),

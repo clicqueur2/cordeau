@@ -595,5 +595,7 @@ pub fn routes(app: App) -> Router {
             garde::entetes_securite,
         ))
         .merge(Router::new().nest("/api", api::routes()))
+        // Les memes routes sous les noms de Dolibarr : `/api/index.php/proposals`.
+        .merge(Router::new().nest("/api/index.php", api::routes_dolibarr()))
         .with_state(app)
 }

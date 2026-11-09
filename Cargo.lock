@@ -2057,6 +2057,7 @@ dependencies = [
 name = "mcp"
 version = "0.1.0"
 dependencies = [
+ "app",
  "db",
  "money",
  "rust_decimal",
