@@ -199,7 +199,7 @@ fn schema_planifier(args: &[String]) -> ExitCode {
         }
     }
 
-    match db::migration::chemin(&depuis, &vers, &fichiers) {
+    match db::migration::chemin(depuis, vers, &fichiers) {
         Ok(etapes) => {
             println!("{} etape(s) de {depuis} a {vers} :", etapes.len());
             for (i, e) in etapes.iter().enumerate() {
