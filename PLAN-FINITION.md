@@ -12,8 +12,8 @@
 | Modules de base (`crates/db`) | **96** |
 | Routes HTTP | **257** |
 | Fichiers d'écran | **86** |
-| Tests qui passent | **1 060** |
-| Commits | **219** |
+| Tests qui passent | **1 066** |
+| Commits | **221** |
 | Styles en ligne restants | **0** (hors largeurs de barres calculées) |
 | Écarts au schéma de production | **14 tables, 12 colonnes** — tous expliqués |
 
@@ -70,8 +70,8 @@ Vérifié : la page caisse ne rend plus **aucun** `style="…"`.
 
 | Manque | État | Où |
 |---|---|---|
-| Contacts : création et modification | **fait** | `/contacts`, `/contacts/:id/modifier` |
-| Factures de situation (cycle 4 jalons) | **fait** | `db::situation`, `POST /devis/:id/situation` |
+| Contacts : création et modification | **fait, prouvé** | `/contacts` : 303, 0 → 1 en base, puis modification relue en base |
+| Factures de situation (cycle 4 jalons) | **fait, prouvé** | `db::situation` ; test d'intégration : quatre situations font exactement le devis |
 | Carnet de commandes | **fait** | `db::carnet`, `/commandes/carnet` |
 | Marge par chantier | **fait** | `db::carnet::marge_par_chantier`, `/chantiers/marges` |
 | Top 5 clients sur le tableau de bord | **fait** | `db::stats::top_clients`, accueil |
@@ -119,7 +119,7 @@ correspondance : le jour où on les lira, le nom sera bon sans y penser.
 Rien ne se déclare fini sans ces quatre commandes, et sans avoir lu leur sortie :
 
 ```powershell
-.\tools\verifier.ps1                                    # 7 étages, 1 045 tests
+.\tools\verifier.ps1                                    # 8 étages, 1 066 tests
 cordeau audit --dsn … --entity 7                        # lecture seule
 python tools\balayage-ecrans.py                         # tous les GET, zéro 500
 python tools\compare-prod.py                            # compteurs base contre page
