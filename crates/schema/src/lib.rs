@@ -258,7 +258,7 @@ mod tests {
         let dir = vendor_tables();
         assert!(
             dir.is_dir(),
-            "schema officiel absent : {} — lancer `git sparse-checkout add htdocs/install/mysql`",
+            "schema officiel absent : {} â€” lancer `git sparse-checkout add htdocs/install/mysql`",
             dir.display()
         );
         load_tables(&dir).expect("lecture du schema officiel")
@@ -405,4 +405,38 @@ mod tests {
         let back: Manifest = serde_json::from_str(&json).unwrap();
         assert_eq!(back.tables.len(), 410);
     }
+}
+
+/// Un point-virgule dans une chaine ne coupe pas l'instruction.
+///
+/// C'est la difference entre `split_statements` et un `split(';')` naif :
+/// une valeur comme `'devis; signature'` serait coupee en deux, et la
+/// migration echouerait sur une instruction tronquee.
+#[test]
+fn un_point_virgule_dans_une_chaine_ne_coupe_pas() {
+    let sql = "INSERT INTO t VALUES ('a;b', 'c');\nUPDATE t SET x = ';';\n";
+    let st = ddl::split_statements(sql);
+    assert_eq!(st.len(), 2, "{st:?}");
+    assert!(st[0].contains("'a;b'"), "{st:?}");
+}
+
+/// Les commentaires disparaissent, et l'instruction suivante survit.
+///
+/// MariaDB ne reconnait `--` comme commentaire que suivi d'un blanc :
+/// `-- note` disparait, `a - -b` reste une soustraction.
+#[test]
+fn les_commentaires_ne_collent_pas_a_l_instruction() {
+    let sql = "-- note de bas de page\nCREATE TABLE t (a int);\n# autre\n";
+    let st = ddl::split_statements(sql);
+    assert_eq!(st.len(), 1, "{st:?}");
+    assert!(st[0].starts_with("CREATE TABLE"), "{st:?}");
+}
+
+/// Sans blanc apres `--`, ce n'est pas un commentaire : c'est une
+/// soustraction, et on ne la mange pas.
+#[test]
+fn un_double_moins_sans_blanc_reste_du_code() {
+    let st = ddl::split_statements("SELECT 3 - -2;");
+    assert_eq!(st.len(), 1, "{st:?}");
+    assert!(st[0].contains("- -2"), "{st:?}");
 }
