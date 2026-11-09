@@ -206,7 +206,7 @@ pub fn marge_par_chantier(pool: &Pool, entity: i64) -> Result<Vec<MargeChantier>
             }
         })
         .collect();
-    liste.sort_by(|a, b| b.marge().cmp(&a.marge()));
+    liste.sort_by_key(|m| std::cmp::Reverse(m.marge()));
     Ok(liste)
 }
 
