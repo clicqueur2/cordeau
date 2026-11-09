@@ -82,6 +82,32 @@ pub fn date_creation(pool: &Pool, table: &str) -> Result<String, Box<dyn Error>>
     Ok(nom)
 }
 
+/// Cette colonne existe-t-elle dans cette table ?
+///
+/// Meme cache que `date_creation` : la reponse ne change pas pendant la vie du
+/// processus. Sert aux colonnes qu'une base d'installation porte et qu'une base
+/// de production n'a pas — le cas de `llx_salary.num_payment` chez Pierre
+/// Angulaire, absent de la production et present sur une installation neuve.
+pub fn existe(pool: &Pool, table: &str, colonne: &str) -> Result<bool, Box<dyn Error>> {
+    let cle = format!("{table}.{colonne}");
+    if let Ok(garde) = cache().lock() {
+        if let Some(v) = garde.get(&cle) {
+            return Ok(v == "1");
+        }
+    }
+    let mut conn = pool.get_conn()?;
+    let n: Option<i64> = conn.exec_first(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS \
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :colonne",
+        params! { "table" => table, "colonne" => colonne },
+    )?;
+    let present = n.unwrap_or(0) > 0;
+    if let Ok(mut garde) = cache().lock() {
+        garde.insert(cle, if present { "1".into() } else { "0".into() });
+    }
+    Ok(present)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
