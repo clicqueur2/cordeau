@@ -45,6 +45,42 @@ pub(crate) fn montre(visibles: &[String], nom: &str) -> bool {
     visibles.iter().any(|c| c == nom)
 }
 
+/// Le libelle affiche pour un nom de colonne.
+///
+/// Les noms techniques restent courts et stables (`ttc`, `echeance`) ; ce que
+/// l'utilisateur lit, lui, est en francais.
+pub(crate) fn libelle_colonne(nom: &str) -> &'static str {
+    match nom {
+        "code" => "Code",
+        "ref" => "Référence",
+        "nom" => "Nom",
+        "libelle" => "Libellé",
+        "titre" => "Intitulé",
+        "client" => "Client",
+        "societe" => "Société",
+        "ville" => "Ville",
+        "type" => "Type",
+        "email" => "E-mail",
+        "telephone" => "Téléphone",
+        "siret" => "SIRET",
+        "prix" => "Prix unitaire",
+        "unite" => "Unité",
+        "tva" => "TVA",
+        "ht" => "Total HT",
+        "ttc" => "Total TTC",
+        "reste" => "Reste dû",
+        "date" => "Date",
+        "debut" => "Début",
+        "fin" => "Fin",
+        "echeance" => "Échéance",
+        "budget" => "Budget",
+        "statut" => "Statut",
+        "sujet" => "Sujet",
+        "gravite" => "Gravité",
+        _ => "Colonne",
+    }
+}
+
 /// Le panneau de choix des colonnes.
 ///
 /// `disponibles` porte les noms techniques ; le libelle affiche vient de la
@@ -59,7 +95,7 @@ pub(crate) fn choix_colonnes(liste: &str, disponibles: &[&str], visibles: &[Stri
                     label .etiquette {
                         input type="checkbox" name={"c_" (c)} value="1"
                               checked[montre(visibles, c)];
-                        " " (crate::langue::tr(c))
+                        " " (libelle_colonne(c))
                     }
                 }
                 div .actions {

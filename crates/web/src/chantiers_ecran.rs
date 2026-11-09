@@ -24,25 +24,60 @@ pub(crate) async fn chantiers(
             p .sous-titre {(crate::langue::tr("Un chantier porte son budget et ses tâches : c'est le projet Dolibarr (llx_projet)."))
             }
 
+            @let visibles = colonnes::visibles(
+                &app.pool,
+                "chantiers",
+                &["ref", "titre", "client", "debut", "fin", "budget", "statut"],
+            )?;
+            (colonnes::choix_colonnes(
+                "chantiers",
+                &["ref", "titre", "client", "debut", "fin", "budget", "statut"],
+                &visibles,
+            ))
+
             @if liste.is_empty() {
                 (ui::vide("Aucun chantier.", None))
             } @else {
                 table {
-                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Chantier")) } th {(crate::langue::tr("Client")) } th {(crate::langue::tr("Début")) } th {(crate::langue::tr("Fin")) } th .num {(crate::langue::tr("Budget")) } th { "État" } } }
+                    thead {
+                        tr {
+                            @if colonnes::montre(&visibles, "ref") { th {(crate::langue::tr("Réf.")) } }
+                            @if colonnes::montre(&visibles, "titre") { th {(crate::langue::tr("Chantier")) } }
+                            @if colonnes::montre(&visibles, "client") { th {(crate::langue::tr("Client")) } }
+                            @if colonnes::montre(&visibles, "debut") { th {(crate::langue::tr("Début")) } }
+                            @if colonnes::montre(&visibles, "fin") { th {(crate::langue::tr("Fin")) } }
+                            @if colonnes::montre(&visibles, "budget") { th .num {(crate::langue::tr("Budget")) } }
+                            @if colonnes::montre(&visibles, "statut") { th { "État" } }
+                        }
+                    }
                     tbody {
                         @for c in &liste {
                             tr {
-                                td .ref { a href={ "/chantiers/" (c.rowid) } { (c.ref_) } }
-                                td { a href={ "/chantiers/" (c.rowid) } { (c.title) } }
-                                td { (nom_tiers(p, c.fk_soc)?) }
-                                td .ref { (c.date_start.clone().unwrap_or_default()) }
-                                td .ref { (c.date_end.clone().unwrap_or_default()) }
-                                td .num { (ui::euros(c.budget.unwrap_or_default())) }
-                                td {
-                                    @if c.est_ouvert() {
-                                        span .pastille.p-validee { "ouvert" }
-                                    } @else {
-                                        span .pastille.p-payee { "clos" }
+                                @if colonnes::montre(&visibles, "ref") {
+                                    td .ref { a href={ "/chantiers/" (c.rowid) } { (c.ref_) } }
+                                }
+                                @if colonnes::montre(&visibles, "titre") {
+                                    td { a href={ "/chantiers/" (c.rowid) } { (c.title) } }
+                                }
+                                @if colonnes::montre(&visibles, "client") {
+                                    td { (nom_tiers(p, c.fk_soc)?) }
+                                }
+                                @if colonnes::montre(&visibles, "debut") {
+                                    td .ref { (app::fmt_date_fr(c.date_start.as_deref())) }
+                                }
+                                @if colonnes::montre(&visibles, "fin") {
+                                    td .ref { (app::fmt_date_fr(c.date_end.as_deref())) }
+                                }
+                                @if colonnes::montre(&visibles, "budget") {
+                                    td .num { (ui::euros(c.budget.unwrap_or_default())) }
+                                }
+                                @if colonnes::montre(&visibles, "statut") {
+                                    td {
+                                        @if c.est_ouvert() {
+                                            span .pastille.p-validee { "ouvert" }
+                                        } @else {
+                                            span .pastille.p-payee { "clos" }
+                                        }
                                     }
                                 }
                             }
