@@ -82,10 +82,15 @@ pub fn prepare_file(sql: &str, entity: i64) -> (String, usize) {
 }
 
 fn strip_inline_comment(line: &str) -> String {
+    // Dolibarr retire `--` **et tout ce qui suit**, sur toute la ligne
+    // (`preg_replace('/--.*$/m')`), sans exiger d'espace avant. On faisait la
+    // meme chose a une condition pres : il fallait un blanc avant `--`, donc
+    // `...)--Value (Price of the content...)` passait au travers. Sur les
+    // scripts de la 12, ce seul cas faisait echouer la moitie des tables.
     let bytes = line.as_bytes();
-    let mut i = 1;
+    let mut i = 0;
     while i + 1 < bytes.len() {
-        if bytes[i] == b'-' && bytes[i + 1] == b'-' && bytes[i - 1].is_ascii_whitespace() {
+        if bytes[i] == b'-' && bytes[i + 1] == b'-' {
             return line[..i].trim_end().to_string();
         }
         i += 1;
