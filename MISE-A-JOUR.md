@@ -47,9 +47,58 @@ Dolibarr écrit sa version dans ses constantes : `MAIN_VERSION_LAST_UPGRADE`
 (lue par `htdocs/install/check.php`). C'est la première chose à interroger — avant
 toute requête métier.
 
-**À confirmer sur une base réelle** dès que MariaDB sera relancé (`llx_const`,
-entités 0 et courante). Tant que ce n'est pas mesuré, ce fichier le dit au lieu
-de le supposer.
+### Mesuré sur la copie de production, le 9 novembre 2026
+
+```
+MAIN_VERSION_LAST_INSTALL   24.0.1
+MAIN_VERSION_LAST_UPGRADE   24.0.1
+tables                      487
+```
+
+La base est donc **à jour**, et le nom de la constante d'installation (24.0.1)
+montre qu'elle a été réinstallée, pas montée depuis la 19 comme le laissait croire
+le commentaire de son `conf.php`.
+
+## L'empreinte : ce qu'elle dit, et ce qu'elle ne peut pas dire
+
+`schema verify` sur la **base de test** (installation neuve, 412 tables) :
+
+```
+empreinte          7293039a…8b2f   ← identique à REGLE-SCHEMA.md
+tables absentes    0
+colonnes absentes  0
+types differents   0
+```
+
+Sur la **copie de production** (487 tables, donc base réelle) :
+
+```
+tables absentes    14
+colonnes absentes  12
+types differents   68
+tables inconnues   89
+```
+
+**Ce n'est pas une alerte : c'est une leçon.** Les 14 tables « absentes » sont
+celles de modules **non installés** (bookcal 4, printer_receipt 2, quickmemo 3,
+stocktransfer 1…) : Dolibarr ne crée une table de module qu'à son activation. Une
+installation neuve les a toutes ; une vraie base n'a que celles de ses modules.
+
+Les 12 colonnes absentes sont plus intéressantes : `llx_facture.retained_warranty_amount`,
+`llx_salary.num_payment`, `llx_societe_perentity.fk_account`, `llx_user.idpers1`…
+Elles existent dans le schéma d'**installation neuve**, pas dans une base
+**montée** — parce que Dolibarr ajoute certaines colonnes par `ALTER` de migration
+sans les mettre dans les `CREATE TABLE`.
+
+**Conséquence, et c'est un chantier** : une empreinte unique ne suffit pas. Il en
+faut **deux** — « installation neuve » et « base montée depuis N » — ou bien un
+`verify` qui classe chaque écart au lieu de le compter comme une faute :
+
+| Écart | Verdict |
+|---|---|
+| table d'un module non activé | **normal** |
+| colonne présente au `CREATE` mais absente après montée | **normal si**, et seulement si, aucune migration ne l'ajoute |
+| colonne du cœur absente dans les deux références | **cassé** |
 
 ## La procédure de montée, telle qu'elle doit se dérouler
 
