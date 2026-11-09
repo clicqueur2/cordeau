@@ -650,6 +650,50 @@ html[data-style="sable"] h1 { letter-spacing: -.025em; }
   header .compte .bouton { padding: 0 8px; }
 }
 
+
+/* « collaboratif » : l'indigo et la lavande des outils d'equipe, rayons plus
+   ronds, pastilles vives. Ce qu'on prend a Monday/Asana sans les degrades. */
+html[data-style="collaboratif"] {
+  --encre: #1e1b4b;
+  --encre-douce: #383273;
+  --muet: #6366a8;
+  --pale: #8e90c4;
+  --papier: #f5f3ff;
+  --surface: #ffffff;
+  --surface-2: #faf9ff;
+  --surface-3: #eeecfd;
+  --verre: rgba(255, 255, 255, .82);
+  --trait: #e6e3fb;
+  --trait-fort: #cfcaf5;
+  --accent: #6366f1;
+  --accent-fonce: #4f46e5;
+  --accent-clair: #eef0ff;
+  --accent-trait: #d8d9fd;
+  --anneau: rgba(99, 102, 241, .35);
+  --vert: #059669;
+  --vert-clair: #e7f8f1;
+  --vert-trait: #b3e6d2;
+  --rouge: #e11d48;
+  --rouge-clair: #fff1f4;
+  --rouge-trait: #fbd0da;
+  --bleu: #2563eb;
+  --bleu-clair: #eff4ff;
+  --bleu-trait: #cfdcfb;
+  --ambre: #b45309;
+  --ambre-clair: #fff8eb;
+  --ambre-trait: #fde3b3;
+  --rayon: 10px;
+  --rayon-lg: 14px;
+  --ombre-1: 0 1px 2px rgba(49, 46, 129, .06), 0 0 0 1px rgba(99, 102, 241, .05);
+  --ombre-2: 0 8px 24px rgba(49, 46, 129, .1);
+  --ombre-3: 0 24px 48px rgba(49, 46, 129, .18);
+}
+html[data-style="collaboratif"] header .marque .sceau,
+html[data-style="collaboratif"] .connexion-marque .sceau {
+  background: linear-gradient(160deg, #818cf8 0%, #6366f1 60%, #4f46e5 100%);
+}
+html[data-style="collaboratif"] .pastille { font-weight: 600; }
+
 /* ===== mode sombre ===================================================== */
 @media (prefers-color-scheme: dark) {
   :root {

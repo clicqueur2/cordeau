@@ -118,6 +118,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                                title=(crate::langue::tr("Style d'affichage"))
                                onchange="document.documentElement.setAttribute('data-style',this.value);try{localStorage.setItem('cordeau-style',this.value)}catch(e){}" {
                             option value="systeme" { (crate::langue::tr("Style système")) }
+                            option value="collaboratif" { (crate::langue::tr("Collaboratif")) }
                             option value="futuriste" { (crate::langue::tr("Futuriste")) }
                             option value="minuit" { (crate::langue::tr("Minuit")) }
                             option value="sable" { (crate::langue::tr("Sable")) }
