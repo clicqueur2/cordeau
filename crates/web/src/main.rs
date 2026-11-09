@@ -40,6 +40,8 @@ pub(crate) use commandes_ecran::{
     commande_acompte, commande_facturer, commande_fiche, commande_pdf, commande_valider, commandes,
 };
 mod commandes_ecran;
+pub(crate) use carnet_ecran::{carnet, marges_chantiers};
+mod carnet_ecran;
 pub(crate) use facturation_ecran::{
     factures, factures_avoir, factures_creer, factures_fiche, factures_nouveau, factures_pdf,
     factures_recurrence, factures_reglement, factures_valider, relances,

@@ -70,6 +70,7 @@ pub fn routes(app: App) -> Router {
         .route("/devis/:id/commander", post(devis_commander))
         .route("/commandes", get(commandes))
         .route("/commandes/actions", post(actions_masse::commandes))
+        .route("/commandes/carnet", get(carnet))
         .route("/commandes/:id", get(commande_fiche))
         .route("/commandes/:id/valider", post(commande_valider))
         .route("/commandes/:id/facturer", post(commande_facturer))
@@ -108,6 +109,7 @@ pub fn routes(app: App) -> Router {
         )
         .route("/relances", get(relances))
         .route("/chantiers", get(chantiers).post(chantier_creer))
+        .route("/chantiers/marges", get(marges_chantiers))
         .route("/chantiers/:id", get(chantier_fiche))
         .route("/chantiers/:id/tache", post(chantier_tache_creer))
         .route(
