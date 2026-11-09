@@ -139,7 +139,7 @@ pub(crate) async fn ping(headers: HeaderMap) -> ApiResult {
 /// Dolibarr renvoie le fichier brut ; on fait pareil, avec le meme chemin
 /// relatif. Un PDF absent est un 404, pas un 500.
 pub(crate) async fn document_telecharger(
-    State(app): State<App>,
+    State(_app): State<App>,
     headers: HeaderMap,
     Query(q): Query<HashMap<String, String>>,
 ) -> Result<Response, ApiErreur> {
