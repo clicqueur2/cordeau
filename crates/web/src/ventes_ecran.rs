@@ -17,6 +17,16 @@ pub(crate) async fn devis(
         .get("q")
         .map(|s| s.trim().to_lowercase())
         .unwrap_or_default();
+    let du = q
+        .get("du")
+        .cloned()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_default();
+    let au = q
+        .get("au")
+        .cloned()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_default();
 
     let tous = db::proposal::list(p, entite::courante(), 200, 0)?;
     let total = tous.len();
@@ -31,7 +41,11 @@ pub(crate) async fn devis(
                 _ => true,
             };
             let par_texte = filtre.is_empty() || d.ref_.to_lowercase().contains(&filtre);
-            par_statut && par_texte
+            // La date du devis : `datep` quand il est valide, `datec` sinon.
+            let jour = d.datep.as_deref().or(d.datec.as_deref()).unwrap_or("");
+            let par_periode =
+                (du.is_empty() || jour >= du.as_str()) && (au.is_empty() || jour <= au.as_str());
+            par_statut && par_texte && par_periode
         })
         .collect();
 
@@ -50,13 +64,21 @@ pub(crate) async fn devis(
                         option value="signe" selected[statut == "signe"] {(crate::langue::tr("Signés")) }
                         option value="perdu" selected[statut == "perdu"] {(crate::langue::tr("Perdus")) }
                     }
+                    input type="date" name="du" value=(du) aria-label="Du";
+                    input type="date" name="au" value=(au) aria-label="Au";
                     input type="search" name="q" value=(filtre) placeholder="Référence…" aria-label="Recherche";
                     button type="submit" class="petit" {(crate::langue::tr("Filtrer")) }
-                    @if !statut.is_empty() || !filtre.is_empty() {
+                    @if !statut.is_empty() || !filtre.is_empty() || !du.is_empty() || !au.is_empty() {
                         a .bouton.secondaire.petit href="/devis" {(crate::langue::tr("Tout voir")) }
                     }
                 }
             }
+            @let visibles = colonnes::visibles(
+                &app.pool,
+                "devis",
+                &["ref", "client", "ttc", "statut"],
+            )?;
+
             p .sous-titre {
                 (listes.len()) " devis"
                 @if listes.len() != total {
@@ -76,10 +98,21 @@ pub(crate) async fn devis(
                 (ui::vide("Aucun devis.", None))
             } @else {
                 table {
-                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th .num {(crate::langue::tr("HT")) } th .num {(crate::langue::tr("TTC")) } th {(crate::langue::tr("Statut")) } th { "" } } }
+                    thead {
+                        tr {
+                            @if colonnes::montre(&visibles, "ref") { th {(crate::langue::tr("Réf.")) } }
+                            @if colonnes::montre(&visibles, "client") { th {(crate::langue::tr("Client")) } }
+                            @if colonnes::montre(&visibles, "date") { th {(crate::langue::tr("Date")) } }
+                            @if colonnes::montre(&visibles, "ht") { th .num {(crate::langue::tr("HT")) } }
+                            @if colonnes::montre(&visibles, "ttc") { th .num {(crate::langue::tr("TTC")) } }
+                            @if colonnes::montre(&visibles, "statut") { th {(crate::langue::tr("Statut")) } }
+                            th { "" }
+                        }
+                    }
                     tbody {
                         @for d in &listes {
                             tr {
+                                @if colonnes::montre(&visibles, "ref") {
                                 td .ref {
                                     @if d.fk_statut == 0 {
                                         input type="checkbox" name={"id_" (d.rowid)}
@@ -89,10 +122,22 @@ pub(crate) async fn devis(
                                     }
                                     a href={ "/devis/" (d.rowid) } { (d.ref_) }
                                 }
-                                td { (nom_tiers(p, d.fk_soc)?) }
-                                td .num { (ui::euros(d.total_ht.unwrap_or_default())) }
-                                td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
-                                td { (ui::pastille(d.fk_statut, 0, false)) }
+                                }
+                                @if colonnes::montre(&visibles, "client") {
+                                    td { (nom_tiers(p, d.fk_soc)?) }
+                                }
+                                @if colonnes::montre(&visibles, "date") {
+                                    td .ref { (app::fmt_date_fr(d.datep.as_deref().or(d.datec.as_deref()))) }
+                                }
+                                @if colonnes::montre(&visibles, "ht") {
+                                    td .num { (ui::euros(d.total_ht.unwrap_or_default())) }
+                                }
+                                @if colonnes::montre(&visibles, "ttc") {
+                                    td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
+                                }
+                                @if colonnes::montre(&visibles, "statut") {
+                                    td { (ui::pastille(d.fk_statut, 0, false)) }
+                                }
                                 td { a .bouton.petit.secondaire href={ "/devis/" (d.rowid) } {(crate::langue::tr("Ouvrir")) } }
                             }
                         }

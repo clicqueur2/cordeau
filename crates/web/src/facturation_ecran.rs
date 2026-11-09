@@ -17,6 +17,17 @@ pub(crate) async fn factures(
         .get("q")
         .map(|s| s.trim().to_lowercase())
         .unwrap_or_default();
+    let du = q
+        .get("du")
+        .cloned()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_default();
+    let au = q
+        .get("au")
+        .cloned()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_default();
+    let retard_seulement = q.get("retard").map(|v| v == "1").unwrap_or(false);
 
     let toutes = db::invoice::list(p, entite::courante(), 2000, 0)?;
     let total_db = db::invoice::count(p, entite::courante()).unwrap_or(0);
@@ -33,7 +44,13 @@ pub(crate) async fn factures(
                 _ => true,
             };
             let par_texte = filtre.is_empty() || f.ref_.to_lowercase().contains(&filtre);
-            par_statut && par_texte
+            let jour_facture = f.datef.as_deref().or(f.datec.as_deref()).unwrap_or("");
+            let par_periode = (du.is_empty() || jour_facture >= du.as_str())
+                && (au.is_empty() || jour_facture <= au.as_str());
+            let par_retard = !retard_seulement
+                || (f.paye == 0
+                    && en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour));
+            par_statut && par_texte && par_periode && par_retard
         })
         .collect();
 
@@ -51,9 +68,15 @@ pub(crate) async fn factures(
                         option value="validee" selected[statut == "validee"] {(crate::langue::tr("Validées, non payées")) }
                         option value="payee" selected[statut == "payee"] {(crate::langue::tr("Payées")) }
                     }
+                    input type="date" name="du" value=(du) aria-label="Du";
+                    input type="date" name="au" value=(au) aria-label="Au";
+                    label .etiquette {
+                        input type="checkbox" name="retard" value="1" checked[retard_seulement];
+                        " " (crate::langue::tr("en retard"))
+                    }
                     input type="search" name="q" value=(filtre) placeholder="Référence…" aria-label="Recherche";
                     button type="submit" class="petit" {(crate::langue::tr("Filtrer")) }
-                @if !statut.is_empty() || !filtre.is_empty() {
+                @if !statut.is_empty() || !filtre.is_empty() || !du.is_empty() || !au.is_empty() || retard_seulement {
                     a .bouton.secondaire.petit href="/factures" {(crate::langue::tr("Tout voir")) }
                 }
             }
@@ -69,28 +92,64 @@ pub(crate) async fn factures(
                 span class="aide" {(crate::langue::tr("Seules les factures en brouillon sont cochables."))
                 }
             }
+            @let visibles = colonnes::visibles(
+                &app.pool,
+                "factures",
+                &["ref", "client", "echeance", "ttc", "reste", "statut"],
+            )?;
+            (colonnes::choix_colonnes(
+                "factures",
+                &["ref", "client", "date", "echeance", "ttc", "reste", "statut"],
+                &visibles,
+            ))
+
             @if listes.is_empty() {
                 (ui::vide("Aucune facture.", Some(("/devis", "Partir d'un devis"))))
             } @else {
                 table {
-                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th {(crate::langue::tr("Échéance")) } th .num {(crate::langue::tr("TTC")) } th .num {(crate::langue::tr("Reste dû")) } th {(crate::langue::tr("Statut")) } } }
+                    thead {
+                        tr {
+                            @if colonnes::montre(&visibles, "ref") { th {(crate::langue::tr("Réf.")) } }
+                            @if colonnes::montre(&visibles, "client") { th {(crate::langue::tr("Client")) } }
+                            @if colonnes::montre(&visibles, "date") { th {(crate::langue::tr("Date")) } }
+                            @if colonnes::montre(&visibles, "echeance") { th {(crate::langue::tr("Échéance")) } }
+                            @if colonnes::montre(&visibles, "ttc") { th .num {(crate::langue::tr("TTC")) } }
+                            @if colonnes::montre(&visibles, "reste") { th .num {(crate::langue::tr("Reste dû")) } }
+                            @if colonnes::montre(&visibles, "statut") { th {(crate::langue::tr("Statut")) } }
+                        }
+                    }
                     tbody {
                         @for f in &listes {
                             tr {
-                                td .ref {
-                                    @if f.fk_statut == 0 {
-                                        input type="checkbox" name={"id_" (f.rowid)}
-                                              value="1" form="actions-factures"
-                                              aria-label="sélectionner cette facture";
-                                        " "
+                                @if colonnes::montre(&visibles, "ref") {
+                                    td .ref {
+                                        @if f.fk_statut == 0 {
+                                            input type="checkbox" name={"id_" (f.rowid)}
+                                                  value="1" form="actions-factures"
+                                                  aria-label="sélectionner cette facture";
+                                            " "
+                                        }
+                                        a href={ "/factures/" (f.rowid) } { (f.ref_) }
                                     }
-                                    a href={ "/factures/" (f.rowid) } { (f.ref_) }
                                 }
-                                td { (nom_tiers(p, f.fk_soc)?) }
-                                td { (f.date_lim_reglement.clone().unwrap_or_default()) }
-                                td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
-                                td .num { (ui::euros(db::payment::balance(p, entite::courante(), f.rowid)?.reste)) }
-                                td { (ui::pastille(f.fk_statut, f.paye, en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour))) }
+                                @if colonnes::montre(&visibles, "client") {
+                                    td { (nom_tiers(p, f.fk_soc)?) }
+                                }
+                                @if colonnes::montre(&visibles, "date") {
+                                    td .ref { (app::fmt_date_fr(f.datef.as_deref().or(f.datec.as_deref()))) }
+                                }
+                                @if colonnes::montre(&visibles, "echeance") {
+                                    td .ref { (app::fmt_date_fr(f.date_lim_reglement.as_deref())) }
+                                }
+                                @if colonnes::montre(&visibles, "ttc") {
+                                    td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
+                                }
+                                @if colonnes::montre(&visibles, "reste") {
+                                    td .num { (ui::euros(db::payment::balance(p, entite::courante(), f.rowid)?.reste)) }
+                                }
+                                @if colonnes::montre(&visibles, "statut") {
+                                    td { (ui::pastille(f.fk_statut, f.paye, en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour))) }
+                                }
                             }
                         }
                     }
