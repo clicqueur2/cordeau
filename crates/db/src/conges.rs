@@ -310,15 +310,22 @@ pub fn jours_ouvres(debut: &str, fin: &str, demi: bool) -> Result<Decimal, Erreu
     })
 }
 
-const SELECT_COLS: &str = "h.rowid, h.entity, h.ref, h.fk_user, u.login, h.fk_type, t.label, \
-     DATE_FORMAT(h.date_create, '%Y-%m-%d %H:%i:%s'), h.description, \
+/// Colonnes lues. Le nom de la date de creation depend de la version de
+/// Dolibarr (`date_create` en 24, `date_creation` en 25) : il est demande a la
+/// base plutot qu'ecrit en dur.
+fn select_cols(date_create: &str) -> String {
+    format!(
+        "h.rowid, h.entity, h.ref, h.fk_user, u.login, h.fk_type, t.label, \
+     DATE_FORMAT(h.{date_create}, '%Y-%m-%d %H:%i:%s'), h.description, \
      DATE_FORMAT(h.date_debut, '%Y-%m-%d'), DATE_FORMAT(h.date_fin, '%Y-%m-%d'), \
      h.halfday, CAST(h.nb_open_day AS CHAR), h.statut, h.fk_validator, \
      DATE_FORMAT(h.date_valid, '%Y-%m-%d %H:%i:%s'), h.fk_user_valid, \
      DATE_FORMAT(h.date_approval, '%Y-%m-%d %H:%i:%s'), h.fk_user_approve, \
      DATE_FORMAT(h.date_refuse, '%Y-%m-%d %H:%i:%s'), h.fk_user_refuse, \
      DATE_FORMAT(h.date_cancel, '%Y-%m-%d %H:%i:%s'), h.fk_user_cancel, \
-     h.detail_refuse, h.note_private, h.note_public";
+     h.detail_refuse, h.note_private, h.note_public"
+    )
+}
 
 fn opt_s(row: &Row, i: usize) -> Option<String> {
     row.get_opt::<String, _>(i).and_then(|r| r.ok())
@@ -400,11 +407,12 @@ pub fn list(
 ) -> Result<Vec<Conge>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let sql = format!(
-        "SELECT {SELECT_COLS} FROM llx_holiday h \
+        "SELECT {} FROM llx_holiday h \
          LEFT JOIN llx_user u ON u.rowid = h.fk_user \
          LEFT JOIN llx_c_holiday_types t ON t.rowid = h.fk_type \
          WHERE h.entity = :entity \
-         ORDER BY h.date_debut DESC, h.rowid DESC LIMIT :limite OFFSET :offset"
+         ORDER BY h.date_debut DESC, h.rowid DESC LIMIT :limite OFFSET :offset",
+        select_cols(&crate::colonnes::date_creation(pool, "llx_holiday")?)
     );
     let rows: Vec<Row> = conn.exec(
         sql,
@@ -417,10 +425,11 @@ pub fn list(
 pub fn get(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Conge>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let sql = format!(
-        "SELECT {SELECT_COLS} FROM llx_holiday h \
+        "SELECT {} FROM llx_holiday h \
          LEFT JOIN llx_user u ON u.rowid = h.fk_user \
          LEFT JOIN llx_c_holiday_types t ON t.rowid = h.fk_type \
-         WHERE h.entity = :entity AND h.rowid = :rowid"
+         WHERE h.entity = :entity AND h.rowid = :rowid",
+        select_cols(&crate::colonnes::date_creation(pool, "llx_holiday")?)
     );
     let row: Option<Row> =
         conn.exec_first(sql, params! { "entity" => entity, "rowid" => rowid })?;
@@ -524,14 +533,17 @@ pub fn create(pool: &Pool, entity: i64, new: &NewConge) -> Result<i64, Box<dyn E
     let demi: i32 = if new.halfday { 1 } else { 0 };
 
     let mut conn = pool.get_conn()?;
+    let date_create = crate::colonnes::date_creation(pool, "llx_holiday")?;
     conn.exec_drop(
-        "INSERT INTO llx_holiday \
-         (entity, ref, fk_user, fk_user_create, fk_type, date_create, description, \
+        format!(
+            "INSERT INTO llx_holiday \
+         (entity, ref, fk_user, fk_user_create, fk_type, {date_create}, description, \
           date_debut, date_fin, halfday, nb_open_day, statut, fk_validator, \
           note_private, note_public) \
          VALUES (:entity, :ref, :utilisateur, :createur, :type_conge, NOW(), \
           :description, :debut, :fin, :demi, :jours, :statut, :valideur, \
-          :note_private, :note_public)",
+          :note_private, :note_public)"
+        ),
         params! {
             "entity" => entity,
             "ref" => reference.as_str(),

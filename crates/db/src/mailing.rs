@@ -158,14 +158,18 @@ impl Mailing {
 /// `COALESCE` protège des colonnes nullables que Dolibarr laisse vides sur les
 /// vieilles lignes : une campagne sans `titre` s'affiche alors avec un libellé
 /// vide au lieu de faire échouer le décodage de toute la liste.
-const SELECT_COLS: &str = "m.rowid, m.entity, COALESCE(m.titre, ''), \
+fn select_cols(date_creation: &str) -> String {
+    format!(
+        "m.rowid, m.entity, COALESCE(m.titre, ''), \
      COALESCE(m.sujet, ''), COALESCE(m.messtype, 'email'), \
      COALESCE(m.statut, 0), COALESCE(m.nbemail, 0), \
      m.email_from, m.name_from, m.cible, \
-     DATE_FORMAT(m.date_creat, '%Y-%m-%d %H:%i'), \
+     DATE_FORMAT(m.{date_creation}, '%Y-%m-%d %H:%i'), \
      DATE_FORMAT(m.date_valid, '%Y-%m-%d %H:%i'), \
      DATE_FORMAT(m.date_appro, '%Y-%m-%d %H:%i'), \
-     DATE_FORMAT(m.date_envoi, '%Y-%m-%d %H:%i')";
+     DATE_FORMAT(m.date_envoi, '%Y-%m-%d %H:%i')"
+    )
+}
 
 fn opt_s(row: &Row, i: usize) -> Option<String> {
     row.get_opt::<String, _>(i).and_then(|r| r.ok())
@@ -207,9 +211,11 @@ pub fn list(
     let mut conn = pool.get_conn()?;
     // `NULL` à la place du corps : voir `Mailing::body`. Le nombre de colonnes
     // reste le même que dans `get`, donc `map_row` est partagé.
+    let date_creation = crate::colonnes::date_creation(pool, "llx_mailing")?;
     let sql = format!(
-        "SELECT {SELECT_COLS}, NULL FROM llx_mailing m WHERE m.entity = ? \
-         ORDER BY m.date_creat DESC, m.rowid DESC LIMIT ? OFFSET ?"
+        "SELECT {}, NULL FROM llx_mailing m WHERE m.entity = ? \
+         ORDER BY m.{date_creation} DESC, m.rowid DESC LIMIT ? OFFSET ?",
+        select_cols(&date_creation)
     );
     let rows: Vec<Row> = conn.exec(sql, (entity, limite, offset))?;
     Ok(rows.iter().map(map_row).collect())
@@ -220,8 +226,9 @@ pub fn list(
 pub fn get(pool: &Pool, entity: i64, rowid: i64) -> Result<Option<Mailing>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let sql = format!(
-        "SELECT {SELECT_COLS}, m.body FROM llx_mailing m \
-         WHERE m.entity = ? AND m.rowid = ?"
+        "SELECT {}, m.body FROM llx_mailing m \
+         WHERE m.entity = ? AND m.rowid = ?",
+        select_cols(&crate::colonnes::date_creation(pool, "llx_mailing")?)
     );
     let row: Option<Row> = conn.exec_first(sql, (entity, rowid))?;
     Ok(row.as_ref().map(map_row))
@@ -330,12 +337,15 @@ fn normaliser(new: &NewMailing) -> Result<Champs<'_>, Box<dyn Error>> {
 pub fn create(pool: &Pool, entity: i64, new: &NewMailing) -> Result<i64, Box<dyn Error>> {
     let champs = normaliser(new)?;
     let mut conn = pool.get_conn()?;
+    let date_creation = crate::colonnes::date_creation(pool, "llx_mailing")?;
     let insere = conn.exec_drop(
-        "INSERT INTO llx_mailing \
+        format!(
+            "INSERT INTO llx_mailing \
          (entity, messtype, titre, sujet, body, cible, nbemail, email_from, name_from, \
-          email_replyto, statut, date_creat, note_private, note_public) \
+          email_replyto, statut, {date_creation}, note_private, note_public) \
          VALUES (:entity, :messtype, :titre, :sujet, :body, :cible, 0, :email_from, \
-          :name_from, :email_replyto, :statut, NOW(), :note_private, :note_public)",
+          :name_from, :email_replyto, :statut, NOW(), :note_private, :note_public)"
+        ),
         params! {
             "entity" => entity,
             "messtype" => champs.messtype,

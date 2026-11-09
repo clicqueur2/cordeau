@@ -61,6 +61,33 @@ Donc **18 lectures à adapter**, sur trois modules : congés, mailing, documents
 Rien de bloquant aujourd'hui — la production est en 24.0.1 — mais c'est le
 premier chantier de janvier 2027, et il est maintenant localisé.
 
+### Fait le 9 novembre 2026 : Cordeau lit les deux noms
+
+`crates/db/src/colonnes.rs` demande à `information_schema` **quel nom existe**
+dans la table, une fois par table et par processus, puis le garde. Les trois
+modules (congés, mailing, documents) construisent leur SQL avec ce nom :
+
+| Module | Table | Ancien | Nouveau |
+|---|---|---|---|
+| `conges.rs` | `llx_holiday` | `date_create` | `date_creation` |
+| `mailing.rs` | `llx_mailing` | `date_creat` | `date_creation` |
+| `ged.rs` | `llx_ecm_files` | `date_c` | `date_creation` |
+
+Les cinq autres tables annoncées (`llx_expensereport`, `llx_multicurrency`,
+`llx_element_contact`, `llx_ecm_directories`, `llx_mailing_unsubscribe`) sont
+déclarées dans la même table de correspondance : le jour où on les lira, le nom
+sera bon sans y penser.
+
+**Prouvé sur deux bases**, le 9 novembre 2026 : la copie de production en
+24.0.1 (`/conges`, `/mailings`, `/documents` → 200), et une copie de cette même
+base où l'on a renommé les trois colonnes en `date_creation` pour simuler la 25
+(les trois mêmes pages → 200). Aucune écriture en production : les deux bases
+sont des copies.
+
+C'est un **constat**, pas une migration : on ne renomme rien nous-mêmes, on
+demande à la base ce qu'elle porte. Une base 24 et une base 25 marchent avec le
+même binaire.
+
 ## 5. Méthode
 
 ```bash

@@ -49,12 +49,15 @@ pub fn archiver(
     let type_fichier = format!("application/{}", doc.extension);
 
     let mut conn = pool.get_conn()?;
+    let date_c = crate::colonnes::date_creation(pool, "llx_ecm_files")?;
     conn.exec_drop(
-        "INSERT INTO llx_ecm_files \
+        format!(
+            "INSERT INTO llx_ecm_files \
          (ref, label, entity, filepath, filename, src_object_type, src_object_id, \
-          gen_or_uploaded, date_c) \
+          gen_or_uploaded, {date_c}) \
          VALUES (:reference, :label, :entity, :filepath, :filename, :otype, :oid, \
-          'generated', NOW())",
+          'generated', NOW())"
+        ),
         params! {
             "reference" => doc.reference,
             "label" => doc.label,
@@ -91,12 +94,13 @@ pub struct DocumentIndexe {
 /// Tous les documents indexes de l'entite, du plus recent au plus ancien.
 pub fn tous(pool: &Pool, entity: i64, limit: u32) -> Result<Vec<DocumentIndexe>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
-    let rows: Vec<mysql::Row> = conn.exec(
-        "SELECT rowid, label, filepath, filename, DATE_FORMAT(date_c, '%Y-%m-%d') \
+    let date_c = crate::colonnes::date_creation(pool, "llx_ecm_files")?;
+    let sql = format!(
+        "SELECT rowid, label, filepath, filename, DATE_FORMAT({date_c}, '%Y-%m-%d') \
          FROM llx_ecm_files WHERE entity = :entity \
-         ORDER BY date_c DESC, rowid DESC LIMIT :limit",
-        params! { "entity" => entity, "limit" => limit },
-    )?;
+         ORDER BY {date_c} DESC, rowid DESC LIMIT :limit"
+    );
+    let rows: Vec<mysql::Row> = conn.exec(sql, params! { "entity" => entity, "limit" => limit })?;
     let s = |r: &mysql::Row, i: usize| r.get_opt::<String, _>(i).and_then(|v| v.ok());
     Ok(rows
         .into_iter()

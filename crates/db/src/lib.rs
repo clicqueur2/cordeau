@@ -21,6 +21,7 @@ pub mod carnet;
 pub mod categorie;
 pub mod cloture;
 pub mod code_barre;
+pub mod colonnes;
 pub mod commande;
 pub mod commande_fournisseur;
 pub mod company;
