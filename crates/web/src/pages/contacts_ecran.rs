@@ -335,7 +335,7 @@ pub async fn tickets(
                             }
                         }
                         tr { th {(crate::langue::tr("Sujet")) } td { input type="text" name="sujet" required class="pleine"; } }
-                        tr { th {(crate::langue::tr("Message")) } td { textarea name="message" rows="4" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #e6e2dc" {} } }
+                        tr { th {(crate::langue::tr("Message")) } td { textarea name="message" rows="4".pleine {} } }
                         tr {
                             th {(crate::langue::tr("Gravité")) }
                             td {

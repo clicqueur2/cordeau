@@ -138,7 +138,7 @@ pub async fn page(
                             th {(crate::langue::tr("Message")) }
                             td {
                                 textarea name="corps" rows="12" required
-                                    style="width:100%;font:inherit;padding:8px 10px;border:1px solid #e6e2dc" {}
+                                   .pleine {}
                             }
                         }
                         tr {
@@ -146,7 +146,7 @@ pub async fn page(
                             td {
                                 input type="email" name="test" required value=(test)
                                       class="pleine";
-                                p style="color:#78736c;font-size:12.5px;margin:6px 0 0" {
+                                p.aide.petite.sous-champ {
                                     "Le message part a cette seule adresse. La liste complete \
                                      n'est pas sollicitee tant que l'envoi n'est pas trace."
                                 }

@@ -237,7 +237,7 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                         }
                     }
                 }
-                p style="color:#78736c;font-size:12.5px;margin:6px 0 0" {
+                p.aide.petite.sous-champ {
                     span style="display:inline-block;width:10px;height:10px;background:#8a5a2b;margin-right:5px" {}
                     (crate::langue::tr("Ventes"))
                     "   "

@@ -721,7 +721,7 @@ pub async fn liste_saisie_form(
                                             value=(ch.defaut)
                                             required[ch.obligatoire];
                                         @if ch.sorte == Sorte::Nombre {
-                                            p style="color:#78736c;font-size:12px;margin:6px 0 0" {(crate::langue::tr("Montant en euros, virgule ou point."))
+                                            p.aide.petite.sous-champ {(crate::langue::tr("Montant en euros, virgule ou point."))
                                             }
                                         }
                                     }
@@ -732,7 +732,7 @@ pub async fn liste_saisie_form(
                 }
                 div .actions {
                     button type="submit" {(crate::langue::tr("Créer")) }
-                    a .bouton href={ "/liste/" (code) } style="margin-left:8px" {(crate::langue::tr("Annuler")) }
+                    a .bouton href={ "/liste/" (code) }.ecart {(crate::langue::tr("Annuler")) }
                 }
             }
         },
@@ -906,7 +906,7 @@ pub async fn fiche_saisie(
                 }
                 div .actions {
                     button type="submit" {(crate::langue::tr("Enregistrer")) }
-                    a .bouton href={ "/liste/" (code) } style="margin-left:8px" {(crate::langue::tr("Retour")) }
+                    a .bouton href={ "/liste/" (code) }.ecart {(crate::langue::tr("Retour")) }
                 }
             }
             form method="post"

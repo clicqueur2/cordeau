@@ -79,7 +79,7 @@ pub async fn page(
                             tr {
                                 td .ref { (c.nom.clone()) }
                                 td {
-                                    form method="post" action="/parametres/constantes" style="display:flex;gap:8px" {
+                                    form method="post" action="/parametres/constantes".rangee {
                                         input type="hidden" name="nom" value=(c.nom.clone());
                                         @if c.sensible {
                                             input type="password" name="valeur" value=""

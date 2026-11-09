@@ -65,7 +65,7 @@ pub async fn options_module(
                                         } @else {
                                             input type="text" name=(o.cle) value=(valeurs[i]) class="pleine";
                                         }
-                                        p style="color:#78736c;font-size:12px;margin:6px 0 0" {
+                                        p.aide.petite.sous-champ {
                                             (o.aide) " — constante " code { (o.cle) }
                                         }
                                     }

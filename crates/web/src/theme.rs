@@ -211,6 +211,13 @@ h2 { font-size: 12.5px; letter-spacing: -.01em; color: var(--encre-douce); margi
 h3 { font-size: 15px; font-weight: 600; letter-spacing: -.015em; margin: var(--e5) 0 var(--e2); }
 p { margin: 0 0 var(--e3); }
 
+/* Quatre utilitaires qui manquaient : ils reviennent partout en style inline. */
+.code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
+.rangee { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ecart { margin-left: 8px; }
+.defile { overflow-x: auto; }
+.zone-texte { min-height: 96px; font-size: 15px; }
+
 /* ===== tableaux ======================================================== */
 table {
   width: 100%; border-collapse: separate; border-spacing: 0;

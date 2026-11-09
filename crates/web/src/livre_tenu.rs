@@ -90,7 +90,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<maud::Markup> {
                     }
                 }
                 h2 {(crate::langue::tr("Dernières lignes")) }
-                div style="overflow-x:auto" {
+                div.defile {
                     table {
                         thead {
                             tr {

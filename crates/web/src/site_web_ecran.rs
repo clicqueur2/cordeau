@@ -142,11 +142,11 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
                 br;
                 label for="content" { (crate::langue::tr("Contenu")) }
                 textarea name="content" id="content" rows="5" required
-                         style="width:100%;font-family:ui-monospace,monospace;font-size:13px" {}
+                        .code.pleine {}
                 div .actions {
                     button type="submit" { (crate::langue::tr("Créer la page")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:0" {
+                p.aide {
                     (crate::langue::tr("Une page naît hors ligne. Elle ne devient publique que lorsque vous la publiez."))
                 }
             }
