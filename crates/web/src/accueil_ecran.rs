@@ -130,6 +130,16 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
             h1 { (crate::langue::tr("Tableau de bord")) }
             p .sous-titre { (crate::langue::tr("Exercice en cours")) " — " (jour.clone()) }
 
+            // Les quatre gestes qui commencent une journee. Un logiciel de
+            // gestion se juge a ce qu'on peut lancer sans chercher : ils sont
+            // la, en haut, avant les chiffres.
+            div .actions {
+                a .bouton href="/devis/nouveau" { (crate::langue::tr("Nouveau devis")) }
+                a .bouton.secondaire href="/factures/nouveau" { (crate::langue::tr("Nouvelle facture")) }
+                a .bouton.secondaire href="/tiers/nouveau" { (crate::langue::tr("Nouveau tiers")) }
+                a .bouton.secondaire href="/produits/nouveau" { (crate::langue::tr("Nouveau produit")) }
+            }
+
             div .kpis {
                 div .kpi.fort {
                     div .titre { (crate::langue::tr("Facturé")) }
