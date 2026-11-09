@@ -181,7 +181,7 @@ pub(crate) async fn parametres_modules(
                                         strong { (m.nom) }
                                         @if m.porte {
                                             " "
-                                            span .pastille.p-payee style="font-size:11px" {(crate::langue::tr("porté")) }
+                                            span .pastille.p-payee.minuscule {(crate::langue::tr("porté")) }
                                         }
                                     }
                                     td .ref { (m.code) }
@@ -194,11 +194,11 @@ pub(crate) async fn parametres_modules(
                                     }
                                     td .num {
                                         @if let Some(ecran) = plugin::par_code(m.code).and_then(|x| x.ecran) {
-                                            a .bouton.petit.secondaire href=(ecran) style="margin-right:6px" {(crate::langue::tr("Ouvrir")) }
+                                            a .bouton.petit.secondaire.ecart-droit href=(ecran) {(crate::langue::tr("Ouvrir")) }
                                         }
                                         @if actif {
                                             @if plugin::par_code(m.code).is_some() {
-                                                a .bouton.petit.secondaire href={ "/parametres/module/" (m.code) } style="margin-right:6px" title="Options du module" {(crate::langue::tr("Options")) }
+                                                a .bouton.petit.secondaire.ecart-droit href={ "/parametres/module/" (m.code) } title="Options du module" {(crate::langue::tr("Options")) }
                                             }
                                         }
                                         form method="post" action="/parametres/modules" class="en-ligne" {

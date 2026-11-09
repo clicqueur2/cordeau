@@ -30,7 +30,7 @@ fn barre(valeur: Decimal, maximum: Decimal, couleur: &str) -> Markup {
         part.normalize()
     );
     html! {
-        div style="background:#f0eeea;height:10px;margin-top:4px" {
+        div .piste-basse {
             div style=(style) {}
         }
     }
@@ -125,9 +125,9 @@ pub async fn statistiques(
                             tr {
                                 td .ref { (m.mois.clone()) }
                                 td .num { (ui::euros(m.ventes)) }
-                                td style="width:32%" { (barre(m.ventes, maxi, "#8a5a2b")) }
+                                td .col-32 { (barre(m.ventes, maxi, "#8a5a2b")) }
                                 td .num { (ui::euros(m.achats)) }
-                                td style="width:32%" { (barre(m.achats, maxi, "#b6b0a7")) }
+                                td .col-32 { (barre(m.achats, maxi, "#b6b0a7")) }
                             }
                         }
                     }
@@ -153,7 +153,7 @@ pub async fn statistiques(
                                 td { (c.libelle.clone()) }
                                 td .num { (c.nombre.to_string()) }
                                 td .num { (ui::euros(c.montant)) }
-                                td style="width:28%" { (barre(c.montant, maxi_client, "#2f6b45")) }
+                                td .col-28 { (barre(c.montant, maxi_client, "#2f6b45")) }
                             }
                         }
                     }
@@ -179,7 +179,7 @@ pub async fn statistiques(
                                 td { (c.libelle.clone()) }
                                 td .num { (c.nombre.to_string()) }
                                 td .num { (ui::euros(c.montant)) }
-                                td style="width:28%" { (barre(c.montant, maxi_chantier, "#2f5d7c")) }
+                                td .col-28 { (barre(c.montant, maxi_chantier, "#2f5d7c")) }
                             }
                         }
                     }
@@ -267,9 +267,9 @@ pub async fn echeancier(
                         tr {
                             td .ref { (e.mois.clone()) }
                             td .num { (ui::euros(e.encaissements)) }
-                            td style="width:20%" { (barre(e.encaissements, maxi, "#2f6b45")) }
+                            td .col-20 { (barre(e.encaissements, maxi, "#2f6b45")) }
                             td .num { (ui::euros(e.decaissements)) }
-                            td style="width:20%" { (barre(e.decaissements, maxi, "#a33a2a")) }
+                            td .col-20 { (barre(e.decaissements, maxi, "#a33a2a")) }
                             td .num {
                                 @if e.solde() < Decimal::ZERO {
                                     span.rouge { (ui::euros(e.solde())) }

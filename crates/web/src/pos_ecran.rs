@@ -300,8 +300,8 @@ fn tiers_comptoir(
 /// Un champ de formulaire : intitulé au-dessus du contrôle.
 fn champ(intitule: &str, controle: Markup) -> Markup {
     html! {
-        label style="display:block" {
-            span style="display:block;font-size:12.5px;color:#78736c;margin-bottom:4px" {
+        label .bloc {
+            span .bloc.muet.petite {
                 (intitule)
             }
             (controle)
@@ -410,7 +410,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                 false,
             ))
         }
-        p style="color:#78736c;font-size:13.5px;margin:12px 0 0" {
+        p .aide.monte {
             "Client de passage : " (texte_comptoir)
         }
 
@@ -448,22 +448,20 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                 }
             }
             form method="post" action="/caisse/encaisser"
-                 style="margin-top:16px;display:flex;gap:14px;flex-wrap:wrap;align-items:end" {
+                 class="rangee large" {
                 (champ("Moyen de paiement", choix_moyen(&modes)))
                 (champ("Montant reçu (facultatif)", html! {
                     input type="text" name="paye" inputmode="decimal"
                           placeholder="vide = total TTC"
-                          style="padding:14px 16px;font-size:16px";
+                          class="grand-champ";
                 }))
                 div {
-                    button type="submit" style="padding:18px 22px;font-size:16px" {(crate::langue::tr("Encaisser le panier"))
+                    button type="submit" class="grand-champ grand" {(crate::langue::tr("Encaisser le panier"))
                     }
                 }
             }
             form method="post" action="/caisse/vider" class="haut" {
-                button type="submit"
-                       style="background:#fff;color:#1c1b19;border:1px solid #e6e2dc;\
-                              padding:12px 18px;font-size:15px" {(crate::langue::tr("Vider le panier"))
+                button type="submit" class="bouton-blanc" {(crate::langue::tr("Vider le panier"))
                 }
             }
         }
@@ -475,10 +473,10 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                 Some(("/produits/nouveau", "Créer un produit")),
             ))
         } @else {
-            div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px" {
+            div .grille {
                 @for produit in vendables.iter().copied() {
                     div .carte {
-                        div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline" {
+                        div .ligne-ecart {
                             strong { (libelle_produit(produit)) }
                             span .ref.muet.petite { (produit.ref_) }
                         }
@@ -486,7 +484,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                         form method="post" action="/caisse/ajouter".haut {
                             input type="hidden" name="produit" value=(produit.rowid);
                             button type="submit"
-                                   style="padding:18px 22px;font-size:16px;width:100%" {(crate::langue::tr("+ Ajouter au panier"))
+                                   class="grand-champ grand" {(crate::langue::tr("+ Ajouter au panier"))
                             }
                         }
                     }
@@ -502,9 +500,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
         @if vendables.is_empty() {
             (crate::ui::vide("Aucun article encaissable pour l'instant.", None))
         } @else {
-            form method="post" action="/caisse/encaisser"
-                 style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));\
-                        gap:14px;align-items:end;max-width:900px" {
+            form method="post" action="/caisse/encaisser" .grille-vente {
                 (champ("Article", html! {
                     select name="produit".pleine.zone-texte {
                         @for produit in vendables.iter().copied() {
@@ -525,7 +521,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                          .pleine.zone-texte;
                 }))
                 div {
-                    button type="submit" style="padding:18px 22px;font-size:16px;width:100%" {(crate::langue::tr("Encaisser"))
+                    button type="submit" class="grand-champ grand" {(crate::langue::tr("Encaisser"))
                     }
                 }
             }
@@ -676,7 +672,7 @@ pub async fn etat_scelle_pour(app: &crate::App) -> crate::Res<maud::Markup> {
         Some(true) => maud::html! {
             div .carte {
                 div .libelle { "Scelle du " (jour) }
-                div .valeur style="color:#2f6b45" { "intact" }
+                div .valeur.texte-vert { "intact" }
                 div .note {
                     (scelle.ventes.to_string()) " vente(s) - "
                     (crate::ui::euros(scelle.total)) " - empreinte "

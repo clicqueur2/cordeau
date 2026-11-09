@@ -9,12 +9,12 @@
 
 | | |
 |---|---:|
-| Modules de base (`crates/db`) | **95** |
-| Routes HTTP | **254** |
-| Fichiers d'écran | **85** |
-| Tests qui passent | **1 045** |
-| Commits | **200** |
-| Styles en ligne restants | **109** |
+| Modules de base (`crates/db`) | **96** |
+| Routes HTTP | **257** |
+| Fichiers d'écran | **86** |
+| Tests qui passent | **1 060** |
+| Commits | **219** |
+| Styles en ligne restants | **0** (hors largeurs de barres calculées) |
 | Écarts au schéma de production | **14 tables, 12 colonnes** — tous expliqués |
 
 Branche 24.0.1, base de production copiée et auditée, PDF conformes au centime.
@@ -53,21 +53,32 @@ faut deux références — installation neuve et base montée — ou un classeme
 
 **Dépend de A** (il faut une base montée pour la seconde référence).
 
-### C. Finir les 109 styles en ligne — **2 jours**
+### C. ~~Finir les 109 styles en ligne~~ — **fait**
 
-Fichier par fichier, un œil sur le rendu. Ils bloquent les cinq thèmes : un écran
-qui écrit `color:#78736c` en dur restera gris sous « Minuit ».
+Trois passes : les largeurs normalisées, puis les couleurs et les panneaux, puis
+les 45 valeurs uniques restantes, une par une. Le thème porte désormais les
+utilitaires qui manquaient (`.muet`, `.panneau`, `.bloc-alerte`, `.temoin`,
+`.zone-code`, `.grille`, `.ligne-total`, `.col-46`…).
 
-Mécanique, sans risque métier, mais à vérifier visuellement — donc lent.
+**Ce qui reste en ligne est une donnée, pas une mise en forme** :
+`style=(format!("width:{}%", …))` — la longueur d'une barre de graphique, qui
+vaut ce que vaut le chiffre. Une barre ne se met pas en classe.
+
+Vérifié : la page caisse ne rend plus **aucun** `style="…"`.
 
 ### D. Les manques fonctionnels connus — **3 à 5 jours**
 
-| Manque | Effort | Pourquoi |
-|---|---:|---|
-| Contacts : création et modification | ½ j | on les affiche, on ne peut pas les créer |
-| Factures de situation (cycle 4 jalons) | 2 j | décidé, jamais construit ; sans cycle, la déduction casse |
-| Carnet de commandes + marge par chantier | 1 j | les deux mesures qui manquent au pilotage |
-| Top 5 clients sur le tableau de bord | 2 h | la fonction SQL existe, l'affichage manque |
+| Manque | État | Où |
+|---|---|---|
+| Contacts : création et modification | **fait** | `/contacts`, `/contacts/:id/modifier` |
+| Factures de situation (cycle 4 jalons) | **fait** | `db::situation`, `POST /devis/:id/situation` |
+| Carnet de commandes | **fait** | `db::carnet`, `/commandes/carnet` |
+| Marge par chantier | **fait** | `db::carnet::marge_par_chantier`, `/chantiers/marges` |
+| Top 5 clients sur le tableau de bord | **fait** | `db::stats::top_clients`, accueil |
+
+Mesuré sur la copie de production, entité 7 : **60 580,70 €** facturés,
+**17 612,27 €** d'achats, **42 968,43 €** de marge (70,93 %) sur cinq chantiers.
+Le carnet est vide — et il le dit : la base ne porte aucune commande ouverte.
 
 ### E. La publication — **2 h** *(à la fin, sur ta demande)*
 
@@ -92,11 +103,16 @@ E  publication          (2 h, à la fin)
 ## 5. L'échéance extérieure
 
 **Janvier 2027 : Dolibarr 25.0.0.** Sept tables renomment leurs colonnes de date ;
-nous en lisons **18** dans congés, mailing et documents. La stratégie n'est pas
-tranchée (lire les deux noms, ou détecter la version une fois au démarrage).
+nous en lisions **18** dans congés, mailing et documents.
 
-Il faut la trancher **avant** la sortie, pas après. C'est un demi-jour de design
-et un jour de mise en œuvre, à caler entre D et C.
+**Tranché et fait** : `crates/db/src/colonnes.rs` demande à `information_schema`
+quel nom existe, une fois par table et par processus, et les trois modules
+construisent leur SQL avec. Prouvé sur la copie de production en 24 **et** sur
+une copie de cette même base où les trois colonnes ont été renommées en
+`date_creation` pour simuler la 25 — les mêmes pages répondent 200.
+
+Les cinq autres tables annoncées sont déclarées dans la même table de
+correspondance : le jour où on les lira, le nom sera bon sans y penser.
 
 ## 6. Comment on prouve que c'est prêt
 

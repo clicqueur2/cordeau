@@ -689,7 +689,7 @@ pub async fn liste_saisie_form(
         html! {
             h1 { "Nouveau — " (liste.titre) }
             @if let Some(m) = &manquant {
-                p style="background:#fdf1ef;border-left:3px solid #a33;padding:10px 12px;margin:0 0 16px" {
+                p class="bloc-alerte" {
                     (m)
                 }
             }
@@ -880,7 +880,7 @@ pub async fn fiche_saisie(
         html! {
             h1 { (liste.titre) " — n° " (id.to_string()) }
             @if let Some(m) = &manquant {
-                p style="background:#fdf1ef;border-left:3px solid #a33;padding:10px 12px;margin:0 0 16px" {
+                p class="bloc-alerte" {
                     (m)
                 }
             }
@@ -912,11 +912,11 @@ pub async fn fiche_saisie(
             form method="post"
                  action={ "/liste/" (code) "/fiche/" (id.to_string()) "/supprimer" }
                  onsubmit="return confirm('Supprimer définitivement cette ligne ?')"
-                 style="margin-top:18px" {
+                 .espace-dessus {
                 button type="submit"
-                       style="background:#a33;color:#fff;border:0;padding:9px 16px;cursor:pointer" {(crate::langue::tr("Supprimer"))
+                       class="bouton-danger" {(crate::langue::tr("Supprimer"))
                 }
-                span style="color:#78736c;font-size:13px;margin-left:10px" {
+                span .geste-lien {
                     "Suppression directe dans " code { (s.table) } " : Dolibarr ne passera pas par là."
                 }
             }

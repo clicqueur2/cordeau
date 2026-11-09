@@ -111,7 +111,7 @@ pub async fn page(
                     }
                 }
             }
-            p style="color:#78736c;font-size:12.5px;margin:8px 0 0" {
+            p .aide.dessous {
                 "Seuls les tiers de la societe courante ayant une adresse e-mail sont comptes, \
                  une fois par adresse."
             }

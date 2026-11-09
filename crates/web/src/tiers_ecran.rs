@@ -100,7 +100,7 @@ pub(crate) async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> 
 
             div .fiche {
                 div {
-                    h2 style="margin-top:0" {(crate::langue::tr("Coordonnées")) }
+                    h2 .sans-marge {(crate::langue::tr("Coordonnées")) }
                     dl {
                         dt {(crate::langue::tr("Adresse")) }
                         dd { (t.address.clone().unwrap_or_default()) }
@@ -113,7 +113,7 @@ pub(crate) async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> 
                     }
                 }
                 div {
-                    h2 style="margin-top:0" {(crate::langue::tr("Identification")) }
+                    h2 .sans-marge {(crate::langue::tr("Identification")) }
                     dl {
                         dt {(crate::langue::tr("SIRET")) }
                         dd { (t.siret.clone().unwrap_or_default()) }

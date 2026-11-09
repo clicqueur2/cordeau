@@ -266,7 +266,7 @@ pub async fn installation_page(
                     "Il n'en eteint aucun et n'ecrit aucune donnee."
                 }
                 @for p in db::preset::PRESETS {
-                    form method="post" action="/presets" style="display:inline-block;margin:0 8px 8px 0" {
+                    form method="post" action="/presets" .etiquette {
                         input type="hidden" name="code" value=(p.code);
                         button type="submit" class="petit" { (p.libelle) }
                     }

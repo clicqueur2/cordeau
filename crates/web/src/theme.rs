@@ -218,6 +218,50 @@ p { margin: 0 0 var(--e3); }
 .defile { overflow-x: auto; }
 .zone-texte { min-height: 96px; font-size: 15px; }
 
+/* Dernier passage : ce qui restait ecrit en dur sort du theme.
+   Une couleur en dur ne suivrait pas « Minuit » ; une largeur, si. */
+.taille-14 { font-size: 14px; }
+.minuscule { font-size: 11px; }
+.bloc { display: block; }
+.pre { white-space: pre-wrap; }
+.etiquette { display: inline-block; margin: 0 8px 8px 0; }
+.ecart-droit { margin-right: 6px; }
+.marge-basse { margin: 0 0 14px; }
+.espace-bas { margin-bottom: 22px; }
+.espace-dessus { margin-top: 18px; }
+.sans-marge { margin-top: 0; }
+.etroit { width: 100px; }
+.panneau { background: var(--surface-2); border: 1px solid var(--trait); border-radius: var(--rayon); padding: 14px; }
+.panneau.note { font-size: 13.5px; white-space: pre-wrap; margin: 0; }
+.bloc-alerte { background: var(--rouge-clair); border-left: 3px solid var(--rouge); padding: 10px 12px; margin: 0 0 16px; }
+.bouton-blanc { background: var(--surface); color: var(--encre); border: 1px solid var(--trait); padding: 12px 18px; font-size: 15px; }
+.bouton-danger { background: var(--rouge); color: #fff; border: 0; padding: 9px 16px; cursor: pointer; }
+.temoin { display: inline-block; width: 10px; height: 10px; margin-right: 5px; background: var(--accent); }
+.temoin.achat { background: var(--trait-fort); }
+.piste-basse { background: var(--surface-3); height: 10px; margin-top: 4px; }
+.geste-lien { color: var(--muet); font-size: 13px; margin-left: 10px; }
+.ligne-total { background: var(--surface-3); font-weight: 600; }
+.texte-vert { color: var(--vert); }
+.zone-code { width: 100%; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; padding: 10px; border: 1px solid var(--trait); }
+.grand-champ { padding: 14px 16px; font-size: 16px; }
+.grand-champ.grand { padding: 18px 22px; width: 100%; }
+.grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.grille-vente { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; align-items: end; max-width: 900px; }
+.ligne-ecart { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.rangee.large { margin-top: 16px; gap: 14px; align-items: end; }
+.aide.dessous { margin: 8px 0 0; }
+.aide.monte { margin: 12px 0 0; }
+.aide.retrait { font-size: 13px; margin: -14px 0 14px; }
+.aide.apres { margin: 10px 0 0; }
+
+/* Largeurs des colonnes de graphique. Statiques, donc classes. */
+.col-46 { width: 46%; }
+.col-32 { width: 32%; }
+.col-30 { width: 30%; }
+.col-28 { width: 28%; }
+.col-26 { width: 26%; }
+.col-20 { width: 20%; }
+
 /* ===== tableaux ======================================================== */
 table {
   width: 100%; border-collapse: separate; border-spacing: 0;

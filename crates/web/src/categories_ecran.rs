@@ -69,7 +69,9 @@ pub async fn page(
                             tr {
                                 td {
                                     @if let Some(couleur) = &c.couleur {
-                                        span style=(format!("display:inline-block;width:9px;height:9px;background:{couleur};margin-right:7px;vertical-align:middle")) {}
+                                        // La couleur vient de la base : seule cette
+                                        // valeur reste en ligne, la forme est une classe.
+                                        span .temoin style=(format!("background:{couleur};vertical-align:middle")) {}
                                     }
                                     (c.libelle.clone())
                                 }
