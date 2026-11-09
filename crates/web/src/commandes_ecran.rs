@@ -21,6 +21,14 @@ pub(crate) async fn commandes(
             (message(q.get("ok")))
             h1 {(crate::langue::tr("Commandes clients")) }
             p .sous-titre {(crate::langue::tr("Le maillon entre le devis signé et la facture.")) }
+            @let visibles =
+                colonnes::visibles(&app.pool, "commandes", &["ref", "client", "date", "ttc", "statut"])?;
+            (colonnes::choix_colonnes(
+                "commandes",
+                &["ref", "client", "date", "ttc", "statut"],
+                &visibles,
+            ))
+
             @if liste.is_empty() {
                 (ui::vide("Aucune commande. Elle se crée depuis un devis validé.", Some(("/devis", "Voir les devis"))))
             } @else {
@@ -34,22 +42,38 @@ pub(crate) async fn commandes(
                     }
                 }
                 table {
-                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Client")) } th {(crate::langue::tr("Date")) } th .num {(crate::langue::tr("TTC")) } th { "État" } } }
+                    thead {
+                        tr {
+                            @if colonnes::montre(&visibles, "ref") { th {(crate::langue::tr("Réf.")) } }
+                            @if colonnes::montre(&visibles, "client") { th {(crate::langue::tr("Client")) } }
+                            @if colonnes::montre(&visibles, "date") { th {(crate::langue::tr("Date")) } }
+                            @if colonnes::montre(&visibles, "ttc") { th .num {(crate::langue::tr("TTC")) } }
+                            @if colonnes::montre(&visibles, "statut") { th { "État" } }
+                        }
+                    }
                     tbody {
                         @for c in &liste {
                             tr {
-                                td .ref {
-                                    @if c.fk_statut == 0 {
-                                        input type="checkbox" name={"id_" (c.rowid)} value="1"
-                                              form="actions-commandes"
-                                              aria-label=(crate::langue::tr("sélectionner cette commande"));
-                                        " "
+                                @if colonnes::montre(&visibles, "ref") {
+                                    td .ref {
+                                        @if c.fk_statut == 0 {
+                                            input type="checkbox" name={"id_" (c.rowid)} value="1"
+                                                  form="actions-commandes"
+                                                  aria-label=(crate::langue::tr("sélectionner cette commande"));
+                                            " "
+                                        }
+                                        a href={ "/commandes/" (c.rowid) } { (c.ref_) }
                                     }
-                                    a href={ "/commandes/" (c.rowid) } { (c.ref_) }
                                 }
-                                td { (nom_tiers(p, Some(c.fk_soc))?) }
-                                td .ref { (app::fmt_date_fr(c.date_commande.as_deref())) }
-                                td .num { (ui::euros(c.total_ttc.unwrap_or_default())) }
+                                @if colonnes::montre(&visibles, "client") {
+                                    td { (nom_tiers(p, Some(c.fk_soc))?) }
+                                }
+                                @if colonnes::montre(&visibles, "date") {
+                                    td .ref { (app::fmt_date_fr(c.date_commande.as_deref())) }
+                                }
+                                @if colonnes::montre(&visibles, "ttc") {
+                                    td .num { (ui::euros(c.total_ttc.unwrap_or_default())) }
+                                }
                                 td {
                                     @match c.fk_statut {
                                         0 => { span .pastille.p-brouillon { "brouillon" } }

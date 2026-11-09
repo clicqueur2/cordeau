@@ -271,6 +271,17 @@ pub async fn tickets(
             p .sous-titre {(crate::langue::tr("Une réclamation client tracée : sujet, société, statut. Numérotation TK + AAMM + compteur."))
             }
 
+            @let visibles = crate::colonnes::visibles(
+                &app.pool,
+                "tickets",
+                &["ref", "sujet", "societe", "date", "gravite", "statut"],
+            )?;
+            (crate::colonnes::choix_colonnes(
+                "tickets",
+                &["ref", "sujet", "societe", "date", "gravite", "statut"],
+                &visibles,
+            ))
+
             @if liste.is_empty() {
                 (crate::ui::vide("Aucun ticket.", None))
             } @else {
@@ -284,27 +295,49 @@ pub async fn tickets(
                     }
                 }
                 table {
-                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Sujet")) } th {(crate::langue::tr("Société")) } th {(crate::langue::tr("Date")) } th {(crate::langue::tr("Gravité")) } th { "État" } th { "" } } }
+                    thead {
+                        tr {
+                            @if crate::colonnes::montre(&visibles, "ref") { th {(crate::langue::tr("Réf.")) } }
+                            @if crate::colonnes::montre(&visibles, "sujet") { th {(crate::langue::tr("Sujet")) } }
+                            @if crate::colonnes::montre(&visibles, "societe") { th {(crate::langue::tr("Société")) } }
+                            @if crate::colonnes::montre(&visibles, "date") { th {(crate::langue::tr("Date")) } }
+                            @if crate::colonnes::montre(&visibles, "gravite") { th {(crate::langue::tr("Gravité")) } }
+                            @if crate::colonnes::montre(&visibles, "statut") { th { "État" } }
+                            th { "" }
+                        }
+                    }
                     tbody {
                         @for t in &liste {
                             tr {
-                                td .ref {
-                                    @if t.statut != 8 {
-                                        input type="checkbox" name={"id_" (t.rowid)} value="1"
-                                              form="actions-tickets"
-                                              aria-label=(crate::langue::tr("sélectionner ce ticket"));
-                                        " "
+                                @if crate::colonnes::montre(&visibles, "ref") {
+                                    td .ref {
+                                        @if t.statut != 8 {
+                                            input type="checkbox" name={"id_" (t.rowid)} value="1"
+                                                  form="actions-tickets"
+                                                  aria-label=(crate::langue::tr("sélectionner ce ticket"));
+                                            " "
+                                        }
+                                        (t.ref_)
                                     }
-                                    (t.ref_)
                                 }
-                                td { (t.sujet) }
-                                td { (t.tiers.clone().unwrap_or_default()) }
-                                td .ref { (app::fmt_date_fr(t.date.as_deref())) }
-                                td { (t.gravite.clone().unwrap_or_default()) }
-                                td {
-                                    @if t.statut == 8 { span .pastille.p-payee {(crate::langue::tr("fermé")) } }
-                                    @else if t.statut == 0 { span .pastille.p-brouillon { "nouveau" } }
-                                    @else { span .pastille.p-validee {(crate::langue::tr("en cours")) } }
+                                @if crate::colonnes::montre(&visibles, "sujet") {
+                                    td { (t.sujet) }
+                                }
+                                @if crate::colonnes::montre(&visibles, "societe") {
+                                    td { (t.tiers.clone().unwrap_or_default()) }
+                                }
+                                @if crate::colonnes::montre(&visibles, "date") {
+                                    td .ref { (app::fmt_date_fr(t.date.as_deref())) }
+                                }
+                                @if crate::colonnes::montre(&visibles, "gravite") {
+                                    td { (t.gravite.clone().unwrap_or_default()) }
+                                }
+                                @if crate::colonnes::montre(&visibles, "statut") {
+                                    td {
+                                        @if t.statut == 8 { span .pastille.p-payee {(crate::langue::tr("fermé")) } }
+                                        @else if t.statut == 0 { span .pastille.p-brouillon { "nouveau" } }
+                                        @else { span .pastille.p-validee {(crate::langue::tr("en cours")) } }
+                                    }
                                 }
                                 td {
                                     @if t.statut != 8 {
