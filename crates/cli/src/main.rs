@@ -49,6 +49,7 @@ fn main() -> ExitCode {
         (Some("schema"), Some("manifest")) => schema_manifest(&args),
         (Some("schema"), Some("prepare")) => schema_prepare(&args),
         (Some("schema"), Some("verify")) => schema_verify(&args),
+        (Some("schema"), Some("planifier")) => schema_planifier(&args),
         (Some("audit"), _) => audit_cmd(&args),
         (Some("tache"), Some(cmd)) => tache_cmd(cmd, &args),
         (Some("adresse"), _) => annuaire_adresse(&args),
@@ -157,6 +158,58 @@ fn schema_prepare(args: &[String]) -> ExitCode {
         }
         Err(e) => {
             eprintln!("preparation impossible: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Planifie une montee de version : quels scripts, dans quel ordre.
+///
+/// Ne touche pas a la base. Sert a repondre a la seule question qui compte avant
+/// de migrer une vieille base : **la chaine est-elle complete** ?
+fn schema_planifier(args: &[String]) -> ExitCode {
+    let depuis = flag(args, "--depuis").unwrap_or_default();
+    let vers = flag(args, "--vers").unwrap_or_default();
+    let src = match flag(args, "--src") {
+        Some(s) => s.to_string(),
+        None => {
+            eprintln!("il manque --src <install/mysql/migration>");
+            return ExitCode::FAILURE;
+        }
+    };
+    if depuis.is_empty() || vers.is_empty() {
+        eprintln!("il manque --depuis <version> et --vers <version>");
+        return ExitCode::FAILURE;
+    }
+
+    let mut fichiers = Vec::new();
+    match std::fs::read_dir(&src) {
+        Ok(entrees) => {
+            for e in entrees.flatten() {
+                if let Some(nom) = e.file_name().to_str() {
+                    if nom.ends_with(".sql") {
+                        fichiers.push(nom.to_string());
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("lecture impossible de {src} : {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match db::migration::chemin(&depuis, &vers, &fichiers) {
+        Ok(etapes) => {
+            println!("{} etape(s) de {depuis} a {vers} :", etapes.len());
+            for (i, e) in etapes.iter().enumerate() {
+                println!("  {:>2}. {}  ({} -> {})", i + 1, e.fichier, e.de, e.vers);
+            }
+            println!("\nRien n'a ete execute : c'est un plan.");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            println!("chaine incomplete : {e}");
             ExitCode::FAILURE
         }
     }

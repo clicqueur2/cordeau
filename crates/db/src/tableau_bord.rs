@@ -6,8 +6,8 @@
 
 use std::error::Error;
 
-use mysql::prelude::*;
 use mysql::params;
+use mysql::prelude::*;
 use mysql::Pool;
 
 /// Chiffre d'affaires hors taxes par mois, du plus ancien au plus recent.
@@ -30,8 +30,10 @@ pub fn ca_mensuel(
         params! { "entity" => entity, "mois" => mois.saturating_sub(1) },
     )?;
 
-    let connu: std::collections::BTreeMap<String, f64> =
-        rows.into_iter().map(|(m, v)| (m, v.unwrap_or(0.0))).collect();
+    let connu: std::collections::BTreeMap<String, f64> = rows
+        .into_iter()
+        .map(|(m, v)| (m, v.unwrap_or(0.0)))
+        .collect();
 
     // Les douze derniers mois, trous compris.
     let debut: Option<String> = conn.query_first(
@@ -40,10 +42,7 @@ pub fn ca_mensuel(
     let Some(debut) = debut else {
         return Ok(Vec::new());
     };
-    let (mut annee, mut m) = (
-        debut[0..4].parse::<i32>()?,
-        debut[5..7].parse::<u32>()?,
-    );
+    let (mut annee, mut m) = (debut[0..4].parse::<i32>()?, debut[5..7].parse::<u32>()?);
     let mut serie = Vec::with_capacity(mois as usize);
     for _ in 0..mois {
         let cle = format!("{annee:04}-{m:02}");
@@ -78,11 +77,7 @@ pub fn delai_moyen(pool: &Pool, entity: i64) -> Result<f64, Box<dyn Error>> {
 ///
 /// Le nom vient du tiers ; un tiers supprime laisse la ligne sans nom plutot que
 /// de disparaitre, sinon le total des barres ne ferait plus le total facture.
-pub fn top_clients(
-    pool: &Pool,
-    entity: i64,
-    n: u32,
-) -> Result<Vec<(String, f64)>, Box<dyn Error>> {
+pub fn top_clients(pool: &Pool, entity: i64, n: u32) -> Result<Vec<(String, f64)>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let rows: Vec<(Option<String>, Option<f64>)> = conn.exec(
         "SELECT s.nom, SUM(f.total_ht) \
@@ -94,6 +89,11 @@ pub fn top_clients(
     )?;
     Ok(rows
         .into_iter()
-        .map(|(nom, ca)| (nom.unwrap_or_else(|| "(client supprime)".to_string()), ca.unwrap_or(0.0)))
+        .map(|(nom, ca)| {
+            (
+                nom.unwrap_or_else(|| "(client supprime)".to_string()),
+                ca.unwrap_or(0.0),
+            )
+        })
         .collect())
 }

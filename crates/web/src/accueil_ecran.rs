@@ -115,7 +115,7 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
 
     let alertes = retard.len() + sans_reponse.len() + stock.len();
 
-            let delai = db::tableau_bord::delai_moyen(p, entite::courante()).unwrap_or(0.0);
+    let delai = db::tableau_bord::delai_moyen(p, entite::courante()).unwrap_or(0.0);
     let panier = if chiffres.nb_factures > 0 {
         chiffres.facture / rust_decimal::Decimal::from(chiffres.nb_factures)
     } else {
@@ -126,7 +126,7 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
         "accueil",
         "",
         "Tableau de bord",
-    html! {
+        html! {
             h1 { (crate::langue::tr("Tableau de bord")) }
             p .sous-titre { (crate::langue::tr("Exercice en cours")) " — " (jour.clone()) }
 

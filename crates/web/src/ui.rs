@@ -178,7 +178,6 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
     }
 }
 
-
 /// Un histogramme en SVG, sans bibliotheque ni JavaScript.
 ///
 /// `serie` : `(etiquette, valeur)`, dans l'ordre d'affichage. Le maximum fixe la
