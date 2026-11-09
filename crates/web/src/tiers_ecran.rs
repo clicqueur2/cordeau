@@ -12,11 +12,27 @@ pub(crate) async fn tiers(
 ) -> Res<Markup> {
     let filtre = q.get("q").cloned().unwrap_or_default().to_lowercase();
     let type_ = q.get("type").cloned().unwrap_or_default();
+    let ville = q.get("ville").cloned().unwrap_or_default().to_lowercase();
+    let sans_email = q.get("sans_email").map(|v| v == "1").unwrap_or(false);
     // `type` vient d'une liste fermee : la condition SQL est choisie ici, jamais
     // construite a partir du texte saisi.
     let listes: Vec<_> = db::divers::tiers_filtres(&app.pool, entite::courante(), &type_, 2000)?
         .into_iter()
         .filter(|p| filtre.is_empty() || p.nom.to_lowercase().contains(&filtre))
+        .filter(|p| {
+            ville.is_empty()
+                || p.town
+                    .as_deref()
+                    .map(|v| v.to_lowercase().contains(&ville))
+                    .unwrap_or(false)
+        })
+        .filter(|p| {
+            !sans_email
+                || p.email
+                    .as_deref()
+                    .map(|e| e.trim().is_empty())
+                    .unwrap_or(true)
+        })
         .collect();
     let total_db = db::party::count(&app.pool, entite::courante()).unwrap_or(0);
     let affiches = listes.len();
@@ -32,19 +48,39 @@ pub(crate) async fn tiers(
         _ => "liste",
     };
 
+    // Les colonnes : celles qu'on sait montrer, et celles que l'utilisateur a
+    // gardees.
+    const DISPONIBLES: &[&str] = &[
+        "code",
+        "nom",
+        "ville",
+        "type",
+        "email",
+        "telephone",
+        "siret",
+    ];
+    let visibles = colonnes::visibles(&app.pool, "tiers", &["code", "nom", "ville", "type"])?;
+
     Ok(ui::page(
         "tiers",
         onglet,
         titre,
         html! {
+            (message(q.get("ok")))
             h1 { (titre) }
             div .barre-outils {
                 form method="get" action="/tiers" {
-                    input type="search" name="q" placeholder=(crate::langue::tr("Nom du client")) value=(filtre) .champ-moyen;
                     @if !type_.is_empty() {
                         input type="hidden" name="type" value=(type_);
                     }
+                    input type="search" name="q" placeholder=(crate::langue::tr("Nom du client")) value=(filtre) .champ-moyen;
+                    input type="search" name="ville" placeholder=(crate::langue::tr("Ville")) value=(ville) .champ-moyen;
+                    label .etiquette {
+                        input type="checkbox" name="sans_email" value="1" checked[sans_email];
+                        " " (crate::langue::tr("sans e-mail"))
+                    }
                     button type="submit" {(crate::langue::tr("Chercher")) }
+                    a .bouton.secondaire.petit href="/tiers" {(crate::langue::tr("Réinitialiser")) }
                 }
                 span .pousse {}
                 p .compte-liste {
@@ -52,18 +88,40 @@ pub(crate) async fn tiers(
                     (ui::compte_tronque(affiches, total_db))
                 }
             }
+
+            (colonnes::choix_colonnes("tiers", DISPONIBLES, &visibles))
+
             @if listes.is_empty() {
                 (ui::vide("Aucun tiers ne correspond.", Some(("/tiers", "Voir tous les tiers"))))
             } @else {
                 table {
-                    thead { tr { th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Nom")) } th {(crate::langue::tr("Ville")) } th {(crate::langue::tr("Type")) } } }
+                    thead {
+                        tr {
+                            @if colonnes::montre(&visibles, "code") { th {(crate::langue::tr("Code")) } }
+                            @if colonnes::montre(&visibles, "nom") { th {(crate::langue::tr("Nom")) } }
+                            @if colonnes::montre(&visibles, "ville") { th {(crate::langue::tr("Ville")) } }
+                            @if colonnes::montre(&visibles, "type") { th {(crate::langue::tr("Type")) } }
+                            @if colonnes::montre(&visibles, "email") { th {(crate::langue::tr("Email")) } }
+                            @if colonnes::montre(&visibles, "telephone") { th {(crate::langue::tr("Téléphone")) } }
+                            @if colonnes::montre(&visibles, "siret") { th {(crate::langue::tr("SIRET")) } }
+                        }
+                    }
                     tbody {
                         @for p in &listes {
                             tr {
-                                td .ref { a href={ "/tiers/" (p.rowid) } { (p.code_client.clone().unwrap_or_default()) } }
-                                td { a href={ "/tiers/" (p.rowid) } { (p.nom) } }
-                                td { (p.town.clone().unwrap_or_default()) }
-                                td { (match p.client { 1 => "client", 2 => "prospect", 3 => "client et prospect", _ => "—" }) }
+                                @if colonnes::montre(&visibles, "code") {
+                                    td .ref { a href={ "/tiers/" (p.rowid) } { (p.code_client.clone().unwrap_or_default()) } }
+                                }
+                                @if colonnes::montre(&visibles, "nom") {
+                                    td { a href={ "/tiers/" (p.rowid) } { (p.nom) } }
+                                }
+                                @if colonnes::montre(&visibles, "ville") { td { (p.town.clone().unwrap_or_default()) } }
+                                @if colonnes::montre(&visibles, "type") {
+                                    td { (match p.client { 1 => "client", 2 => "prospect", 3 => "client et prospect", _ => "—" }) }
+                                }
+                                @if colonnes::montre(&visibles, "email") { td .ref { (p.email.clone().unwrap_or_default()) } }
+                                @if colonnes::montre(&visibles, "telephone") { td .ref { (p.phone.clone().unwrap_or_default()) } }
+                                @if colonnes::montre(&visibles, "siret") { td .ref { (p.siret.clone().unwrap_or_default()) } }
                             }
                         }
                     }

@@ -604,6 +604,16 @@ fn vente(
     let facture =
         db::pos_ventes::enregistrer(&app.pool, entity, Some(tiers), &panier, moyen, paye, &jour)?;
 
+    // La vente entre dans le journal inalterable : c'est la chaine qui rend une
+    // falsification visible. Si le journal ne s'ecrit pas, la vente est deja
+    // faite — on le dit a l'ecran plutot que de la perdre.
+    let charge = format!("facture={facture};ttc={paye};moyen={moyen};jour={jour}");
+    let journal =
+        match db::caisse_journal::ajouter(&db::caisse_journal::dossier(), "vente", &charge) {
+            Ok((rang, empreinte)) => format!(" · journal #{rang} {empreinte:.12}"),
+            Err(e) => format!(" · journal non ecrit : {e}"),
+        };
+
     if depuis_panier {
         vider_panier(entity);
     }
@@ -624,6 +634,7 @@ fn vente(
             crate::ui::euros(ttc - paye)
         ));
     }
+    texte.push_str(&journal);
     annoncer(entity, texte);
 
     Ok(axum::response::Redirect::to("/caisse?ok=vente"))
@@ -734,6 +745,64 @@ pub async fn archive(
         texte,
     )
         .into_response())
+}
+
+/// L'etat du journal inalterable de la caisse.
+///
+/// Dolibarr tient son propre scelle dans `llx_const` (voir `caisse_scelle`).
+/// Celui-ci vit dans un fichier, hors de portee d'un `UPDATE` : deux
+/// mecanismes, deux preuves, et on les montre ensemble.
+pub async fn journal(State(_app): State<crate::App>) -> crate::Res<maud::Markup> {
+    let dossier = db::caisse_journal::dossier();
+    let rapport = db::caisse_journal::verifier(&dossier).ok();
+
+    Ok(crate::ui::page(
+        "caisse",
+        "journal",
+        "Journal de caisse",
+        maud::html! {
+            h1 {(crate::langue::tr("Journal inaltérable")) }
+            p .sous-titre {
+                (crate::langue::tr("Chaque vente entre dans une chaîne de hachages : modifier une ligne décale tout ce qui suit, et le vérificateur le voit."))
+            }
+            p .aide { "Dossier : " code { (dossier.display().to_string()) } }
+
+            @if let Some(r) = &rapport {
+                div .kpis {
+                    div .kpi {
+                        div .titre {(crate::langue::tr("Lignes")) }
+                        div .valeur { (r.lignes) }
+                    }
+                    div .kpi {
+                        div .titre {(crate::langue::tr("Signées")) }
+                        div .valeur { (r.signees) }
+                    }
+                    @if r.premiere_erreur.is_some() {
+                        div .kpi.alerte {
+                            div .titre {(crate::langue::tr("Chaîne rompue")) }
+                            div .valeur { (r.premiere_erreur.unwrap_or(0)) }
+                            div .note { (r.motif.clone().unwrap_or_default()) }
+                        }
+                    } @else {
+                        div .kpi.bon {
+                            div .titre {(crate::langue::tr("Chaîne")) }
+                            div .valeur { (crate::langue::tr("intacte")) }
+                        }
+                    }
+                }
+                p .aide {
+                    (crate::langue::tr("Empreinte de la dernière ligne :")) " "
+                    code { (r.empreinte.clone()) }
+                }
+            } @else {
+                p .flash {(crate::langue::tr("Le journal n'a pas pu être lu.")) }
+            }
+
+            p.aide.petite {
+                (crate::langue::tr("Ce journal détecte une falsification, il ne l'empêche pas : un utilisateur qui a les droits sur le disque peut réécrire la chaîne entière. La clé de signature se pose dans DOLIBARR_SCELLE_CLE."))
+            }
+        },
+    ))
 }
 
 #[cfg(test)]

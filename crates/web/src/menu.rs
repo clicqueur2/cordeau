@@ -63,7 +63,9 @@ pub const MODULES: &[Module] = &[
             e("mrp", "Besoins et ordres proposés", "/mrp"),
             e("stock", "Stock", "/stock"),
             e("caisse", "Caisse", "/caisse"),
+            e("journal-caisse", "Journal inaltérable", "/caisse/journal"),
             e("categories", "Catégories", "/liste/Categorie"),
+            e("variantes", "Déclinaisons", "/variantes"),
             e("lots", "Lots et séries", "/liste/ProductBatch"),
             e("nouveau-lot", "Nouveau lot", "/liste/ProductBatch/nouveau"),
         ],
@@ -196,6 +198,8 @@ pub const MODULES: &[Module] = &[
         entrees: &[
             e("evenements", "Événements", "/agenda"),
             e("nouvel-evenement", "Nouvel événement", "/agenda?form=1"),
+            e("reservations", "Réservations", "/reservations"),
+            e("inscriptions", "Inscriptions", "/inscriptions"),
         ],
     },
     Module {
@@ -230,13 +234,9 @@ pub const MODULES: &[Module] = &[
             ),
             e("immobilisations", "Immobilisations", "/immobilisations"),
             e("conges", "Congés", "/liste/Holiday"),
-            e("salaires", "Salaires", "/liste/Salaries"),
-            e("ressources", "Ressources", "/liste/Resource"),
-            e(
-                "nouvelle-ressource",
-                "Nouvelle ressource",
-                "/liste/Resource/nouveau",
-            ),
+            e("salaires", "Salaires", "/salaires"),
+            e("recrutement", "Recrutement", "/recrutement"),
+            e("ressources", "Ressources", "/ressources"),
         ],
     },
     Module {
@@ -439,12 +439,28 @@ mod tests {
     /// Tout lien « /liste/<Code> » du menu doit exister dans le registre, et
     /// tout ecran doit avoir un droit : un lien mort ou un ecran ouvert a tous
     /// sont les deux facons de casser la navigation sans s'en apercevoir.
+    ///
+    /// Le compteur porte sur **toutes** les entrees protegees, pas seulement sur
+    /// les listes generiques : deux d'entre elles (salaires, ressources) sont
+    /// devenues des ecrans a part entiere, et le garde-fou ne doit pas se
+    /// relacher pour autant.
     #[test]
     fn les_listes_du_menu_existent_et_sont_protegees() {
         let mut vues = 0;
+        let mut protegees = 0;
         for m in modules() {
             for e in m.entrees {
                 assert!(e.lien.starts_with('/'), "lien invalide : {}", e.lien);
+                // L'accueil est ouvert a tout compte connecte : c'est la seule
+                // entree sans droit, et c'est voulu.
+                if e.lien != "/" {
+                    assert!(
+                        !db::droit::droits_du_chemin(e.lien).is_empty(),
+                        "aucun droit exige pour {} : l'ecran serait ouvert a tout compte",
+                        e.lien
+                    );
+                    protegees += 1;
+                }
                 if let Some(reste) = e.lien.strip_prefix("/liste/") {
                     // « /liste/Loan/nouveau » : la liste est le premier segment.
                     let code = reste
@@ -458,15 +474,18 @@ mod tests {
                         crate::pages::liste_simple(code).is_some(),
                         "liste inconnue dans le menu : {code}"
                     );
-                    assert!(
-                        !db::droit::droits_du_chemin(e.lien).is_empty(),
-                        "aucun droit exige pour {code} : l'ecran serait ouvert a tout compte"
-                    );
                     vues += 1;
                 }
             }
         }
-        assert!(vues >= 18, "seulement {vues} listes dans le menu");
+        assert!(
+            vues >= 17,
+            "seulement {vues} listes generiques dans le menu"
+        );
+        assert!(
+            protegees >= 90,
+            "seulement {protegees} entrees de menu protegees"
+        );
     }
 
     /// Chaque formulaire de saisie doit viser une liste existante, une table

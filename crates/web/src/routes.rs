@@ -56,6 +56,7 @@ pub fn routes(app: App) -> Router {
         .route("/caisse/encaisser", post(pos_ecran::encaisser))
         .route("/caisse/sceller", post(pos_ecran::sceller))
         .route("/caisse/archive", get(pos_ecran::archive))
+        .route("/caisse/journal", get(pos_ecran::journal))
         .route("/produits/:id", get(produit_fiche))
         .route(
             "/produits/:id/modifier",
@@ -70,6 +71,7 @@ pub fn routes(app: App) -> Router {
         .route("/devis/:id/commander", post(devis_commander))
         .route("/commandes", get(commandes))
         .route("/commandes/actions", post(actions_masse::commandes))
+        .route("/colonnes", post(colonnes::enregistrer))
         .route("/commandes/carnet", get(carnet))
         .route("/commandes/:id", get(commande_fiche))
         .route("/commandes/:id/valider", post(commande_valider))
@@ -108,7 +110,11 @@ pub fn routes(app: App) -> Router {
             get(factures_nouveau).post(factures_creer),
         )
         .route("/relances", get(relances))
+        // Les chemins fixes passent avant les chemins a parametre : sinon
+        // `/chantiers/gantt` est lu comme `/chantiers/:id`, et « gantt » ne se
+        // convertit pas en entier.
         .route("/chantiers", get(chantiers).post(chantier_creer))
+        .route("/chantiers/gantt", get(gantt_chantiers))
         .route("/chantiers/marges", get(marges_chantiers))
         .route("/chantiers/:id", get(chantier_fiche))
         .route("/chantiers/:id/tache", post(chantier_tache_creer))
@@ -175,6 +181,45 @@ pub fn routes(app: App) -> Router {
             "/receptions/:id/supprimer",
             post(reception_ecran::supprimer),
         )
+        .route("/variantes", get(variantes).post(variante_attribut))
+        .route("/variantes/:id/valeur", post(variante_valeur))
+        .route(
+            "/produits/:id/variantes",
+            get(produit_variantes).post(produit_variante_creer),
+        )
+        .route(
+            "/produits/:id/variantes/:combinaison/supprimer",
+            post(produit_variante_supprimer),
+        )
+        .route("/reservations", get(reservations).post(calendrier_creer))
+        .route("/reservations/:id", get(reservation_calendrier))
+        .route("/reservations/:id/plage", post(plage_creer))
+        .route("/reservations/:id/reserver", post(reserver))
+        .route("/inscriptions", get(inscriptions).post(inscrire))
+        .route("/inscriptions/:id/confirmer", post(inscrire_confirmer))
+        .route("/inscriptions/:id/annuler", post(inscrire_annuler))
+        .route("/inscriptions/:id/present", post(inscrire_present))
+        .route("/salaires", get(salaires).post(salaire_creer))
+        .route(
+            "/recrutement",
+            get(recrutement).post(recrutement_offre_creer),
+        )
+        .route("/recrutement/:id", get(recrutement_offre))
+        .route("/recrutement/:id/publier", post(recrutement_publier))
+        .route("/recrutement/:id/clore", post(recrutement_clore))
+        .route(
+            "/recrutement/:id/candidature",
+            post(recrutement_candidature),
+        )
+        .route(
+            "/recrutement/candidature/:id/statut",
+            post(recrutement_statut_candidature),
+        )
+        .route("/salaires/:id/payer", post(salaire_payer))
+        .route("/salaires/:id/supprimer", post(salaire_supprimer))
+        .route("/ressources", get(ressources).post(ressource_creer))
+        .route("/ressources/:id", get(ressource_fiche))
+        .route("/ressources/:id/affecter", post(ressource_affecter))
         .route("/prets", get(pret_ecran::page).post(pret_ecran::creer))
         .route("/prets/:id", get(pret_ecran::detail))
         .route("/prets/:id/regler", post(pret_ecran::regler))
@@ -372,7 +417,15 @@ pub fn routes(app: App) -> Router {
         .route("/agenda", get(agenda))
         .route("/reglements", get(pages::reglements))
         .route("/avoirs", get(pages::avoirs))
-        .route("/contrats", get(pages::contrats))
+        .route("/contrats", get(contrats).post(contrat_creer))
+        .route("/contrats/:id", get(contrat_fiche))
+        .route("/contrats/:id/valider", post(contrat_valider))
+        .route("/contrats/:id/clore", post(contrat_clore))
+        .route("/contrats/:id/ligne", post(contrat_ligne))
+        .route(
+            "/contrats/:id/ligne/:ligne/basculer",
+            post(contrat_ligne_basculer),
+        )
         .route("/parametres/journal", get(pages::journal))
         .route(
             "/parametres/module/:code",

@@ -193,7 +193,7 @@ const SELECT_COLS: &str = "s.rowid, s.entity, s.ref, s.fk_user, u.login, \
      DATE_FORMAT(s.datec, '%Y-%m-%d %H:%i:%s'), \
      DATE_FORMAT(s.datesp, '%Y-%m-%d'), DATE_FORMAT(s.dateep, '%Y-%m-%d'), \
      CAST(s.amount AS CHAR), CAST(s.salary AS CHAR), s.label, s.fk_projet, \
-     s.fk_typepayment, cp.code, s.num_payment, s.fk_bank, s.fk_account, s.paye";
+     s.fk_typepayment, cp.code, s.fk_bank, s.fk_account, s.paye";
 
 /// Jointures communes : le login du salarié et le code du moyen de paiement.
 ///
@@ -244,10 +244,13 @@ fn map_row(row: &Row) -> Salaire {
         fk_project: opt_i(row, 13),
         fk_typepayment: opt_i(row, 14).unwrap_or(0),
         type_payment_code: opt_s(row, 15),
-        num_payment: opt_s(row, 16),
-        fk_bank: opt_i(row, 17),
-        fk_account: opt_i(row, 18),
-        paye: opt_i(row, 19).unwrap_or(0) != 0,
+        // `llx_salary` n'a pas de colonne `num_payment` : le numero de
+        // paiement vit dans `llx_payment_salary`. On laisse le champ vide
+        // plutot que de lire une colonne qui n'existe pas.
+        num_payment: None,
+        fk_bank: opt_i(row, 16),
+        fk_account: opt_i(row, 17),
+        paye: opt_i(row, 18).unwrap_or(0) != 0,
     }
 }
 
@@ -548,12 +551,11 @@ pub fn payer(
     // entre-temps, on n'écrase pas son versement, on annule le nôtre.
     tx.exec_drop(
         "UPDATE llx_salary SET paye = :paye, fk_typepayment = :moyen, \
-         num_payment = :numero, fk_account = :compte \
+         fk_account = :compte \
          WHERE entity = :entity AND rowid = :rowid AND paye = 0",
         params! {
             "paye" => STATUT_PAYE,
             "moyen" => fk_typepayment,
-            "numero" => numero,
             "compte" => fk_bank,
             "entity" => entity,
             "rowid" => rowid,

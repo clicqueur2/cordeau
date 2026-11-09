@@ -135,6 +135,23 @@ pub(crate) async fn chantier_fiche(
                 p { (d) }
             }
 
+            @if !taches.is_empty() {
+                @let barres: Vec<ui::BarreGantt> = taches
+                    .iter()
+                    .map(|t| ui::BarreGantt {
+                        label: t.label.clone(),
+                        debut: t.date_start.clone().unwrap_or_default(),
+                        fin: t.date_end.clone().unwrap_or_default(),
+                        avancement: t.progress,
+                    })
+                    .collect();
+                h2 {(crate::langue::tr("Planning")) }
+                (ui::gantt(&barres, &aujourdhui(p)?))
+                p .aide.petite {
+                    (crate::langue::tr("La ligne pointillée est aujourd'hui : ce qui la dépasse est en retard."))
+                }
+            }
+
             h2 {(crate::langue::tr("Tâches")) }
             @if taches.is_empty() {
                 (ui::vide("Aucune tâche.", None))
@@ -190,4 +207,40 @@ pub(crate) async fn chantier_tache_creer(
         champ("fin").as_deref(),
     )?;
     Ok(Redirect::to(&format!("/chantiers/{id}?ok=tache")))
+}
+
+/// Le planning de tous les chantiers, sur une seule echelle de temps.
+///
+/// C'est la vue qui manque a un tableau de bord : ce qui commence, ce qui finit,
+/// et ce qui se chevauche. Les barres vont de la date de debut a la date de fin
+/// prevue ; l'avancement se suit tache par tache, sur la fiche.
+pub(crate) async fn gantt_chantiers(State(app): State<App>) -> Res<Markup> {
+    let p = &app.pool;
+    let liste = db::projet::list(p, entite::courante(), 300, 0)?;
+    let jour = aujourdhui(p)?;
+    let barres: Vec<ui::BarreGantt> = liste
+        .iter()
+        .map(|c| ui::BarreGantt {
+            label: format!("{} — {}", c.ref_, c.title),
+            debut: c.date_start.clone().unwrap_or_default(),
+            fin: c.date_end.clone().unwrap_or_default(),
+            avancement: 100,
+        })
+        .collect();
+
+    Ok(ui::page(
+        "chantiers",
+        "gantt",
+        "Planning des chantiers",
+        html! {
+            h1 {(crate::langue::tr("Planning des chantiers")) }
+            p .sous-titre {
+                (crate::langue::tr("Tous les chantiers sur une seule échelle : ce qui se chevauche se voit."))
+            }
+            (ui::gantt(&barres, &jour))
+            p .aide.petite {
+                (crate::langue::tr("La ligne pointillée est aujourd'hui. L'avancement se suit tâche par tâche, sur la fiche du chantier."))
+            }
+        },
+    ))
 }

@@ -266,6 +266,20 @@ pub fn verifier(dossier: &Path) -> Result<Rapport, Box<dyn Error>> {
     })
 }
 
+/// Le dossier du journal : `DOLIBARR_JOURNAL_CAISSE`, sinon
+/// `<documents>/journal-caisse`.
+///
+/// Il vit a cote des documents et non en base : une chaine de hachages qu'on
+/// peut reecrire par SQL ne prouve rien.
+pub fn dossier() -> std::path::PathBuf {
+    if let Ok(v) = std::env::var("DOLIBARR_JOURNAL_CAISSE") {
+        if !v.trim().is_empty() {
+            return std::path::PathBuf::from(v);
+        }
+    }
+    crate::ged::racine().join("journal-caisse")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

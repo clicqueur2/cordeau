@@ -6,28 +6,90 @@
 
 use crate::*;
 
-pub(crate) async fn produits(State(app): State<App>) -> Res<Markup> {
-    let listes = db::product::list(&app.pool, entite::courante(), 500, 0)?;
+pub(crate) async fn produits(
+    State(app): State<App>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Res<Markup> {
+    let filtre = q.get("q").cloned().unwrap_or_default().to_lowercase();
+    let genre = q.get("genre").cloned().unwrap_or_default();
+    let en_vente = q.get("en_vente").map(|v| v == "1").unwrap_or(false);
+
+    let listes: Vec<_> = db::product::list(&app.pool, entite::courante(), 2000, 0)?
+        .into_iter()
+        .filter(|p| {
+            filtre.is_empty()
+                || p.ref_.to_lowercase().contains(&filtre)
+                || p.label.to_lowercase().contains(&filtre)
+        })
+        .filter(|p| match genre.as_str() {
+            "service" => p.est_service(),
+            "produit" => !p.est_service(),
+            _ => true,
+        })
+        .filter(|p| !en_vente || (p.tosell == 1 && p.hidden == 0))
+        .collect();
+
+    const DISPONIBLES: &[&str] = &["ref", "libelle", "prix", "type", "unite", "tva"];
+    let visibles = colonnes::visibles(&app.pool, "produits", &["ref", "libelle", "prix", "type"])?;
+
     Ok(ui::page(
         "produits",
         "liste",
         "Produits",
         html! {
+            (message(q.get("ok")))
             h1 {(crate::langue::tr("Produits et services")) }
-            p .sous-titre { (listes.len()) " référence(s)" }
+            div .barre-outils {
+                form method="get" action="/produits" {
+                    input type="search" name="q" value=(filtre)
+                          placeholder=(crate::langue::tr("Référence ou libellé")) .champ-moyen;
+                    select name="genre" .champ-moyen {
+                        option value="" selected[genre.is_empty()] { (crate::langue::tr("Tout")) }
+                        option value="produit" selected[genre == "produit"] { (crate::langue::tr("Produits")) }
+                        option value="service" selected[genre == "service"] { (crate::langue::tr("Services")) }
+                    }
+                    label .etiquette {
+                        input type="checkbox" name="en_vente" value="1" checked[en_vente];
+                        " " (crate::langue::tr("en vente"))
+                    }
+                    button type="submit" {(crate::langue::tr("Chercher")) }
+                    a .bouton.secondaire.petit href="/produits" {(crate::langue::tr("Réinitialiser")) }
+                }
+                span .pousse {}
+                p .compte-liste { strong { (listes.len()) } " " (crate::langue::tr("référence(s)")) }
+            }
+
+            (colonnes::choix_colonnes("produits", DISPONIBLES, &visibles))
+
             @if listes.is_empty() {
-                (ui::vide("Aucun produit.", None))
+                (ui::vide("Aucun produit ne correspond.", Some(("/produits/nouveau", "Créer un produit"))))
             } @else {
                 table {
-                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Libellé")) } th .num {(crate::langue::tr("PU HT")) } th {(crate::langue::tr("Type")) } th {(crate::langue::tr("Unité")) } } }
+                    thead {
+                        tr {
+                            @if colonnes::montre(&visibles, "ref") { th {(crate::langue::tr("Réf.")) } }
+                            @if colonnes::montre(&visibles, "libelle") { th {(crate::langue::tr("Libellé")) } }
+                            @if colonnes::montre(&visibles, "prix") { th .num {(crate::langue::tr("PU HT")) } }
+                            @if colonnes::montre(&visibles, "type") { th {(crate::langue::tr("Type")) } }
+                            @if colonnes::montre(&visibles, "unite") { th {(crate::langue::tr("Unité")) } }
+                            @if colonnes::montre(&visibles, "tva") { th .num {(crate::langue::tr("TVA")) } }
+                        }
+                    }
                     tbody {
                         @for pr in &listes {
                             tr {
-                                td .ref { (pr.ref_) }
-                                td { (pr.label) }
-                                td .num { (ui::euros(pr.price.unwrap_or_default())) }
-                                td { (if pr.est_service() { "service" } else { "produit" }) }
-                                td { (pr.fk_unit.map(|u| u.to_string()).unwrap_or_default()) }
+                                @if colonnes::montre(&visibles, "ref") {
+                                    td .ref { a href={ "/produits/" (pr.rowid) } { (pr.ref_.clone()) } }
+                                }
+                                @if colonnes::montre(&visibles, "libelle") {
+                                    td { a href={ "/produits/" (pr.rowid) } { (pr.label.clone()) } }
+                                }
+                                @if colonnes::montre(&visibles, "prix") { td .num { (ui::euros(pr.price.unwrap_or_default())) } }
+                                @if colonnes::montre(&visibles, "type") {
+                                    td { (if pr.est_service() { "service" } else { "produit" }) }
+                                }
+                                @if colonnes::montre(&visibles, "unite") { td { (pr.fk_unit.map(|u| u.to_string()).unwrap_or_default()) } }
+                                @if colonnes::montre(&visibles, "tva") { td .num { (pr.tva_tx.map(|t| t.normalize().to_string()).unwrap_or_default()) } }
                             }
                         }
                     }

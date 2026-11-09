@@ -77,37 +77,6 @@ pub async fn avoirs(State(app): State<crate::App>) -> Res<Markup> {
     ))
 }
 
-/// Contrats clients.
-pub async fn contrats(State(app): State<crate::App>) -> Res<Markup> {
-    let liste = db::divers::contrats(&app.pool, crate::entite::courante(), 200)?;
-    Ok(crate::ui::page(
-        "devis",
-        "contrats",
-        "Contrats",
-        html! {
-            h1 {(crate::langue::tr("Contrats")) }
-            p .sous-titre {(crate::langue::tr("Contrats clients enregistres dans Dolibarr (llx_contrat).")) }
-            @if liste.is_empty() {
-                (crate::ui::vide("Aucun contrat.", None))
-            } @else {
-                table {
-                    thead { tr { th {(crate::langue::tr("Ref.")) } th {(crate::langue::tr("Tiers")) } th {(crate::langue::tr("Date")) } th {(crate::langue::tr("Statut")) } th .num {(crate::langue::tr("TTC")) } } }
-                    tbody {
-                        @for c in &liste {
-                            tr {
-                                td .ref { (c.ref_) }
-                                td { (c.tiers.clone().unwrap_or_default()) }
-                                td .ref { (c.date.clone().unwrap_or_default()) }
-                                td { (match c.statut { 1 => "valide", 2 => "clos", _ => "brouillon" }) }
-                                td .num { (crate::ui::euros(c.total_ttc.unwrap_or_default())) }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-    ))
-}
 /// Journal des erreurs : les dernieres lignes ecrites par le serveur.
 pub async fn journal(State(_app): State<crate::App>) -> Res<Markup> {
     let lignes = crate::journal_erreurs::dernieres(200);
