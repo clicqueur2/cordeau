@@ -239,7 +239,7 @@ pub(crate) fn table_lignes(
             tbody {
                 @for (section, label, qty, pu, tva, total) in lignes {
                     @if section {
-                        tr { td colspan="5" style="background:#f6f4f0;font-weight:600" { (label) } }
+                        tr { td colspan="5" class="ligne-total" { (label) } }
                     } @else {
                         tr {
                             td { (label) }

@@ -85,7 +85,7 @@ pub async fn page(
                     )))
                 }
                 @if !constantes.is_empty() {
-                    p style="color:#78736c;font-size:13px;margin:0 0 14px" {
+                    p .aide.bloc {
                         (crate::langue::tr("Réglages posés : "))
                         (constantes.join(", "))
                     }
@@ -101,7 +101,7 @@ pub async fn page(
             @for p in PRESETS {
                 @let tous_presents = p.modules.iter().all(|m| actifs.contains(*m));
                 h2 { (p.libelle) }
-                p style="color:#78736c;font-size:13.5px;margin:0 0 10px" { (p.description) }
+                p .aide.marge-basse { (p.description) }
                 table {
                     thead {
                         tr {
@@ -126,7 +126,7 @@ pub async fn page(
                     }
                 }
                 @if !p.constantes.is_empty() {
-                    p style="color:#78736c;font-size:13px;margin:10px 0 0" {
+                    p .aide.apres {
                         (crate::langue::tr("Pose aussi : "))
                         @for (nom, valeur) in p.constantes {
                             code { (nom) " = " (valeur) } " "
@@ -134,7 +134,7 @@ pub async fn page(
                     }
                 }
                 @if tous_presents {
-                    p style="color:#78736c;font-size:13px;margin:10px 0 0" {
+                    p .aide.apres {
                         (crate::langue::tr("Ce socle est déjà en place."))
                     }
                 } @else {

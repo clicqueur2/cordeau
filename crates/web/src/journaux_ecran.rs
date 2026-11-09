@@ -76,7 +76,7 @@ pub async fn page(
             }
 
             h2 { (crate::langue::tr("Filtrer")) }
-            p style="margin:0 0 14px" {
+            p .marge-basse {
                 a href="/parametres/journaux" class="petit secondaire" {
                     (crate::langue::tr("Tous"))
                 }

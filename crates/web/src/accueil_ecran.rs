@@ -210,7 +210,7 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
             }
 
             @if alertes > 0 {
-                p .sous-titre style="margin:18px 0 0" {
+                p .sous-titre.espace-dessus {
                     (alertes.to_string()) " " (crate::langue::tr("point(s) à traiter — voir plus bas."))
                 }
             } @else {
@@ -224,7 +224,7 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                         @for m in &serie {
                             tr {
                                 td .ref.champ-court { (m.mois.clone()) }
-                                td style="width:46%" {
+                                td .col-46 {
                                     div .piste {
                                         div .vente style=(format!(
                                             "width:{}%",
@@ -235,7 +235,7 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                                     }
                                 }
                                 td .num.champ-court { (ui::euros(m.ventes)) }
-                                td style="width:30%" {
+                                td .col-30 {
                                     div .piste {
                                         div .achat style=(format!(
                                             "width:{}%",
@@ -245,16 +245,16 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                                         )) {}
                                     }
                                 }
-                                td .num style="width:100px;color:#78736c" { (ui::euros(m.achats)) }
+                                td .num.etroit.muet { (ui::euros(m.achats)) }
                             }
                         }
                     }
                 }
                 p.aide.petite.sous-champ {
-                    span style="display:inline-block;width:10px;height:10px;background:#8a5a2b;margin-right:5px" {}
+                    span .temoin {}
                     (crate::langue::tr("Ventes"))
                     "   "
-                    span style="display:inline-block;width:10px;height:10px;background:#c3bdb4;margin-right:5px" {}
+                    span .temoin.achat {}
                     (crate::langue::tr("Achats"))
                 }
             }
@@ -354,7 +354,7 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                                 td { (c.libelle.clone()) }
                                 td .num { (c.nombre.to_string()) }
                                 td .num { (ui::euros(c.montant)) }
-                                td style="width:26%" {
+                                td .col-26 {
                                     div .piste {
                                         div .vente style=(format!(
                                             "width:{}%",

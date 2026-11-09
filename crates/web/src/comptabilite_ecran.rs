@@ -147,7 +147,7 @@ pub(crate) async fn grand_livre(
                 "reconstituées depuis les documents sinon. Ce n'est pas une comptabilité tenue : "
                 "c'est une proposition à valider par l'expert-comptable."
             }
-            p style="color:#78736c;font-size:13px;margin:-14px 0 14px" {
+            p .aide.retrait {
                 (crate::langue::tr("Source des écritures : ")) (source)
             }
             form method="get" action="/comptabilite/grand-livre" .actions {

@@ -45,7 +45,7 @@ pub async fn liste(State(app): State<App>) -> Res<maud::Markup> {
                     "Aucun champ libre n'est defini sur cette entite.",
                     None
                 ))
-                p style="color:#78736c;font-size:14px" {
+                p .muet.taille-14 {
                     "Les definitions se creent dans Dolibarr (Configuration, Champs libres) ; "
                     "elles apparaissent ici des qu'elles existent en base."
                 }

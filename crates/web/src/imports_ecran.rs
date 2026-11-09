@@ -21,7 +21,7 @@ pub(crate) async fn import_page(Query(q): Query<HashMap<String, String>>) -> Res
             h2 {(crate::langue::tr("Importer des tiers")) }
             p { "Colonnes reconnues : " code { "nom" } " (obligatoire), " code { "adresse" } ", " code { "cp" } ", " code { "ville" } ", " code { "email" } ", " code { "tel" } ", " code { "siret" } ", " code { "tva" } "." }
             form method="post" action="/parametres/import" {
-                textarea name="csv" rows="10" style="width:100%;font-family:ui-monospace,monospace;padding:10px;border:1px solid #e2e2e2" placeholder="nom;ville;email&#10;SARL Exemple;Charly;contact@exemple.fr"
+                textarea name="csv" rows="10" class="zone-code" placeholder="nom;ville;email&#10;SARL Exemple;Charly;contact@exemple.fr"
                 { "" }
                 div .actions {
                     button type="submit" {(crate::langue::tr("Importer")) }
@@ -31,7 +31,7 @@ pub(crate) async fn import_page(Query(q): Query<HashMap<String, String>>) -> Res
             h2 {(crate::langue::tr("Importer des produits")) }
             p { "Colonnes reconnues : " code { "ref" } " (obligatoire), " code { "libelle" } ", " code { "prix" } ", " code { "tva" } ", " code { "type" } " (produit ou service), " code { "unite" } "." }
             form method="post" action="/parametres/import/produits" {
-                textarea name="csv" rows="6" style="width:100%;font-family:ui-monospace,monospace;padding:10px;border:1px solid #e2e2e2" placeholder="ref;libelle;prix;tva;type&#10;BOR-030;Bordure granit 30 cm;125.50;20;produit" { "" }
+                textarea name="csv" rows="6" class="zone-code" placeholder="ref;libelle;prix;tva;type&#10;BOR-030;Bordure granit 30 cm;125.50;20;produit" { "" }
                 div .actions { button type="submit" {(crate::langue::tr("Importer")) } }
             }
 
@@ -39,7 +39,7 @@ pub(crate) async fn import_page(Query(q): Query<HashMap<String, String>>) -> Res
             p { "Une ligne = une ligne de facture, regroupée par client et référence. Colonnes : " code { "client" } " (obligatoire), " code { "facture" } ", " code { "date" } ", " code { "echeance" } ", " code { "libelle" } ", " code { "qte" } ", " code { "pu" } ", " code { "tva" } "." }
             p .vide {(crate::langue::tr("Les factures importées sont créées puis validées. Le client est créé s'il n'existe pas. La numérotation Dolibarr est attribuée.")) }
             form method="post" action="/parametres/import/factures" {
-                textarea name="csv" rows="6" style="width:100%;font-family:ui-monospace,monospace;padding:10px;border:1px solid #e2e2e2" placeholder="client;facture;date;libelle;qte;pu;tva&#10;SARL Exemple;F2024-001;2024-03-12;Travaux;1;1200;20" { "" }
+                textarea name="csv" rows="6" class="zone-code" placeholder="client;facture;date;libelle;qte;pu;tva&#10;SARL Exemple;F2024-001;2024-03-12;Travaux;1;1200;20" { "" }
                 div .actions { button type="submit" {(crate::langue::tr("Importer")) } }
             }
 

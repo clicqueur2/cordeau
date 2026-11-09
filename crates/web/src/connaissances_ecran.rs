@@ -57,7 +57,7 @@ pub async fn page(
             form method="post" action="/connaissances" {
                 label for="question" { (crate::langue::tr("Question")) }
                 textarea name="question" id="question" rows="2" required
-                         style="width:100%;font-size:14px"
+                         class="pleine taille-14"
                          placeholder=(crate::langue::tr("Comment relancer une facture impayée ?")) {}
                 label for="answer" { (crate::langue::tr("Réponse")) }
                 textarea name="answer" id="answer" rows="4"
@@ -147,7 +147,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
 
             h2 { (crate::langue::tr("Réponse")) }
             @if let Some(r) = f.reponse.clone().filter(|r| !r.trim().is_empty()) {
-                pre style="background:#fbfaf8;border:1px solid #e6e2dc;padding:14px;font-size:13.5px;white-space:pre-wrap;margin:0" {
+                pre .panneau.note {
                     (r)
                 }
             } @else {

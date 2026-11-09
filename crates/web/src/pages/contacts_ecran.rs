@@ -474,9 +474,9 @@ pub async fn ticket_fiche(
                 @if let Some(g) = &t.gravite { " — gravité " (g) }
             }
             @if let Some(m) = &t.message {
-                div .carte style="margin-bottom:22px" {
+                div .carte.espace-bas {
                     div .libelle {(crate::langue::tr("Message")) }
-                    p style="white-space:pre-wrap" { (m) }
+                    p .pre { (m) }
                 }
             }
             form method="post" action={ "/tickets/" (id) "/statut" } .actions {

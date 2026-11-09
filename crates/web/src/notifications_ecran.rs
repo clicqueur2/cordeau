@@ -70,7 +70,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
             @if config.aucun_canal() {
                 (ui::echec("Aucun canal configuré : rien ne partirait. Renseignez un courriel ou un webhook."))
             }
-            pre style="background:#fbfaf8;border:1px solid #e6e2dc;padding:14px;font-size:13px;white-space:pre-wrap;margin:0" {
+            pre .panneau.note {
                 (resume)
             }
 

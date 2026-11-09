@@ -157,7 +157,7 @@ pub async fn detail(State(app): State<App>, Path(id): Path<i64>) -> Res<maud::Ma
 
             @if let Some(corps) = c.body.clone().filter(|b| !b.trim().is_empty()) {
                 h2 { (crate::langue::tr("Message")) }
-                pre style="background:#fbfaf8;border:1px solid #e6e2dc;padding:14px;font-size:13px;white-space:pre-wrap;margin:0" {
+                pre .panneau.note {
                     (corps)
                 }
             }
