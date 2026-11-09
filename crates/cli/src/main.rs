@@ -239,16 +239,10 @@ fn schema_migrer(args: &[String]) -> ExitCode {
                 return ExitCode::FAILURE;
             }
         };
-        // `split_statements` decoupe hors guillemets et ne touche pas au texte :
-        // c'est le decodeur des migrations. `prepare_file` est celui des scripts
-        // d'installation, ou il recolle les lignes — sur une migration, il
-        // coupait au milieu des identifiants (`fk_facture_foun` au lieu de
-        // `fk_facture_fourn`).
-        let instructions: Vec<String> = sql
-            .split(';')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+        // `split_statements` decoupe hors guillemets, sans toucher au texte :
+        // c'est le decodeur des migrations. Un decoupage naif sur `;` couperait
+        // au milieu d'une valeur qui contient un point-virgule.
+        let instructions = schema::ddl::split_statements(&sql);
         println!(
             "{}. {} ({} instructions)",
             i + 1,
