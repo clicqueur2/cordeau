@@ -77,7 +77,46 @@ pub fn split_statements(sql: &str) -> Vec<String> {
                 }
             }
             None => {
-                if c == '\'' || c == '"' || c == '`' {
+                // Les commentaires : `-- … fin de ligne`, `# … fin de ligne`,
+                // `/* … */`. Sans ce traitement, une ligne comme
+                // `--Value (Price of the content, for insurance)` se retrouvait
+                // collee a l'instruction suivante et MariaDB la refusait.
+                // Sur les scripts de Dolibarr 12, cela faisait echouer la moitie
+                // des CREATE TABLE (145 tables creees sur 307).
+                if c == '-' && chars.peek() == Some(&'-') {
+                    // Il faut un blanc apres `--`, sinon c'est un `-` double
+                    // dans une expression (a - -b).
+                    let mut regard = chars.clone();
+                    regard.next();
+                    if regard.peek().map(|n| n.is_whitespace()).unwrap_or(true) {
+                        chars.next();
+                        for n in chars.by_ref() {
+                            if n == '\n' {
+                                cur.push('\n');
+                                break;
+                            }
+                        }
+                        continue;
+                    }
+                    cur.push(c);
+                } else if c == '#' {
+                    for n in chars.by_ref() {
+                        if n == '\n' {
+                            cur.push('\n');
+                            break;
+                        }
+                    }
+                } else if c == '/' && chars.peek() == Some(&'*') {
+                    chars.next();
+                    let mut precedent = ' ';
+                    for n in chars.by_ref() {
+                        if precedent == '*' && n == '/' {
+                            break;
+                        }
+                        precedent = n;
+                    }
+                    cur.push(' ');
+                } else if c == '\'' || c == '"' || c == '`' {
                     quote = Some(c);
                     cur.push(c);
                 } else if c == ';' {
