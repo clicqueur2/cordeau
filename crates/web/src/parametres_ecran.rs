@@ -105,10 +105,10 @@ pub(crate) async fn parametres(
                         tr {
                             th {(crate::langue::tr("Conditions générales de vente")) }
                             td {
-                                textarea name="cgv" rows="6" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #e6e2dc" {
+                                textarea name="cgv" rows="6".pleine {
                                     (s.cgv.clone().unwrap_or_default())
                                 }
-                                p style="color:#78736c;font-size:12.5px;margin:6px 0 0" {(crate::langue::tr("Imprimées en bas de chaque devis et facture. Une ligne fait un paragraphe."))
+                                p.aide.petite.sous-champ {(crate::langue::tr("Imprimées en bas de chaque devis et facture. Une ligne fait un paragraphe."))
                                 }
                             }
                         }

@@ -50,13 +50,13 @@ pub async fn reglages(
                                     } @else if c.genre == "nombre" {
                                         input type="number" name=(c.cle) value=(valeurs[i]).champ-moyen;
                                     } @else if c.genre == "textarea" {
-                                        textarea name=(c.cle) rows="4" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #e6e2dc" {
+                                        textarea name=(c.cle) rows="4".pleine {
                                             (valeurs[i])
                                         }
                                     } @else {
                                         input type="text" name=(c.cle) value=(valeurs[i]) class="pleine";
                                     }
-                                    p style="color:#78736c;font-size:12px;margin:6px 0 0" { "constante " code { (c.cle) } }
+                                    p.aide.petite.sous-champ { "constante " code { (c.cle) } }
                                 }
                             }
                         }

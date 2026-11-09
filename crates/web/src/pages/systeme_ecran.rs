@@ -73,7 +73,7 @@ pub async fn evenements_page(State(app): State<crate::App>) -> Res<Markup> {
                         }
                     }
                 }
-                p style="color:#78736c;font-size:13.5px;margin-top:14px" {
+                p.aide.haut {
                     "L'adresse est lue dans " code {(crate::langue::tr("X-Forwarded-For")) } " quand un proxy la pose, "
                     "sinon la connexion locale. Derrière un proxy mal configuré, elle est "
                     "indicative et non une preuve."
@@ -154,7 +154,7 @@ pub async fn table_page(
             @if lignes.is_empty() {
                 (crate::ui::vide("Table vide.", Some(("/parametres/tables", "Retour aux tables"))))
             } @else {
-                div style="overflow-x:auto" {
+                div.defile {
                     table {
                         thead {
                             tr { @for c in &colonnes { th { (c.clone()) } } }
@@ -176,7 +176,7 @@ pub async fn table_page(
             div .actions {
                 a .bouton.secondaire href={ "/parametres/tables/" (nom) "?page=" ((page + 1).to_string()) } {(crate::langue::tr("Page suivante"))
                 }
-                a .bouton.secondaire href="/parametres/tables" style="margin-left:8px" {(crate::langue::tr("Toutes les tables"))
+                a .bouton.secondaire href="/parametres/tables".ecart {(crate::langue::tr("Toutes les tables"))
                 }
             }
         },

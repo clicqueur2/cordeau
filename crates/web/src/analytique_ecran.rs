@@ -114,7 +114,7 @@ pub async fn page(
             }
 
             div .actions {
-                form method="post" action="/comptabilite/analytique/axe" style="display:flex;gap:8px" {
+                form method="post" action="/comptabilite/analytique/axe".rangee {
                     input type="text" name="code" placeholder="CHANTIERS" size="12" required;
                     input type="text" name="libelle" placeholder="Chantiers" size="18" required;
                     button type="submit" class="petit" {(crate::langue::tr("Créer l'axe")) }
@@ -122,7 +122,7 @@ pub async fn page(
             }
             @if !axes.is_empty() {
                 div .actions {
-                    form method="post" action="/comptabilite/analytique/compte" style="display:flex;gap:8px" {
+                    form method="post" action="/comptabilite/analytique/compte".rangee {
                         select name="fk_axe" required {
                             @for a in &axes { option value=(a.rowid) { (a.libelle) } }
                         }

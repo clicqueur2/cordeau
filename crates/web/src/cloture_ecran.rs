@@ -202,7 +202,7 @@ pub async fn page(
                         }
                     }
                 }
-                p style="color:#78736c;font-size:13.5px;margin-top:14px" {
+                p.aide.haut {
                     "L'instantané est la photographie de l'exercice au moment où il se ferme : "
                     "il répondra plus tard sans recalculer sur un livre qui aura bougé."
                 }

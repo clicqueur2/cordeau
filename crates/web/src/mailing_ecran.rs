@@ -73,11 +73,11 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                 br;
                 label for="body" { (crate::langue::tr("Message")) }
                 textarea name="body" id="body" rows="5" required
-                         style="width:100%;font-family:ui-monospace,monospace;font-size:13px" {}
+                        .code.pleine {}
                 div .actions {
                     button type="submit" { (crate::langue::tr("Créer le brouillon")) }
                 }
-                p style="color:#78736c;font-size:13px;margin:0" {
+                p.aide {
                     (crate::langue::tr("Une campagne née en brouillon ne part jamais toute seule : il faut la valider, puis l'approuver."))
                 }
             }

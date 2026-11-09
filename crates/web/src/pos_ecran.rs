@@ -339,7 +339,7 @@ fn libelle_moyen(mode: &ModePaiement) -> String {
 fn choix_moyen(modes: &[ModePaiement]) -> Markup {
     html! {
         select name="moyen" aria-label="Moyen de paiement"
-               style="width:100%;padding:12px 14px;font-size:16px" {
+              .pleine.zone-texte {
             @if modes.is_empty() {
                 // Dictionnaire vide : les trois moyens qu'une caisse utilise
                 // vraiment, pour que l'écran reste utilisable.
@@ -506,7 +506,7 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                  style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));\
                         gap:14px;align-items:end;max-width:900px" {
                 (champ("Article", html! {
-                    select name="produit" style="width:100%;padding:12px 14px;font-size:16px" {
+                    select name="produit".pleine.zone-texte {
                         @for produit in vendables.iter().copied() {
                             option value=(produit.rowid) {
                                 (produit.ref_) " — " (libelle_produit(produit))
@@ -516,13 +516,13 @@ pub async fn page(State(app): State<crate::App>) -> crate::Res<Markup> {
                 }))
                 (champ("Quantité", html! {
                     input type="text" name="qty" value="1" inputmode="decimal"
-                          style="width:100%;padding:12px 14px;font-size:16px";
+                         .pleine.zone-texte;
                 }))
                 (champ("Moyen de paiement", choix_moyen(&modes)))
                 (champ("Montant reçu (facultatif)", html! {
                     input type="text" name="paye" inputmode="decimal"
                           placeholder="vide = total TTC"
-                          style="width:100%;padding:12px 14px;font-size:16px";
+                         .pleine.zone-texte;
                 }))
                 div {
                     button type="submit" style="padding:18px 22px;font-size:16px;width:100%" {(crate::langue::tr("Encaisser"))

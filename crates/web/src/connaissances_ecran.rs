@@ -61,7 +61,7 @@ pub async fn page(
                          placeholder=(crate::langue::tr("Comment relancer une facture impayée ?")) {}
                 label for="answer" { (crate::langue::tr("Réponse")) }
                 textarea name="answer" id="answer" rows="4"
-                         style="width:100%;font-family:ui-monospace,monospace;font-size:13px" {}
+                        .code.pleine {}
                 div .actions {
                     button type="submit" { (crate::langue::tr("Créer la fiche")) }
                 }

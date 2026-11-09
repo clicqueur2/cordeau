@@ -66,7 +66,7 @@ pub async fn liste(State(app): State<App>) -> Res<maud::Markup> {
                         }
                     }
                 }
-                p style="color:#78736c;font-size:13.5px;margin-top:14px" {
+                p.aide.haut {
                     (extrafields::TYPES.len().to_string())
                     " types reconnus par le coeur de Dolibarr, de "
                     code { "varchar" } " a " code { "polygon" } "."
@@ -143,7 +143,7 @@ pub async fn cible(State(app): State<App>, Path(elementtype): Path<String>) -> R
                         }
                     }
                 }
-                p style="color:#78736c;font-size:13.5px;margin-top:14px" {
+                p.aide.haut {
                     "Pour ouvrir les valeurs d'un objet : "
                     code { "/extrafields/" (elementtype) "/<numero>" }
                     " — le numero est le " code { "rowid" } " de la ligne dans "

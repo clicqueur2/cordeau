@@ -37,7 +37,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                         tr {
                             th { "Content-Security-Policy" }
                             td {
-                                textarea name="csp" rows="2" style="width:100%;font-family:ui-monospace,monospace;font-size:13px"
+                                textarea name="csp" rows="2".code.pleine
                                          placeholder="default-src 'self'; img-src * data:" {
                                     (config.csp)
                                 }
@@ -49,7 +49,7 @@ pub async fn page(State(app): State<App>) -> Res<maud::Markup> {
                         tr {
                             th { "Content-Security-Policy-Report-Only" }
                             td {
-                                textarea name="csp_rapport" rows="2" style="width:100%;font-family:ui-monospace,monospace;font-size:13px" {
+                                textarea name="csp_rapport" rows="2".code.pleine {
                                     (config.csp_rapport)
                                 }
                                 div class="aide petite" {

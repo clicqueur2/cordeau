@@ -78,7 +78,7 @@ pub async fn page(
                                 }
                                 td .num { (ui::euros(l.montant)) }
                                 td colspan="2" {
-                                    form method="post" action="/banques/rapprochement/pointer" style="display:flex;gap:8px" {
+                                    form method="post" action="/banques/rapprochement/pointer".rangee {
                                         input type="hidden" name="ligne" value=(l.ligne);
                                         input type="text" name="releve" placeholder=(crate::langue::tr("N° de relevé")) size="12";
                                         button type="submit" class="petit" { (crate::langue::tr("Pointer")) }
