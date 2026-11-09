@@ -215,7 +215,6 @@ fn schema_planifier(args: &[String]) -> ExitCode {
     }
 }
 
-
 /// Les tables qui appartiennent a un module, et lequel.
 ///
 /// Dolibarr nomme ses fichiers d'installation `<table>-<module>.sql` pour les
