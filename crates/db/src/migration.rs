@@ -10,6 +10,11 @@
 //! qu'on peut tester sans serveur — et celle où une erreur d'ordre coûterait une
 //! base entière.
 
+use std::error::Error;
+
+use mysql::prelude::*;
+use mysql::Pool;
+
 /// Une étape : le fichier à jouer, et les deux versions qu'il relie.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Etape {
@@ -163,4 +168,43 @@ mod tests {
         assert_eq!(comparer("24.0.0", "24.0.0"), std::cmp::Ordering::Equal);
         assert_eq!(comparer("9.0.0", "10.0.0"), std::cmp::Ordering::Less);
     }
+}
+
+/// Joue des instructions SQL dans **une seule transaction**.
+///
+/// Une erreur annule tout et remonte : jamais de demi-migration, qui laisserait
+/// la base ni dans l'ancienne version ni dans la nouvelle.
+///
+/// Le decoupage n'est pas ici : il appartient a `schema::prepare_file`, deja
+/// verifie sur les scripts de Dolibarr 12 (307 tables sur 307). Ce module ne
+/// connait que l'execution.
+pub fn executer(pool: &Pool, instructions: &[String]) -> Result<(), Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    conn.query_drop("START TRANSACTION")?;
+    for (i, instruction) in instructions.iter().enumerate() {
+        if let Err(e) = conn.query_drop(instruction.as_str()) {
+            // Dolibarr joue ces scripts avec `$db->query()`, qui **ignore** les
+            // erreurs : une base 12.0.5 porte deja des colonnes que le script
+            // 12→13 s'apprete a ajouter, parce qu'un correctif de la 12 les a
+            // introduites. Arreter la-dessus rendrait toute migration
+            // impossible.
+            //
+            // On tolere donc trois codes, et trois seulement, parce qu'ils
+            // disent « c'est deja fait » et non « c'est casse » :
+            //   1050 table deja la, 1051 table absente, 1060 colonne en double,
+            //   1061 index en double, 1091 cle absente.
+            // Tout le reste arrete la migration.
+            let deja_fait = match &e {
+                mysql::Error::MySqlError(me) => matches!(me.code, 1050 | 1051 | 1060 | 1061 | 1091),
+                _ => false,
+            };
+            if deja_fait {
+                continue;
+            }
+            let _ = conn.query_drop("ROLLBACK");
+            return Err(format!("instruction {} refusee : {e}", i + 1).into());
+        }
+    }
+    conn.query_drop("COMMIT")?;
+    Ok(())
 }

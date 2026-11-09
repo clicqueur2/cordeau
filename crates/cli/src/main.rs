@@ -50,6 +50,7 @@ fn main() -> ExitCode {
         (Some("schema"), Some("prepare")) => schema_prepare(&args),
         (Some("schema"), Some("verify")) => schema_verify(&args),
         (Some("schema"), Some("planifier")) => schema_planifier(&args),
+        (Some("schema"), Some("migrer")) => schema_migrer(&args),
         (Some("audit"), _) => audit_cmd(&args),
         (Some("tache"), Some(cmd)) => tache_cmd(cmd, &args),
         (Some("adresse"), _) => annuaire_adresse(&args),
@@ -167,6 +168,95 @@ fn schema_prepare(args: &[String]) -> ExitCode {
 ///
 /// Ne touche pas a la base. Sert a repondre a la seule question qui compte avant
 /// de migrer une vieille base : **la chaine est-elle complete** ?
+
+/// Joue les scripts de migration, un par un, chacun dans sa transaction.
+///
+/// Sans `--appliquer`, la commande affiche ce qu'elle ferait et ne touche a
+/// rien : une migration de base ne part pas d'une faute de frappe.
+fn schema_migrer(args: &[String]) -> ExitCode {
+    let dsn = dsn_or_env(args);
+    let depuis = flag(args, "--depuis").unwrap_or_default().to_string();
+    let vers = flag(args, "--vers").unwrap_or_default().to_string();
+    let appliquer = args.iter().any(|a| a == "--appliquer");
+    let src = match flag(args, "--src") {
+        Some(s) => s.to_string(),
+        None => {
+            eprintln!("il manque --src <install/mysql/migration>");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let mut fichiers = Vec::new();
+    match std::fs::read_dir(&src) {
+        Ok(e) => {
+            for f in e.flatten() {
+                if let Some(n) = f.file_name().to_str() {
+                    if n.ends_with(".sql") {
+                        fichiers.push(n.to_string());
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("lecture impossible de {src} : {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    let etapes = match db::migration::chemin(&depuis, &vers, &fichiers) {
+        Ok(e) => e,
+        Err(e) => {
+            eprintln!("chaine incomplete : {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    if !appliquer {
+        println!("{} etape(s) de {depuis} a {vers} — rien n'a ete joue.", etapes.len());
+        for (i, e) in etapes.iter().enumerate() {
+            println!("  {:>2}. {}", i + 1, e.fichier);
+        }
+        println!("\nAjouter --appliquer pour executer.");
+        return ExitCode::SUCCESS;
+    }
+
+    let pool = match db::pool(&dsn) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("connexion impossible : {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    for (i, etape) in etapes.iter().enumerate() {
+        let chemin = std::path::Path::new(&src).join(&etape.fichier);
+        let sql = match std::fs::read_to_string(&chemin) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("{}. {} illisible : {e}", i + 1, etape.fichier);
+                return ExitCode::FAILURE;
+            }
+        };
+        let (prepare, _) = schema::prepare_file(&sql, 1);
+        let instructions: Vec<String> = prepare
+            .split(";\n")
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        println!("{}. {} ({} instructions)", i + 1, etape.fichier, instructions.len());
+
+        if let Err(e) = db::migration::executer(&pool, &instructions) {
+            eprintln!("  {e}");
+            eprintln!("  transaction annulee — la base reste en {}", etape.de);
+            return ExitCode::FAILURE;
+        }
+    }
+
+    println!("\nMigration terminee : {depuis} -> {vers}.");
+    println!("Verifier : cordeau schema verify --dsn ... --schema <base>");
+    ExitCode::SUCCESS
+}
+
 fn schema_planifier(args: &[String]) -> ExitCode {
     let depuis = flag(args, "--depuis").unwrap_or_default();
     let vers = flag(args, "--vers").unwrap_or_default();
