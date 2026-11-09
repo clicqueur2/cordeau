@@ -694,6 +694,63 @@ html[data-style="collaboratif"] .connexion-marque .sceau {
 }
 html[data-style="collaboratif"] .pastille { font-weight: 600; }
 
+/* « comptable » : la famille Pennylane / Indy / Qonto / Tiime.
+   Presque blanc, violet sourd, tres grands rayons, beaucoup d'air, chiffres
+   qui portent la page. Pas de bordure : des surfaces posees. */
+html[data-style="comptable"] {
+  --encre: #111114;
+  --encre-douce: #27272a;
+  --muet: #71717a;
+  --pale: #a1a1aa;
+  --papier: #f7f7f9;
+  --surface: #ffffff;
+  --surface-2: #fbfbfc;
+  --surface-3: #f2f2f5;
+  --verre: rgba(255, 255, 255, .86);
+  --trait: #ececef;
+  --trait-fort: #dcdce2;
+  --accent: #5b5bd6;
+  --accent-fonce: #4747b8;
+  --accent-clair: #f0f0fd;
+  --accent-trait: #dcdcf8;
+  --anneau: rgba(91, 91, 214, .3);
+  --vert: #15803d;
+  --vert-clair: #eefaf2;
+  --vert-trait: #c4ecd3;
+  --rouge: #be123c;
+  --rouge-clair: #fff1f3;
+  --rouge-trait: #f9cdd7;
+  --bleu: #1d4ed8;
+  --bleu-clair: #eff4ff;
+  --bleu-trait: #d3e0fd;
+  --ambre: #a16207;
+  --ambre-clair: #fef9ec;
+  --ambre-trait: #f6e3b6;
+  --rayon: 10px;
+  --rayon-lg: 16px;
+  --ombre-1: 0 1px 2px rgba(17, 17, 20, .04);
+  --ombre-2: 0 6px 20px rgba(17, 17, 20, .06);
+  --ombre-3: 0 20px 44px rgba(17, 17, 20, .1);
+  --e4: 18px; --e5: 28px; --e6: 36px;
+}
+html[data-style="comptable"] h1 { font-size: 30px; letter-spacing: -.04em; }
+html[data-style="comptable"] header { border-bottom: none; box-shadow: 0 1px 0 var(--trait); }
+html[data-style="comptable"] .carte,
+html[data-style="comptable"] .kpi { padding: 20px 22px; }
+html[data-style="comptable"] .kpi .valeur,
+html[data-style="comptable"] .carte .valeur { font-size: 28px; letter-spacing: -.04em; }
+html[data-style="comptable"] table { border: none; box-shadow: var(--ombre-2); }
+html[data-style="comptable"] td { padding: 13px 16px; }
+html[data-style="comptable"] button,
+html[data-style="comptable"] .bouton { height: 36px; padding: 0 16px; border-radius: 10px; }
+html[data-style="comptable"] input, html[data-style="comptable"] select { height: 36px; }
+html[data-style="comptable"] .menu-gauche { background: transparent; border-right: none; }
+html[data-style="comptable"] header .marque .sceau,
+html[data-style="comptable"] .connexion-marque .sceau {
+  background: linear-gradient(160deg, #7c7cf0 0%, #5b5bd6 100%);
+  border-radius: 10px;
+}
+
 /* ===== mode sombre ===================================================== */
 @media (prefers-color-scheme: dark) {
   :root {
