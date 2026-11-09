@@ -10,8 +10,32 @@ pub(crate) async fn achats(
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
     let p = &app.pool;
-    let liste = db::achat::fournisseurs(p, entite::courante(), 500, 0)?;
-    let factures = db::achat::factures_fournisseur(p, entite::courante(), 100, 0)?;
+    let filtre = q
+        .get("q")
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    let liste: Vec<_> = db::achat::fournisseurs(p, entite::courante(), 500, 0)?
+        .into_iter()
+        .filter(|f| {
+            filtre.is_empty()
+                || f.nom.to_lowercase().contains(&filtre)
+                || f.code_fournisseur
+                    .as_deref()
+                    .map(|c| c.to_lowercase().contains(&filtre))
+                    .unwrap_or(false)
+        })
+        .collect();
+    let factures: Vec<_> = db::achat::factures_fournisseur(p, entite::courante(), 100, 0)?
+        .into_iter()
+        .filter(|f| {
+            filtre.is_empty()
+                || f.ref_.to_lowercase().contains(&filtre)
+                || f.fournisseur
+                    .as_deref()
+                    .map(|n| n.to_lowercase().contains(&filtre))
+                    .unwrap_or(false)
+        })
+        .collect();
     let paiements = db::divers::paiements_fournisseurs(p, entite::courante(), 50)?;
     let total = db::achat::total_achats(p, entite::courante())?;
 
@@ -25,25 +49,62 @@ pub(crate) async fn achats(
             p .sous-titre {(crate::langue::tr("Fournisseurs et factures fournisseurs (llx_societe fournisseur à 1, llx_facture_fourn)."))
             }
 
+            form method="get" action="/achats" .actions {
+                input type="search" name="q" value=(filtre)
+                      placeholder=(crate::langue::tr("Fournisseur, code ou référence")) .champ-moyen;
+                button type="submit" class="petit" {(crate::langue::tr("Chercher")) }
+                @if !filtre.is_empty() {
+                    a .bouton.secondaire.petit href="/achats" {(crate::langue::tr("Tout voir")) }
+                }
+            }
+
             div .cartes {
                 (ui::carte("Achats (TTC)", &ui::euros(total), None, false))
                 (ui::carte("Fournisseurs", &liste.len().to_string(), None, false))
             }
 
             h2 {(crate::langue::tr("Fournisseurs")) }
+            @let visibles_fournisseurs = colonnes::visibles(
+                &app.pool,
+                "achats.fournisseurs",
+                &["code", "nom", "ville", "siret", "email"],
+            )?;
+            (colonnes::choix_colonnes(
+                "achats.fournisseurs",
+                &["code", "nom", "ville", "siret", "email"],
+                &visibles_fournisseurs,
+            ))
             @if liste.is_empty() {
                 (ui::vide("Aucun fournisseur.", None))
             } @else {
                 table {
-                    thead { tr { th {(crate::langue::tr("Code")) } th {(crate::langue::tr("Nom")) } th {(crate::langue::tr("Ville")) } th {(crate::langue::tr("SIRET")) } th {(crate::langue::tr("E-mail")) } } }
+                    thead {
+                        tr {
+                            @if colonnes::montre(&visibles_fournisseurs, "code") { th {(crate::langue::tr("Code")) } }
+                            @if colonnes::montre(&visibles_fournisseurs, "nom") { th {(crate::langue::tr("Nom")) } }
+                            @if colonnes::montre(&visibles_fournisseurs, "ville") { th {(crate::langue::tr("Ville")) } }
+                            @if colonnes::montre(&visibles_fournisseurs, "siret") { th {(crate::langue::tr("SIRET")) } }
+                            @if colonnes::montre(&visibles_fournisseurs, "email") { th {(crate::langue::tr("E-mail")) } }
+                        }
+                    }
                     tbody {
                         @for f in &liste {
                             tr {
-                                td .ref { (f.code_fournisseur.clone().unwrap_or_default()) }
-                                td { (f.nom) }
-                                td { (f.town.clone().unwrap_or_default()) }
-                                td .ref { (f.siret.clone().unwrap_or_default()) }
-                                td { (f.email.clone().unwrap_or_default()) }
+                                @if colonnes::montre(&visibles_fournisseurs, "code") {
+                                    td .ref { (f.code_fournisseur.clone().unwrap_or_default()) }
+                                }
+                                @if colonnes::montre(&visibles_fournisseurs, "nom") {
+                                    td { (f.nom) }
+                                }
+                                @if colonnes::montre(&visibles_fournisseurs, "ville") {
+                                    td { (f.town.clone().unwrap_or_default()) }
+                                }
+                                @if colonnes::montre(&visibles_fournisseurs, "siret") {
+                                    td .ref { (f.siret.clone().unwrap_or_default()) }
+                                }
+                                @if colonnes::montre(&visibles_fournisseurs, "email") {
+                                    td { (f.email.clone().unwrap_or_default()) }
+                                }
                             }
                         }
                     }
@@ -82,20 +143,52 @@ pub(crate) async fn achats(
             div .actions {
                 a .bouton href="/achats/facture" {(crate::langue::tr("Saisir une facture fournisseur")) }
             }
+            @let visibles_factures = colonnes::visibles(
+                &app.pool,
+                "achats.factures",
+                &["ref", "chez", "fournisseur", "date", "ttc", "statut"],
+            )?;
+            (colonnes::choix_colonnes(
+                "achats.factures",
+                &["ref", "chez", "fournisseur", "date", "ttc", "statut"],
+                &visibles_factures,
+            ))
             @if factures.is_empty() {
                 (ui::vide("Aucune facture fournisseur.", None))
             } @else {
                 table {
-                    thead { tr { th {(crate::langue::tr("Réf.")) } th {(crate::langue::tr("Chez le fournisseur")) } th {(crate::langue::tr("Fournisseur")) } th {(crate::langue::tr("Date")) } th .num {(crate::langue::tr("TTC")) } th { "État" } th { "" } } }
+                    thead {
+                        tr {
+                            @if colonnes::montre(&visibles_factures, "ref") { th {(crate::langue::tr("Réf.")) } }
+                            @if colonnes::montre(&visibles_factures, "chez") { th {(crate::langue::tr("Chez le fournisseur")) } }
+                            @if colonnes::montre(&visibles_factures, "fournisseur") { th {(crate::langue::tr("Fournisseur")) } }
+                            @if colonnes::montre(&visibles_factures, "date") { th {(crate::langue::tr("Date")) } }
+                            @if colonnes::montre(&visibles_factures, "ttc") { th .num {(crate::langue::tr("TTC")) } }
+                            @if colonnes::montre(&visibles_factures, "statut") { th { "État" } }
+                            th { "" }
+                        }
+                    }
                     tbody {
                         @for f in &factures {
                             tr {
-                                td .ref { (f.ref_) }
-                                td .ref { (f.ref_supplier.clone().unwrap_or_default()) }
-                                td { (f.fournisseur.clone().unwrap_or_default()) }
-                                td .ref { (f.datef.clone().unwrap_or_default()) }
-                                td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
-                                td { (ui::pastille(f.fk_statut, if f.paye { 1 } else { 0 }, false)) }
+                                @if colonnes::montre(&visibles_factures, "ref") {
+                                    td .ref { (f.ref_) }
+                                }
+                                @if colonnes::montre(&visibles_factures, "chez") {
+                                    td .ref { (f.ref_supplier.clone().unwrap_or_default()) }
+                                }
+                                @if colonnes::montre(&visibles_factures, "fournisseur") {
+                                    td { (f.fournisseur.clone().unwrap_or_default()) }
+                                }
+                                @if colonnes::montre(&visibles_factures, "date") {
+                                    td .ref { (app::fmt_date_fr(f.datef.as_deref())) }
+                                }
+                                @if colonnes::montre(&visibles_factures, "ttc") {
+                                    td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
+                                }
+                                @if colonnes::montre(&visibles_factures, "statut") {
+                                    td { (ui::pastille(f.fk_statut, if f.paye { 1 } else { 0 }, false)) }
+                                }
                                 td {
                                     @if f.est_brouillon() {
                                         form method="post" action={ "/achats/facture/" (f.rowid) "/valider" } {

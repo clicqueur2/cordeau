@@ -16,7 +16,19 @@ pub async fn stock(
     State(app): State<crate::App>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
-    let niveaux = db::stock::niveaux(&app.pool, crate::entite::courante())?;
+    let filtre = q
+        .get("q")
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    let niveaux: Vec<_> = db::stock::niveaux(&app.pool, crate::entite::courante())?
+        .into_iter()
+        .filter(|n| {
+            filtre.is_empty()
+                || n.ref_produit.to_lowercase().contains(&filtre)
+                || n.label_produit.to_lowercase().contains(&filtre)
+                || n.entrepot.to_lowercase().contains(&filtre)
+        })
+        .collect();
     let mouvements = db::stock::mouvements(&app.pool, crate::entite::courante(), 50)?;
     let entrepots = db::stock::entrepots(&app.pool, crate::entite::courante())?;
     let produits = db::product::list(&app.pool, crate::entite::courante(), 200, 0)?;
@@ -32,18 +44,51 @@ pub async fn stock(
             }
 
             h2 {(crate::langue::tr("Niveaux")) }
+            form method="get" action="/stock" .actions {
+                input type="search" name="q" value=(filtre)
+                      placeholder=(crate::langue::tr("Produit, désignation ou entrepôt")) .champ-moyen;
+                button type="submit" class="petit" {(crate::langue::tr("Chercher")) }
+                @if !filtre.is_empty() {
+                    a .bouton.secondaire.petit href="/stock" {(crate::langue::tr("Tout voir")) }
+                }
+            }
+            @let visibles = crate::colonnes::visibles(
+                &app.pool,
+                "stock",
+                &["produit", "designation", "entrepot", "quantite"],
+            )?;
+            (crate::colonnes::choix_colonnes(
+                "stock",
+                &["produit", "designation", "entrepot", "quantite"],
+                &visibles,
+            ))
             @if niveaux.is_empty() {
                 (crate::ui::vide("Aucun stock enregistre.", None))
             } @else {
                 table {
-                    thead { tr { th {(crate::langue::tr("Produit")) } th {(crate::langue::tr("Designation")) } th {(crate::langue::tr("Entrepot")) } th .num {(crate::langue::tr("Quantite")) } } }
+                    thead {
+                        tr {
+                            @if crate::colonnes::montre(&visibles, "produit") { th {(crate::langue::tr("Produit")) } }
+                            @if crate::colonnes::montre(&visibles, "designation") { th {(crate::langue::tr("Designation")) } }
+                            @if crate::colonnes::montre(&visibles, "entrepot") { th {(crate::langue::tr("Entrepot")) } }
+                            @if crate::colonnes::montre(&visibles, "quantite") { th .num {(crate::langue::tr("Quantite")) } }
+                        }
+                    }
                     tbody {
                         @for n in &niveaux {
                             tr {
-                                td .ref { (n.ref_produit) }
-                                td { (n.label_produit) }
-                                td .ref { (n.entrepot) }
-                                td .num { (app::fmt_qte(Some(n.quantite))) }
+                                @if crate::colonnes::montre(&visibles, "produit") {
+                                    td .ref { (n.ref_produit) }
+                                }
+                                @if crate::colonnes::montre(&visibles, "designation") {
+                                    td { (n.label_produit) }
+                                }
+                                @if crate::colonnes::montre(&visibles, "entrepot") {
+                                    td .ref { (n.entrepot) }
+                                }
+                                @if crate::colonnes::montre(&visibles, "quantite") {
+                                    td .num { (app::fmt_qte(Some(n.quantite))) }
+                                }
                             }
                         }
                     }
