@@ -168,7 +168,6 @@ fn schema_prepare(args: &[String]) -> ExitCode {
 ///
 /// Ne touche pas a la base. Sert a repondre a la seule question qui compte avant
 /// de migrer une vieille base : **la chaine est-elle complete** ?
-
 /// Joue les scripts de migration, un par un, chacun dans sa transaction.
 ///
 /// Sans `--appliquer`, la commande affiche ce qu'elle ferait et ne touche a
@@ -212,7 +211,10 @@ fn schema_migrer(args: &[String]) -> ExitCode {
     };
 
     if !appliquer {
-        println!("{} etape(s) de {depuis} a {vers} — rien n'a ete joue.", etapes.len());
+        println!(
+            "{} etape(s) de {depuis} a {vers} — rien n'a ete joue.",
+            etapes.len()
+        );
         for (i, e) in etapes.iter().enumerate() {
             println!("  {:>2}. {}", i + 1, e.fichier);
         }
@@ -247,7 +249,12 @@ fn schema_migrer(args: &[String]) -> ExitCode {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        println!("{}. {} ({} instructions)", i + 1, etape.fichier, instructions.len());
+        println!(
+            "{}. {} ({} instructions)",
+            i + 1,
+            etape.fichier,
+            instructions.len()
+        );
 
         match db::migration::executer(&pool, &instructions) {
             Ok(ignorees) if ignorees.is_empty() => {}

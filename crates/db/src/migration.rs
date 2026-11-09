@@ -115,6 +115,26 @@ fn comparer(a: &str, b: &str) -> std::cmp::Ordering {
     std::cmp::Ordering::Equal
 }
 
+/// Joue des instructions SQL dans une transaction, **sans s'arreter** sur une
+/// erreur — c'est ce que fait Dolibarr, dont les scripts referencent des
+/// colonnes qui n'existent plus et des index deja poses.
+///
+/// Rend la liste des instructions refusees, avec leur numero et le message.
+/// Une migration n'est pas « reussie » parce qu'elle est allee au bout : c'est
+/// l'empreinte du schema, verifiee apres coup, qui le dit.
+pub fn executer(pool: &Pool, instructions: &[String]) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    conn.query_drop("START TRANSACTION")?;
+    let mut ignorees = Vec::new();
+    for (i, instruction) in instructions.iter().enumerate() {
+        if let Err(e) = conn.query_drop(instruction.as_str()) {
+            ignorees.push(format!("{}: {e}", i + 1));
+        }
+    }
+    conn.query_drop("COMMIT")?;
+    Ok(ignorees)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,24 +188,4 @@ mod tests {
         assert_eq!(comparer("24.0.0", "24.0.0"), std::cmp::Ordering::Equal);
         assert_eq!(comparer("9.0.0", "10.0.0"), std::cmp::Ordering::Less);
     }
-}
-
-/// Joue des instructions SQL dans une transaction, **sans s'arreter** sur une
-/// erreur — c'est ce que fait Dolibarr, dont les scripts referencent des
-/// colonnes qui n'existent plus et des index deja poses.
-///
-/// Rend la liste des instructions refusees, avec leur numero et le message.
-/// Une migration n'est pas « reussie » parce qu'elle est allee au bout : c'est
-/// l'empreinte du schema, verifiee apres coup, qui le dit.
-pub fn executer(pool: &Pool, instructions: &[String]) -> Result<Vec<String>, Box<dyn Error>> {
-    let mut conn = pool.get_conn()?;
-    conn.query_drop("START TRANSACTION")?;
-    let mut ignorees = Vec::new();
-    for (i, instruction) in instructions.iter().enumerate() {
-        if let Err(e) = conn.query_drop(instruction.as_str()) {
-            ignorees.push(format!("{}: {e}", i + 1));
-        }
-    }
-    conn.query_drop("COMMIT")?;
-    Ok(ignorees)
 }
