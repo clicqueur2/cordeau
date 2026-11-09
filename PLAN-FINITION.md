@@ -69,20 +69,22 @@ Mécanique, sans risque métier, mais à vérifier visuellement — donc lent.
 | Carnet de commandes + marge par chantier | 1 j | les deux mesures qui manquent au pilotage |
 | Top 5 clients sur le tableau de bord | 2 h | la fonction SQL existe, l'affichage manque |
 
-### E. La publication — **2 h**
+### E. La publication — **2 h** *(à la fin, sur ta demande)*
 
 **200 commits qui n'existent qu'à un seul endroit.** Aucun remote, aucun tag.
-C'est le seul risque qui peut tout effacer d'un coup, et c'est le moins cher à
-supprimer.
+
+**En attendant**, une sauvegarde complète est sur `X:` :
+`X:\11_PROJETS_DIVERS\SAUVEGARDES\cordeau-2026-11-09.zip` — 201 Mo, 19 410
+fichiers, `.git` inclus (vérifié). Refait à chaque étape importante.
 
 ## 4. L'ordre
 
 ```
-E  publication          (2 h, à faire aujourd'hui — protège tout le reste)
 A  migration réelle     (1 j)
 B  classement schéma    (1 j, dépend de A)
 D  manques métier       (3-5 j, commencer par les situations)
 C  styles en ligne      (2 j, en parallèle, sans dépendance)
+E  publication          (2 h, à la fin)
 ```
 
 **Total : 7 à 9 jours de travail** pour les conditions 1 à 5, hors aléas.
