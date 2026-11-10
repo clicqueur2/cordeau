@@ -1,71 +1,65 @@
 # Publier Cordeau
 
-> **L'état au 10 novembre 2026** : le dépôt est complet et vert (1 081 tests), mais
-> il **n'a aucun remote**. Tout vit sur ce disque et dans
-> `X:\11_PROJETS_DIVERS\SAUVEGARDES\`. Cette page dit comment le sortir, et ce
-> qui manque pour le faire.
+> **Publié le 10 novembre 2026.** Le dépôt est sur GitHub :
+> **`https://github.com/clicqueur2/cordeau`** — **privé**.
+> Branche `main`, étiquette `v0.1.0`, **242 commits**.
 
-## Ce qu'il manque pour publier
+## Ce qui est en place
 
-Deux choses, et deux seulement :
+| | |
+|---|---|
+| Remote | `origin` → `https://github.com/clicqueur2/cordeau.git` |
+| Branche | `main` (renommée depuis `master` au moment de la poussee) |
+| Étiquette | `v0.1.0`, annotée, poussee |
+| Authentification | gestionnaire d'identifiants de Windows (aucun jeton dans `.git/config`) |
+| Visibilité | **privé** — la page renvoie 404 sans être connecté |
 
-1. **une adresse de dépôt** — par exemple `https://github.com/<compte>/cordeau.git`.
-   Le dépôt doit être **privé** : il contient `_vendor/dolibarr-src` (GPL, donc
-   rediffusable) mais aussi des fichiers de travail qui n'ont pas à être publics.
-2. **un jeton** — GitHub n'accepte plus le mot de passe en ligne de commande. Un
-   *personal access token* avec le droit `repo` suffit.
+Vérifié après coup, avec `git ls-remote origin` :
 
-`gh` (GitHub CLI) n'est **pas installé** sur cette machine : `gh --version`
-répond « commande introuvable ». On passe donc par `git` seul.
-
-## La commande, quand tu auras les deux
-
-```powershell
-$env:GITHUB_TOKEN = "ghp_..."          # une fois par session
-.\tools\publier.ps1 -Url "https://github.com/<compte>/cordeau.git"
+```
+e5c1e282…  HEAD
+e5c1e282…  refs/heads/main
+350e8cee…  refs/tags/v0.1.0
+1852b13e…  refs/tags/v0.1.0^{}
 ```
 
-Le script fait, dans l'ordre :
-
-1. refuse de continuer si l'arbre n'est pas propre ;
-2. ajoute le remote `origin` s'il n'existe pas ;
-3. pousse la branche `main` ;
-4. pousse l'étiquette `v0.1.0`.
-
-Il ne fait **rien d'autre** : pas de réécriture d'historique, pas de force-push.
-
-## À la main, si tu préfères
+## Comment republier
 
 ```powershell
-git remote add origin https://<jeton>@github.com/<compte>/cordeau.git
-git push -u origin main
-git push origin v0.1.0
+cd Z:\11_PROJETS_DIVERS\dolibarr-rs
+git push
+git push --tags
 ```
 
-Le jeton dans l'URL est écrit **en clair dans `.git/config`** : c'est pratique et
-c'est un secret sur le disque. Préfère le gestionnaire d'identifiants :
+ou, en une commande qui vérifie d'abord que l'arbre est propre :
 
 ```powershell
-git remote add origin https://github.com/<compte>/cordeau.git
-git push -u origin main        # Git demande le jeton, et le retient
+.\tools\publier.ps1 -Url "https://github.com/clicqueur2/cordeau.git"
 ```
 
-## Ce qui a été fait sans réseau
+## Le rendre public, si tu veux
 
-- **étiquette `v0.1.0`** posée localement, annotée : elle marque l'état publié.
-  Elle partira avec le `git push --tags`.
-- **sauvegarde ZIP** à chaque étape dans `X:\11_PROJETS_DIVERS\SAUVEGARDES\`,
-  `.git` inclus : le dépôt est récupérable même si ce disque meurt.
+Un dépôt privé ne se trouve pas. Pour que quelqu'un puisse l'installer, le lire
+ou signaler un bug, il faut le passer en public — dans **Settings → General →
+Danger Zone → Change visibility**. Deux choses à faire **avant** :
+
+1. `SECRETS-AUDIT.md` : vérifier qu'aucune clé ne traîne dans l'historique.
+   Aujourd'hui, aucune ne doit y être — mais un dépôt public ne se dépublie pas.
+2. `MENTIONS-LEGALES.md` : Cordeau est une **œuvre dérivée** de Dolibarr 24.0.1
+   (GPL-3.0-or-later). La licence et l'attribution doivent rester en tête du
+   README, et le fichier `LICENSE` doit être présent.
+
+## Ce que la publication change
+
+- **Un troisième endroit.** Le code n'existe plus seulement sur ce disque et sur
+  `X:`.
+- **L'historique lisible.** Chaque commit dit *pourquoi*.
+- **Le partage possible.** Un lien vers un dépôt vert (1 083 tests) vaut mieux
+  qu'un message « j'ai fait un fork » sur le forum Dolibarr.
 
 ## Vérifier avant de publier
 
 ```powershell
-.\tools\verifier.ps1          # 8 étages, 1 081 tests
+.\tools\verifier.ps1          # 8 étages, 1 083 tests
 git status --porcelain         # doit être vide
-git log --oneline -1
 ```
-
-## Licence
-
-Cordeau est une **œuvre dérivée** de Dolibarr ERP & CRM 24.0.1 (GPL-3.0-or-later).
-Il doit donc être publié sous GPL-3.0-or-later. Voir `MENTIONS-LEGALES.md`.
