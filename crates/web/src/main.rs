@@ -120,6 +120,7 @@ mod partenariat_ecran;
 mod pdf_modele_ecran;
 mod planification_ecran;
 mod plugin;
+mod portail;
 mod pos_ecran;
 mod poste_ecran;
 mod preset_ecran;

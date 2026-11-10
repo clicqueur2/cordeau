@@ -599,6 +599,17 @@ pub fn routes(app: App) -> Router {
             garde::entetes_securite,
         ))
         .merge(Router::new().nest("/api", api::routes()))
+        // Le portail client vit sous `/public` : hors du garde-fou qui exige une
+        // session d'employe. Sa propre session ne donne acces qu'a son tiers.
+        .route("/public/portail", get(portail::accueil))
+        .route("/public/portail/connexion", post(portail::connexion))
+        .route("/public/portail/deconnexion", post(portail::deconnexion))
+        .route("/public/portail/devis/:id", get(portail::devis))
+        .route("/public/portail/devis/:id/pdf", get(portail::pdf_devis))
+        .route(
+            "/public/portail/factures/:id/pdf",
+            get(portail::pdf_facture),
+        )
         // Les memes routes sous les noms de Dolibarr : `/api/index.php/proposals`.
         .merge(Router::new().nest("/api/index.php", api::routes_dolibarr()))
         .with_state(app)
