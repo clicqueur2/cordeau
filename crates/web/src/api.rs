@@ -116,6 +116,12 @@ pub fn routes_dolibarr() -> Router<App> {
         .route("/orders/:id/validate", post(commande_valider))
         .route("/orders/:id/invoice", post(commande_facturer))
         .route("/bankaccounts", get(banques))
+        .route("/contacts", get(contacts))
+        .route("/contacts/:id", get(contact_fiche))
+        .route("/projects", get(projets))
+        .route("/projects/:id", get(projet_fiche).put(projet_modifier))
+        .route("/users", get(utilisateurs))
+        .route("/thirdparties/:id", axum::routing::put(tiers_modifier))
         .route("/documents/download", get(document_telecharger))
         .route(
             "/documents/builddoc",
@@ -272,6 +278,230 @@ pub(crate) async fn document_construire(
         octets,
     )
         .into_response())
+}
+
+/// Contacts de l'entite, ou d'un tiers si `soc` est fourni.
+async fn contacts(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Query(q): Query<HashMap<String, String>>,
+) -> ApiResult {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let entity = entity();
+    let liste = match q.get("soc").and_then(|v| v.trim().parse::<i64>().ok()) {
+        Some(soc) => db::contact::par_tiers(&app.pool, entity, soc)?,
+        None => db::contact::list(&app.pool, entity, 500)?,
+    };
+    Ok(Json(json!(liste
+        .iter()
+        .map(|c| json!({
+            "id": c.rowid,
+            "socid": c.fk_soc,
+            "lastname": c.nom,
+            "firstname": c.prenom,
+            "email": c.email,
+            "phone": c.telephone,
+            "poste": c.poste,
+            "ville": c.ville,
+            "actif": c.actif,
+        }))
+        .collect::<Vec<_>>())))
+}
+
+async fn contact_fiche(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ApiResult {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let c = db::contact::get(&app.pool, entity(), id)?.ok_or_else(|| {
+        ApiErreur(
+            axum::http::StatusCode::NOT_FOUND,
+            "contact introuvable".into(),
+        )
+    })?;
+    Ok(Json(json!({
+        "id": c.rowid,
+        "socid": c.fk_soc,
+        "lastname": c.nom,
+        "firstname": c.prenom,
+        "email": c.email,
+        "phone": c.telephone,
+        "poste": c.poste,
+        "ville": c.ville,
+    })))
+}
+
+/// Chantiers (projets Dolibarr).
+async fn projets(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Query(q): Query<HashMap<String, String>>,
+) -> ApiResult {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let limite = q
+        .get("limit")
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(100);
+    Ok(Json(json!(db::projet::list(
+        &app.pool,
+        entity(),
+        limite,
+        0
+    )?
+    .iter()
+    .map(|p| json!({
+        "id": p.rowid,
+        "ref": p.ref_,
+        "title": p.title,
+        "socid": p.fk_soc,
+        "date_start": p.date_start,
+        "date_end": p.date_end,
+        "budget": dec_str(p.budget),
+        "statut": p.fk_statut,
+    }))
+    .collect::<Vec<_>>())))
+}
+
+async fn projet_fiche(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ApiResult {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let entity = entity();
+    let p = db::projet::get(&app.pool, entity, id)?.ok_or_else(|| {
+        ApiErreur(
+            axum::http::StatusCode::NOT_FOUND,
+            "projet introuvable".into(),
+        )
+    })?;
+    let taches = db::projet::taches(&app.pool, entity, id)?;
+    Ok(Json(json!({
+        "id": p.rowid,
+        "ref": p.ref_,
+        "title": p.title,
+        "socid": p.fk_soc,
+        "date_start": p.date_start,
+        "date_end": p.date_end,
+        "budget": dec_str(p.budget),
+        "statut": p.fk_statut,
+        "taches": taches.iter().map(|t| json!({
+            "id": t.rowid,
+            "label": t.label,
+            "debut": t.date_start,
+            "fin": t.date_end,
+            "avancement": t.progress,
+        })).collect::<Vec<_>>(),
+    })))
+}
+
+/// Utilisateurs de l'entite. Jamais de mot de passe, meme hache.
+async fn utilisateurs(State(app): State<App>, headers: HeaderMap) -> ApiResult {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    Ok(Json(json!(db::user::list(&app.pool, entity())?
+        .iter()
+        .map(|u| json!({
+            "id": u.rowid,
+            "login": u.login,
+            "nom": u.nom_complet(),
+            "email": u.email,
+            "actif": u.actif(),
+        }))
+        .collect::<Vec<_>>())))
+}
+
+/// Met a jour les champs courants d'un tiers.
+///
+/// Un champ absent garde sa valeur : un PUT partiel ne doit pas vider une fiche.
+/// C'est la difference entre « modifier » et « remplacer ».
+async fn tiers_modifier(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(corps): Json<Value>,
+) -> ApiResult {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let entity = entity();
+    let actuel = db::party::get(&app.pool, entity, id)?.ok_or_else(|| {
+        ApiErreur(
+            axum::http::StatusCode::NOT_FOUND,
+            "tiers introuvable".into(),
+        )
+    })?;
+
+    let champ = |cle: &str| {
+        corps
+            .get(cle)
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let nom = champ("name")
+        .or(champ("nom"))
+        .unwrap_or_else(|| actuel.nom.clone());
+    let mut maj = db::party::NewParty::client(&nom);
+    maj.address = champ("address").or(actuel.address.clone());
+    maj.zip = champ("zip").or(actuel.zip.clone());
+    maj.town = champ("town").or(actuel.town.clone());
+    maj.email = champ("email").or(actuel.email.clone());
+    maj.phone = champ("phone").or(actuel.phone.clone());
+    maj.siret = champ("siret").or(actuel.siret.clone());
+    maj.tva_intra = champ("tva_intra").or(actuel.tva_intra.clone());
+    db::party::update(&app.pool, entity, id, &maj)?;
+    Ok(Json(json!({ "id": id, "modifie": true })))
+}
+
+/// Met a jour les dates, le titre et le budget d'un chantier.
+async fn projet_modifier(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(corps): Json<Value>,
+) -> ApiResult {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let entity = entity();
+    let actuel = db::projet::get(&app.pool, entity, id)?.ok_or_else(|| {
+        ApiErreur(
+            axum::http::StatusCode::NOT_FOUND,
+            "projet introuvable".into(),
+        )
+    })?;
+    let champ = |cle: &str| {
+        corps
+            .get(cle)
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let titre = champ("title").unwrap_or_else(|| actuel.title.clone());
+    let mut maj = db::projet::NewProjet::new(&titre);
+    maj.fk_soc = actuel.fk_soc;
+    maj.date_start = champ("date_start").or(actuel.date_start.clone());
+    maj.date_end = champ("date_end").or(actuel.date_end.clone());
+    maj.description = actuel.description.clone();
+    maj.budget = corps
+        .get("budget")
+        .and_then(|v| v.as_str())
+        .and_then(|v| v.trim().replace(',', ".").parse().ok())
+        .or(actuel.budget)
+        .unwrap_or_default();
+    db::projet::update(&app.pool, entity, id, &maj)?;
+    Ok(Json(json!({ "id": id, "modifie": true })))
 }
 
 async fn tiers(

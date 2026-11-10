@@ -197,6 +197,31 @@ fn outils() -> Value {
               },"required":["id"]})
         ),
         outil(
+            "lister_contrats",
+            "Liste les contrats avec leur statut et leurs dates.",
+            json!({"type":"object"})
+        ),
+        outil(
+            "creer_contrat",
+            "Cree un contrat en brouillon pour un tiers.",
+            json!({"type":"object","properties":{
+                  "tiers":{"type":"integer"},
+                  "debut":{"type":"string","description":"AAAA-MM-JJ"},
+                  "fin":{"type":"string","description":"AAAA-MM-JJ, facultatif"}
+              },"required":["tiers"]})
+        ),
+        outil(
+            "mouvement_stock",
+            "Entre ou sort du stock pour un produit dans un entrepot (type 0 = entree, 1 = sortie).",
+            json!({"type":"object","properties":{
+                  "produit":{"type":"integer"},
+                  "entrepot":{"type":"integer"},
+                  "quantite":{"type":"string"},
+                  "type":{"type":"integer","description":"0 entree, 1 sortie"},
+                  "libelle":{"type":"string"}
+              },"required":["produit","entrepot","quantite","type"]})
+        ),
+        outil(
             "solde_tva",
             "TVA collectee, deductible et solde a payer.",
             json!({"type":"object"})
@@ -471,6 +496,45 @@ fn appeler_outil(pool: &db::Pool, requete: &Value) -> Result<Value, Box<dyn Erro
                 "octets": rendu.bytes.len(),
                 "pages": rendu.pages,
             }))
+        }
+        "lister_contrats" => Ok(json!(db::contrat::list(pool, ENTITY, 100, 0)?
+            .iter()
+            .map(|c| json!({
+                "id": c.rowid, "ref": c.ref_, "tiers": c.fk_soc,
+                "debut": c.date_contrat, "fin": c.fin_validite,
+                "statut": c.statut,
+                "total_ttc": c.total_ttc.map(|v| v.normalize().to_string()),
+            }))
+            .collect::<Vec<_>>())),
+        "creer_contrat" => {
+            let fk_soc = arg_i64(&corps, "tiers")?;
+            let mut nouveau = db::contrat::NewContrat {
+                fk_soc,
+                date_contrat: arg(&corps, "debut")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string),
+                fin_validite: arg(&corps, "fin")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string),
+                ref_customer: None,
+                note_private: None,
+                note_public: None,
+                fk_user_author: None,
+            };
+            if nouveau.date_contrat.is_none() {
+                nouveau.date_contrat = Some(db::aujourdhui(pool)?);
+            }
+            Ok(json!({ "id": db::contrat::create(pool, ENTITY, &nouveau)? }))
+        }
+        "mouvement_stock" => {
+            let produit = arg_i64(&corps, "produit")?;
+            let entrepot = arg_i64(&corps, "entrepot")?;
+            let quantite = arg_dec(&corps, "quantite")?;
+            let type_ = arg_i64(&corps, "type")? as i16;
+            let libelle = arg(&corps, "libelle").and_then(|v| v.as_str());
+            let id =
+                db::stock::mouvement(pool, ENTITY, produit, entrepot, quantite, type_, libelle)?;
+            Ok(json!({ "id": id }))
         }
         autre => return Err(format!("outil inconnu : {autre}").into()),
     };
