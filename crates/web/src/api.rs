@@ -105,12 +105,12 @@ pub fn routes_dolibarr() -> Router<App> {
         .route("/thirdparties", get(tiers).post(tiers_creer))
         .route("/products", get(produits))
         .route("/proposals", get(devis).post(devis_creer))
-        .route("/proposals/:id", get(devis_fiche))
+        .route("/proposals/:id", get(devis_fiche).put(devis_modifier))
         .route("/proposals/:id/validate", post(devis_valider))
         .route("/proposals/:id/situation", post(devis_situation))
         .route("/proposals/:id/order", post(devis_commande))
         .route("/invoices", get(factures))
-        .route("/invoices/:id", get(facture_fiche))
+        .route("/invoices/:id", get(facture_fiche).put(facture_modifier))
         .route("/invoices/:id/payments", post(facture_reglement))
         .route("/orders", get(commandes))
         .route("/orders/:id/validate", post(commande_valider))
@@ -337,6 +337,83 @@ async fn contact_fiche(
 }
 
 /// Chantiers (projets Dolibarr).
+/// Met a jour l'entete d'un devis : notes et fin de validite.
+///
+/// Le statut et les lignes ne passent pas par ici : valider un devis a ses
+/// propres controles, et reecrire des lignes par un PUT est une porte ouverte
+/// aux totaux faux.
+async fn devis_modifier(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(corps): Json<Value>,
+) -> ApiResult {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let champ = |cle: &str| corps.get(cle).and_then(|v| v.as_str());
+    db::proposal::maj_entete(
+        &app.pool,
+        entity(),
+        id,
+        champ("note_private"),
+        champ("note_public"),
+        champ("fin_validite"),
+    )?;
+    let d = db::proposal::get(&app.pool, entity(), id)?.ok_or_else(|| {
+        ApiErreur(
+            axum::http::StatusCode::NOT_FOUND,
+            "devis introuvable".into(),
+        )
+    })?;
+    Ok(Json(json!({
+        "id": d.rowid,
+        "ref": d.ref_,
+        "statut": d.fk_statut,
+        "fin_validite": d.fin_validite,
+        "note_private": d.note_private,
+        "note_public": d.note_public,
+    })))
+}
+
+/// Met a jour l'entete d'une facture : notes, echeance, reference client.
+async fn facture_modifier(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(corps): Json<Value>,
+) -> ApiResult {
+    if !autorise(&headers) {
+        return Err(refus());
+    }
+    let champ = |cle: &str| corps.get(cle).and_then(|v| v.as_str());
+    db::invoice::maj_entete(
+        &app.pool,
+        entity(),
+        id,
+        champ("note_private"),
+        champ("note_public"),
+        champ("date_lim_reglement"),
+        champ("ref_client"),
+    )?;
+    let f = db::invoice::get(&app.pool, entity(), id)?.ok_or_else(|| {
+        ApiErreur(
+            axum::http::StatusCode::NOT_FOUND,
+            "facture introuvable".into(),
+        )
+    })?;
+    Ok(Json(json!({
+        "id": f.rowid,
+        "ref": f.ref_,
+        "statut": f.fk_statut,
+        "paye": f.paye,
+        "date_lim_reglement": f.date_lim_reglement,
+        "ref_client": f.ref_client,
+        "note_private": f.note_private,
+        "note_public": f.note_public,
+    })))
+}
+
 async fn projets(
     State(app): State<App>,
     headers: HeaderMap,

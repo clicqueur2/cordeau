@@ -56,6 +56,7 @@ pub mod invoice;
 pub mod journal;
 pub mod lettrage;
 pub mod livraison;
+pub mod lot;
 pub mod mailing;
 pub mod marge;
 pub mod menu;

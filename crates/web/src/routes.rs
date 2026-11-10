@@ -167,6 +167,7 @@ pub fn routes(app: App) -> Router {
             "/tickets/:id/statut",
             axum::routing::post(pages::ticket_statut),
         )
+        .route("/lots", get(lots).post(lot_creer))
         .route("/stock", get(pages::stock))
         .route(
             "/receptions",
