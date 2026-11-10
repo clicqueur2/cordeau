@@ -208,7 +208,7 @@ pub(crate) async fn garde(
         .ok()
         .flatten()
         .and_then(|u| {
-            db::preferences::lire(&app.pool, entite_courante, u.rowid, "cordeau.style")
+            db::preferences::lire_avec_defaut(&app.pool, entite_courante, u.rowid, "cordeau.style")
                 .ok()
                 .flatten()
         })
