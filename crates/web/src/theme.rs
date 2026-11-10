@@ -266,6 +266,88 @@ p { margin: 0 0 var(--e3); }
 .reglage > summary { cursor: pointer; font-size: 12.5px; color: var(--muet); }
 .reglage[open] > summary { margin-bottom: 8px; }
 
+/* ===== tableau de bord ================================================= */
+/* Le bandeau : le seul endroit de l'application ou l'on prend de la place. */
+.hero {
+  display: flex; gap: var(--e4); align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap;
+  padding: var(--e5) var(--e5) var(--e4);
+  border-radius: 18px;
+  background:
+    radial-gradient(1200px 200px at 0% 0%, var(--accent-clair), transparent 70%),
+    var(--surface);
+  border: 1px solid var(--trait);
+  box-shadow: var(--ombre-1);
+  margin-bottom: var(--e4);
+}
+.hero h1 { margin: 0; font-size: 26px; letter-spacing: -.02em; }
+.surtitre {
+  margin: 0 0 4px; font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--muet);
+}
+.hero-date { margin: 4px 0 0; font-size: 13px; color: var(--muet); }
+.hero-actions { display: flex; gap: var(--e2); flex-wrap: wrap; }
+
+/* Les widgets : une surface, un entete, un corps. */
+.grille-2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--e4);
+  margin-bottom: var(--e4);
+}
+.widget {
+  background: var(--surface); border: 1px solid var(--trait);
+  border-radius: 16px; padding: var(--e4);
+  box-shadow: var(--ombre-1);
+  min-width: 0;               /* sinon un tableau large fait exploser la grille */
+}
+.widget-entete {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--e2); margin-bottom: var(--e3);
+}
+.widget-entete h2 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+.widget-sous { font-size: 11.5px; color: var(--muet); }
+.widget-lien { font-size: 12px; color: var(--accent); text-decoration: none; }
+.widget-lien:hover { text-decoration: underline; }
+.widget-vide { margin: 0; font-size: 13px; color: var(--muet); }
+
+/* Les listes de choses a traiter : une ligne, un lien, un montant a droite. */
+.liste-alertes { list-style: none; margin: 0; padding: 0; }
+.liste-alertes li {
+  display: flex; align-items: baseline; gap: var(--e2);
+  padding: 7px 0; border-bottom: 1px solid var(--trait);
+  font-size: 13px;
+}
+.liste-alertes li:last-child { border-bottom: 0; }
+.liste-alertes a { font-weight: 500; text-decoration: none; color: var(--encre); }
+.liste-alertes a:hover { color: var(--accent); }
+.liste-detail { color: var(--muet); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.liste-droit { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--encre-douce); }
+
+/* Un tableau dense, sans entete : il tient dans un widget. */
+.tableau-serre { width: 100%; font-size: 13px; }
+.tableau-serre td { padding: 7px 6px; border-bottom: 1px solid var(--trait); }
+.tableau-serre tr:last-child td { border-bottom: 0; }
+.tableau-serre td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Le bandeau du bas : quatre mesures, petites, alignees. */
+.bandeau-bas {
+  display: flex; flex-wrap: wrap; gap: var(--e4);
+  padding: var(--e3) var(--e4);
+  border-radius: 12px; border: 1px solid var(--trait);
+  background: var(--surface-2);
+  font-size: 12px; color: var(--muet);
+}
+.bandeau-bas strong { color: var(--encre); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1000px) {
+  .grille-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .hero { padding: var(--e3); border-radius: 14px; }
+  .hero h1 { font-size: 21px; }
+  .hero-actions { width: 100%; }
+  .hero-actions .bouton { flex: 1 1 auto; text-align: center; }
+}
+
 /* ===== tableaux ======================================================== */
 table {
   width: 100%; border-collapse: separate; border-spacing: 0;
