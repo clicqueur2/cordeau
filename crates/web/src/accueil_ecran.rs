@@ -96,11 +96,8 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
     let stock = db::tableau::stock_bas(p, entity)?;
     let total_retard = db::tableau::total_retard(&retard);
 
-    let serie = db::stats::par_mois(p, entity, &jour, 12)?;
-    let maxi = serie
-        .iter()
-        .map(|m| m.ventes.max(m.achats))
-        .fold(Decimal::ZERO, |a, b| if b > a { b } else { a });
+    // Le graphique passe par `ui::barres` (qui calcule sa propre echelle) : le
+    // detail mois par mois n'est plus lu ici.
     let clients = db::stats::top_clients(p, entity, &format!("{}-01-01", &jour[..4]), 5)?;
     let maxi_client = clients
         .iter()
