@@ -26,6 +26,8 @@ pub(crate) use parametres_ecran::{
 mod parametres_ecran;
 pub(crate) use documents_ecran::{agenda, documents};
 mod documents_ecran;
+pub(crate) use doublons_ecran::{doublons, fusionner as fusionner_tiers};
+mod doublons_ecran;
 pub(crate) use banques_ecran::{banque_creer, banque_rapprocher, banques};
 mod banques_ecran;
 pub(crate) use achats_ecran::{

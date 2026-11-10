@@ -50,6 +50,7 @@ pub const MODULES: &[Module] = &[
             e("contacts", "Contacts/Adresses", "/contacts"),
             e("adherents", "Adhérents", "/liste/Adherent"),
             e("dons", "Dons", "/liste/Don"),
+            e("doublons", "Doublons", "/tiers/doublons"),
         ],
     },
     Module {

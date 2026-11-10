@@ -377,6 +377,38 @@ pub(crate) async fn recherche(
         })
         .collect();
 
+    let contacts: Vec<_> = db::contact::list(p, entite::courante(), 2000)?
+        .into_iter()
+        .filter(|c| {
+            vide || c.nom.to_lowercase().contains(&terme)
+                || c.prenom
+                    .as_deref()
+                    .map(|x| x.to_lowercase().contains(&terme))
+                    .unwrap_or(false)
+                || c.email
+                    .as_deref()
+                    .map(|x| x.to_lowercase().contains(&terme))
+                    .unwrap_or(false)
+                || c.telephone
+                    .as_deref()
+                    .map(|x| db::doublons::chiffres(x).contains(&db::doublons::chiffres(&terme)))
+                    .unwrap_or(false)
+        })
+        .collect();
+
+    let contrats: Vec<_> = db::contrat::list(p, entite::courante(), 500, 0)?
+        .into_iter()
+        .filter(|c| vide || c.ref_.to_lowercase().contains(&terme))
+        .collect();
+
+    let tickets: Vec<_> = db::ticket::list(p, entite::courante(), 500)?
+        .into_iter()
+        .filter(|x| {
+            vide || x.ref_.to_lowercase().contains(&terme)
+                || x.sujet.to_lowercase().contains(&terme)
+        })
+        .collect();
+
     // La recherche porte aussi sur le **nom du client** : chercher « Charcosset »
     // doit sortir ses factures, pas seulement sa fiche.
     let par_client: Vec<i64> = tiers.iter().map(|t| t.rowid).collect();
@@ -408,7 +440,10 @@ pub(crate) async fn recherche(
         + devis.len()
         + factures.len()
         + commandes.len()
-        + projets.len();
+        + projets.len()
+        + contacts.len()
+        + contrats.len()
+        + tickets.len();
 
     Ok(ui::page(
         "",
@@ -425,8 +460,9 @@ pub(crate) async fn recherche(
             }
             p .sous-titre {
                 @if vide {
-                    "Tapez un nom, une référence, un e-mail : la recherche porte sur les tiers, "
-                    "produits, devis, factures, commandes et chantiers."
+                    "Tapez un nom, une référence, un e-mail, un téléphone : la recherche porte "
+                    "sur les tiers, contacts, produits, devis, factures, commandes, contrats, "
+                    "tickets et chantiers."
                 } @else {
                     (total.to_string()) " résultat(s) pour « " (terme) " »"
                 }
@@ -434,6 +470,18 @@ pub(crate) async fn recherche(
 
             @if !vide && total == 0 {
                 (ui::vide("Rien ne correspond. Essayez le nom du client plutôt que sa référence, ou l'inverse.", None))
+            }
+
+            @if !contacts.is_empty() {
+                h2 { "Contacts — " (contacts.len().to_string()) }
+                table { tbody { @for c in &contacts {
+                    tr {
+                        td { a href={ "/contacts/" (c.rowid) "/modifier" } { (c.nom_complet()) } }
+                        td .ref { (c.email.clone().unwrap_or_default()) }
+                        td .ref { (c.telephone.clone().unwrap_or_default()) }
+                        td { (c.tiers.clone().unwrap_or_default()) }
+                    }
+                } } }
             }
 
             @if !tiers.is_empty() {
@@ -486,6 +534,28 @@ pub(crate) async fn recherche(
                         td .ref { a href={ "/factures/" (x.rowid) } { (x.ref_) } }
                         td { (nom_tiers(p, x.fk_soc)?) }
                         td .num { (ui::euros(x.total_ttc.unwrap_or_default())) }
+                    }
+                } } }
+            }
+
+            @if !contrats.is_empty() {
+                h2 { "Contrats — " (contrats.len().to_string()) }
+                table { tbody { @for c in &contrats {
+                    tr {
+                        td .ref { a href={ "/contrats/" (c.rowid) } { (c.ref_.clone()) } }
+                        td { (c.date_contrat.clone().unwrap_or_default()) }
+                        td { (c.fin_validite.clone().unwrap_or_default()) }
+                    }
+                } } }
+            }
+
+            @if !tickets.is_empty() {
+                h2 { "Tickets — " (tickets.len().to_string()) }
+                table { tbody { @for x in &tickets {
+                    tr {
+                        td .ref { a href={ "/tickets/" (x.rowid) } { (x.ref_.clone()) } }
+                        td { (x.sujet.clone()) }
+                        td { (x.tiers.clone().unwrap_or_default()) }
                     }
                 } } }
             }
