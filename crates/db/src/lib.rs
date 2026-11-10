@@ -84,6 +84,7 @@ pub mod proposal;
 pub mod proposition_fournisseur;
 pub mod rapprochement;
 pub mod reception;
+pub mod recherche;
 pub mod recrutement;
 pub mod recur_generation;
 pub mod recurrence;

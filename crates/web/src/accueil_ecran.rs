@@ -322,128 +322,26 @@ pub(crate) async fn recherche(
     Query(q): Query<HashMap<String, String>>,
 ) -> Res<Markup> {
     let p = &app.pool;
-    let terme = q
-        .get("q")
-        .map(|s| s.trim().to_lowercase())
-        .unwrap_or_default();
+    let terme = q.get("q").map(|s| s.trim().to_string()).unwrap_or_default();
     let vide = terme.is_empty();
 
-    // Un seul mot suffit a chercher : le nom du tiers pour une facture, la
-    // reference pour une piece, le libelle pour un produit. Une recherche qui
-    // ne regarde qu'un champ par objet ne trouve que ce qu'on tape deja.
-    let tiers: Vec<_> = db::party::list(p, entite::courante(), 500, 0)?
-        .into_iter()
-        .filter(|t| {
-            vide || t.nom.to_lowercase().contains(&terme)
-                || t.code_client
-                    .as_deref()
-                    .map(|c| c.to_lowercase().contains(&terme))
-                    .unwrap_or(false)
-                || t.email
-                    .as_deref()
-                    .map(|c| c.to_lowercase().contains(&terme))
-                    .unwrap_or(false)
-        })
-        .collect();
-
-    let produits: Vec<_> = db::product::list(p, entite::courante(), 500, 0)?
-        .into_iter()
-        .filter(|x| {
-            vide || x.ref_.to_lowercase().contains(&terme)
-                || x.label.to_lowercase().contains(&terme)
-        })
-        .collect();
-
-    let devis: Vec<_> = db::proposal::list(p, entite::courante(), 200, 0)?
-        .into_iter()
-        .filter(|d| vide || d.ref_.to_lowercase().contains(&terme))
-        .collect();
-
-    let factures: Vec<_> = db::invoice::list(p, entite::courante(), 200, 0)?
-        .into_iter()
-        .filter(|x| vide || x.ref_.to_lowercase().contains(&terme))
-        .collect();
-
-    let commandes: Vec<_> = db::commande::list(p, entite::courante(), 200, 0)?
-        .into_iter()
-        .filter(|c| vide || c.ref_.to_lowercase().contains(&terme))
-        .collect();
-
-    let projets: Vec<_> = db::projet::list(p, entite::courante(), 200, 0)?
-        .into_iter()
-        .filter(|x| {
-            vide || x.title.to_lowercase().contains(&terme)
-                || x.ref_.to_lowercase().contains(&terme)
-        })
-        .collect();
-
-    let contacts: Vec<_> = db::contact::list(p, entite::courante(), 2000)?
-        .into_iter()
-        .filter(|c| {
-            vide || c.nom.to_lowercase().contains(&terme)
-                || c.prenom
-                    .as_deref()
-                    .map(|x| x.to_lowercase().contains(&terme))
-                    .unwrap_or(false)
-                || c.email
-                    .as_deref()
-                    .map(|x| x.to_lowercase().contains(&terme))
-                    .unwrap_or(false)
-                || c.telephone
-                    .as_deref()
-                    .map(|x| db::doublons::chiffres(x).contains(&db::doublons::chiffres(&terme)))
-                    .unwrap_or(false)
-        })
-        .collect();
-
-    let contrats: Vec<_> = db::contrat::list(p, entite::courante(), 500, 0)?
-        .into_iter()
-        .filter(|c| vide || c.ref_.to_lowercase().contains(&terme))
-        .collect();
-
-    let tickets: Vec<_> = db::ticket::list(p, entite::courante(), 500)?
-        .into_iter()
-        .filter(|x| {
-            vide || x.ref_.to_lowercase().contains(&terme)
-                || x.sujet.to_lowercase().contains(&terme)
-        })
-        .collect();
-
-    // La recherche porte aussi sur le **nom du client** : chercher « Dupont »
-    // doit sortir ses factures, pas seulement sa fiche.
-    let par_client: Vec<i64> = tiers.iter().map(|t| t.rowid).collect();
-    let devis: Vec<_> = if par_client.is_empty() {
-        devis
+    // La base cherche. Charger 900 tiers pour filtrer en Rust tenait ; 50 000
+    // ne tiendraient plus, et la requete est plus juste : `LIKE` y voit aussi
+    // ce que la memoire n'a pas charge.
+    let resultats = if vide {
+        Vec::new()
     } else {
-        db::proposal::list(p, entite::courante(), 200, 0)?
-            .into_iter()
-            .filter(|d| {
-                (vide || d.ref_.to_lowercase().contains(&terme))
-                    || d.fk_soc.map(|s| par_client.contains(&s)).unwrap_or(false)
-            })
-            .collect()
-    };
-    let factures: Vec<_> = if par_client.is_empty() {
-        factures
-    } else {
-        db::invoice::list(p, entite::courante(), 200, 0)?
-            .into_iter()
-            .filter(|x| {
-                (vide || x.ref_.to_lowercase().contains(&terme))
-                    || x.fk_soc.map(|s| par_client.contains(&s)).unwrap_or(false)
-            })
-            .collect()
+        db::recherche::globale(p, entite::courante(), &terme, 50)?
     };
 
-    let total = tiers.len()
-        + produits.len()
-        + devis.len()
-        + factures.len()
-        + commandes.len()
-        + projets.len()
-        + contacts.len()
-        + contrats.len()
-        + tickets.len();
+    // On groupe par genre en gardant l'ordre de la table des objets.
+    let mut groupes: Vec<(&'static str, &'static str, Vec<&db::recherche::Resultat>)> = Vec::new();
+    for r in &resultats {
+        match groupes.iter_mut().find(|(g, _, _)| *g == r.genre) {
+            Some((_, _, liste)) => liste.push(r),
+            None => groupes.push((r.genre, r.base, vec![r])),
+        }
+    }
 
     Ok(ui::page(
         "",
@@ -453,7 +351,7 @@ pub(crate) async fn recherche(
             h1 {(crate::langue::tr("Recherche")) }
             form method="get" action="/recherche" {
                 div .actions {
-                    input type="search" name="q" value=(terme) placeholder="Nom, référence, e-mail…"
+                    input type="search" name="q" value=(terme) placeholder="Nom, référence, e-mail, téléphone…"
                          .champ-large aria-label="Recherche" autofocus;
                     button type="submit" {(crate::langue::tr("Chercher")) }
                 }
@@ -464,110 +362,28 @@ pub(crate) async fn recherche(
                     "sur les tiers, contacts, produits, devis, factures, commandes, contrats, "
                     "tickets et chantiers."
                 } @else {
-                    (total.to_string()) " résultat(s) pour « " (terme) " »"
+                    (resultats.len()) " résultat(s) pour « " (terme) " »"
                 }
             }
 
-            @if !vide && total == 0 {
+            @if !vide && resultats.is_empty() {
                 (ui::vide("Rien ne correspond. Essayez le nom du client plutôt que sa référence, ou l'inverse.", None))
             }
 
-            @if !contacts.is_empty() {
-                h2 { "Contacts — " (contacts.len().to_string()) }
-                table { tbody { @for c in &contacts {
-                    tr {
-                        td { a href={ "/contacts/" (c.rowid) "/modifier" } { (c.nom_complet()) } }
-                        td .ref { (c.email.clone().unwrap_or_default()) }
-                        td .ref { (c.telephone.clone().unwrap_or_default()) }
-                        td { (c.tiers.clone().unwrap_or_default()) }
+            @for (genre, base, liste) in &groupes {
+                h2 { (genre) " — " (liste.len()) }
+                table .tableau-serre {
+                    tbody {
+                        @for r in liste {
+                            tr {
+                                td .ref {
+                                    a href={ (base) (r.id) } { (r.libelle.clone()) }
+                                }
+                                td.aide { (r.detail.clone()) }
+                            }
+                        }
                     }
-                } } }
-            }
-
-            @if !tiers.is_empty() {
-                h2 { "Tiers — " (tiers.len().to_string()) }
-                table { tbody { @for t in &tiers {
-                    tr {
-                        td { a href={ "/tiers/" (t.rowid) } { (t.nom) } }
-                        td .ref { (t.code_client.clone().unwrap_or_default()) }
-                        td { (t.email.clone().unwrap_or_default()) }
-                    }
-                } } }
-            }
-
-            @if !produits.is_empty() {
-                h2 { "Produits et services — " (produits.len().to_string()) }
-                table { tbody { @for x in &produits {
-                    tr {
-                        td .ref { (x.ref_) }
-                        td { (x.label) }
-                    }
-                } } }
-            }
-
-            @if !devis.is_empty() {
-                h2 { "Devis — " (devis.len().to_string()) }
-                table { tbody { @for d in &devis {
-                    tr {
-                        td .ref { a href={ "/devis/" (d.rowid) } { (d.ref_) } }
-                        td { (nom_tiers(p, d.fk_soc)?) }
-                        td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
-                    }
-                } } }
-            }
-
-            @if !commandes.is_empty() {
-                h2 { "Commandes — " (commandes.len().to_string()) }
-                table { tbody { @for c in &commandes {
-                    tr {
-                        td .ref { (c.ref_) }
-                        td { (nom_tiers(p, Some(c.fk_soc))?) }
-                        td .num { (ui::euros(c.total_ttc.unwrap_or_default())) }
-                    }
-                } } }
-            }
-
-            @if !factures.is_empty() {
-                h2 { "Factures — " (factures.len().to_string()) }
-                table { tbody { @for x in &factures {
-                    tr {
-                        td .ref { a href={ "/factures/" (x.rowid) } { (x.ref_) } }
-                        td { (nom_tiers(p, x.fk_soc)?) }
-                        td .num { (ui::euros(x.total_ttc.unwrap_or_default())) }
-                    }
-                } } }
-            }
-
-            @if !contrats.is_empty() {
-                h2 { "Contrats — " (contrats.len().to_string()) }
-                table { tbody { @for c in &contrats {
-                    tr {
-                        td .ref { a href={ "/contrats/" (c.rowid) } { (c.ref_.clone()) } }
-                        td { (c.date_contrat.clone().unwrap_or_default()) }
-                        td { (c.fin_validite.clone().unwrap_or_default()) }
-                    }
-                } } }
-            }
-
-            @if !tickets.is_empty() {
-                h2 { "Tickets — " (tickets.len().to_string()) }
-                table { tbody { @for x in &tickets {
-                    tr {
-                        td .ref { a href={ "/tickets/" (x.rowid) } { (x.ref_.clone()) } }
-                        td { (x.sujet.clone()) }
-                        td { (x.tiers.clone().unwrap_or_default()) }
-                    }
-                } } }
-            }
-
-            @if !projets.is_empty() {
-                h2 { "Chantiers — " (projets.len().to_string()) }
-                table { tbody { @for x in &projets {
-                    tr {
-                        td .ref { (x.ref_) }
-                        td { a href={ "/chantiers/" (x.rowid) } { (x.title) } }
-                    }
-                } } }
+                }
             }
         },
     ))
