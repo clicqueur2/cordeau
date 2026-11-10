@@ -90,6 +90,38 @@ pub fn enregistrer_colonnes(
     ecrire(pool, entity, fk_user, &cle, &retenues.join(","))
 }
 
+/// Lit la preference de l'entite, sinon celle du **global** (entite 0).
+///
+/// Dolibarr range ses preferences par entite. Pour un reglage qui appartient a
+/// la personne — le style, la langue de l'interface — c'est etonnant : changer
+/// de societe changerait d'apparence. On accepte donc un defaut global, et on
+/// ne l'invente pas : c'est la meme table, avec `entity = 0`.
+pub fn lire_avec_defaut(
+    pool: &Pool,
+    entity: i64,
+    fk_user: i64,
+    cle: &str,
+) -> Result<Option<String>, Box<dyn Error>> {
+    if let Some(v) = lire(pool, entity, fk_user, cle)? {
+        return Ok(Some(v));
+    }
+    if entity != 0 {
+        return lire(pool, 0, fk_user, cle);
+    }
+    Ok(None)
+}
+
+/// Efface une preference. Rien a effacer n'est pas une erreur.
+pub fn supprimer(pool: &Pool, entity: i64, fk_user: i64, cle: &str) -> Result<(), Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    conn.exec_drop(
+        "DELETE FROM llx_user_param \
+         WHERE entity = :entity AND fk_user = :user AND param = :cle",
+        params! { "entity" => entity, "user" => fk_user, "cle" => cle },
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     /// Le format est celui qu'on relit a l'oeil dans la table.

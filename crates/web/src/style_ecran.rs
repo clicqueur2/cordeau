@@ -65,9 +65,13 @@ pub(crate) async fn page(
                 }
                 div .actions {
                     button type="submit" {(crate::langue::tr("Appliquer ce style")) }
-                    span .aide.petite {
-                        (crate::langue::tr("Le réglage vaut pour votre compte, sur toutes les sociétés."))
+                    label .etiquette {
+                        input type="checkbox" name="toutes" value="1" checked;
+                        " " (crate::langue::tr("pour toutes les sociétés"))
                     }
+                }
+                p .aide.petite {
+                    (crate::langue::tr("Décochez la case pour ne régler que la société en cours. Par défaut le style vaut partout : un style, c'est une paire d'yeux, pas une société."))
                 }
             }
         },
@@ -94,6 +98,16 @@ pub(crate) async fn choisir(
     let id = db::user::par_login(&app.pool, &login)?
         .ok_or_else(|| Erreur(format!("utilisateur {login} introuvable")))?
         .rowid;
-    db::preferences::ecrire(&app.pool, entite::courante(), id, "cordeau.style", &choisi)?;
+    // Par defaut le choix vaut pour toutes les societes : un style, c'est une
+    // paire d'yeux, pas une societe. La case decochee le restreint a celle-ci.
+    let toutes = f.get("toutes").map(|v| v == "1").unwrap_or(false);
+    if toutes {
+        db::preferences::ecrire(&app.pool, 0, id, "cordeau.style", &choisi)?;
+        // On efface l'exception de la societe courante : sans cela, elle
+        // continuerait de gagner sur le defaut global.
+        db::preferences::supprimer(&app.pool, entite::courante(), id, "cordeau.style")?;
+    } else {
+        db::preferences::ecrire(&app.pool, entite::courante(), id, "cordeau.style", &choisi)?;
+    }
     Ok(Redirect::to("/style?ok=style"))
 }
