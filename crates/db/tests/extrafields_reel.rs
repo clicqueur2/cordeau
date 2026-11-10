@@ -77,10 +77,28 @@ fn un_champ_libre_se_lit_et_s_ecrit_sur_la_vraie_table() -> Result<(), Box<dyn E
         format!("INSERT INTO `{TABLE}` (fk_object, `{CHAMP}`) VALUES (:id, 'bonjour')"),
         params! { "id" => propal },
     )?;
-    let rowid: Option<i64> = conn.exec_first(
+    let mut rowid: Option<i64> = conn.exec_first(
         format!("SELECT rowid FROM `{TABLE}` WHERE fk_object = :id"),
         params! { "id" => propal },
     )?;
+    // Le test n'a de sens que si `rowid` differe de `fk_object` : c'est
+    // justement la confusion que le module doit eviter. Sur une table vide dont
+    // l'AUTO_INCREMENT vaut l'id du devis, la premiere insertion tombe juste :
+    // on en pose une seconde, ce qui decale le compteur, puis on repart.
+    if rowid == Some(propal) {
+        conn.exec_drop(
+            format!("DELETE FROM `{TABLE}` WHERE fk_object = :id"),
+            params! { "id" => propal },
+        )?;
+        conn.exec_drop(
+            format!("INSERT INTO `{TABLE}` (fk_object, `{CHAMP}`) VALUES (:id, 'bonjour')"),
+            params! { "id" => propal },
+        )?;
+        rowid = conn.exec_first(
+            format!("SELECT rowid FROM `{TABLE}` WHERE fk_object = :id"),
+            params! { "id" => propal },
+        )?;
+    }
     assert_ne!(
         rowid,
         Some(propal),

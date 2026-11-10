@@ -675,3 +675,60 @@ pub fn delete(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>
     tx.commit()?;
     Ok(())
 }
+
+/// Met a jour l'entete d'un devis : notes, fin de validite. Pas les lignes.
+///
+/// Le statut n'est pas modifie non plus : valider ou signer passe par les
+/// fonctions dediees, qui verifient les transitions. Un `UPDATE` direct sur
+/// `fk_statut` contournerait ces controles.
+pub fn maj_entete(
+    pool: &Pool,
+    entity: i64,
+    rowid: i64,
+    note_private: Option<&str>,
+    note_public: Option<&str>,
+    fin_validite: Option<&str>,
+) -> Result<(), Box<dyn Error>> {
+    if let Some(d) = fin_validite.map(str::trim).filter(|d| !d.is_empty()) {
+        if d.len() != 10 || !d.is_ascii() {
+            return Err(format!("fin de validite « {d} » : AAAA-MM-JJ attendu").into());
+        }
+    }
+    let mut conn = pool.get_conn()?;
+    let actuel: Option<(Option<String>, Option<String>, Option<String>)> = conn.exec_first(
+        "SELECT note_private, note_public, DATE_FORMAT(fin_validite, '%Y-%m-%d') \
+         FROM llx_propal WHERE entity = :entity AND rowid = :rowid",
+        params! { "entity" => entity, "rowid" => rowid },
+    )?;
+    let Some((ancien_prive, ancien_public, ancienne_fin)) = actuel else {
+        return Err(format!("devis {rowid} introuvable dans l'entite {entity}").into());
+    };
+    // Un champ absent garde sa valeur : un PUT partiel ne vide rien.
+    conn.exec_drop(
+        "UPDATE llx_propal SET note_private = :prive, note_public = :public, \
+          fin_validite = :fin, tms = NOW() \
+         WHERE entity = :entity AND rowid = :rowid",
+        params! {
+            // Absent = inchange ; chaine vide = efface. Deux cas distincts,
+            // sans quoi l'API ne peut jamais vider une note ni une date.
+            "prive" => match note_private {
+                Some(v) if v.trim().is_empty() => None,
+                Some(v) => Some(v.to_string()),
+                None => ancien_prive,
+            },
+            "public" => match note_public {
+                Some(v) if v.trim().is_empty() => None,
+                Some(v) => Some(v.to_string()),
+                None => ancien_public,
+            },
+            "fin" => match fin_validite {
+                Some(v) if v.trim().is_empty() => None,
+                Some(v) => Some(v.trim().to_string()),
+                None => ancienne_fin,
+            },
+            "entity" => entity,
+            "rowid" => rowid,
+        },
+    )?;
+    Ok(())
+}

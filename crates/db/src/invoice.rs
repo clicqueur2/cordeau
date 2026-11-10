@@ -1120,3 +1120,73 @@ pub fn delete(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>
     tx.commit()?;
     Ok(())
 }
+
+/// Met a jour l'entete d'une facture : notes, echeance, reference client.
+///
+/// Meme regle que pour le devis : pas de statut, pas de lignes, et un champ
+/// absent garde sa valeur.
+pub fn maj_entete(
+    pool: &Pool,
+    entity: i64,
+    rowid: i64,
+    note_private: Option<&str>,
+    note_public: Option<&str>,
+    date_lim_reglement: Option<&str>,
+    ref_client: Option<&str>,
+) -> Result<(), Box<dyn Error>> {
+    if let Some(d) = date_lim_reglement.map(str::trim).filter(|d| !d.is_empty()) {
+        if d.len() != 10 || !d.is_ascii() {
+            return Err(format!("echeance « {d} » : AAAA-MM-JJ attendu").into());
+        }
+    }
+    let mut conn = pool.get_conn()?;
+    // Un alias de type : clippy refuse un tuple de quatre `Option<String>` en
+    // clair, et il a raison — a la lecture, on ne sait plus ce que porte chaque
+    // colonne.
+    type Entete = (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    );
+    let actuel: Option<Entete> = conn.exec_first(
+        "SELECT note_private, note_public, \
+                DATE_FORMAT(date_lim_reglement, '%Y-%m-%d'), ref_client \
+         FROM llx_facture WHERE entity = :entity AND rowid = :rowid",
+        params! { "entity" => entity, "rowid" => rowid },
+    )?;
+    let Some((ancien_prive, ancien_public, ancienne_echeance, ancien_ref)) = actuel else {
+        return Err(format!("facture {rowid} introuvable dans l'entite {entity}").into());
+    };
+    conn.exec_drop(
+        "UPDATE llx_facture SET note_private = :prive, note_public = :public, \
+          date_lim_reglement = :echeance, ref_client = :ref_client, tms = NOW() \
+         WHERE entity = :entity AND rowid = :rowid",
+        params! {
+            // Absent = inchange ; chaine vide = efface.
+            "prive" => match note_private {
+                Some(v) if v.trim().is_empty() => None,
+                Some(v) => Some(v.to_string()),
+                None => ancien_prive,
+            },
+            "public" => match note_public {
+                Some(v) if v.trim().is_empty() => None,
+                Some(v) => Some(v.to_string()),
+                None => ancien_public,
+            },
+            "echeance" => match date_lim_reglement {
+                Some(v) if v.trim().is_empty() => None,
+                Some(v) => Some(v.trim().to_string()),
+                None => ancienne_echeance,
+            },
+            "ref_client" => match ref_client {
+                Some(v) if v.trim().is_empty() => None,
+                Some(v) => Some(v.to_string()),
+                None => ancien_ref,
+            },
+            "entity" => entity,
+            "rowid" => rowid,
+        },
+    )?;
+    Ok(())
+}

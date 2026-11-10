@@ -67,7 +67,7 @@ pub const MODULES: &[Module] = &[
             e("journal-caisse", "Journal inaltérable", "/caisse/journal"),
             e("categories", "Catégories", "/liste/Categorie"),
             e("variantes", "Déclinaisons", "/variantes"),
-            e("lots", "Lots et séries", "/liste/ProductBatch"),
+            e("lots", "Lots et séries", "/lots"),
             e("nouveau-lot", "Nouveau lot", "/liste/ProductBatch/nouveau"),
         ],
     },
@@ -480,9 +480,12 @@ mod tests {
                 }
             }
         }
+        // Les listes génériques diminuent à mesure qu'un écran dédié les
+        // remplace — ProductBatch est devenu /lots. Le garde-fou porte donc
+        // aussi sur le total des entrées protégées, juste en dessous.
         assert!(
-            vues >= 17,
-            "seulement {vues} listes generiques dans le menu"
+            vues >= 16,
+            "seulement {vues} listes génériques dans le menu"
         );
         assert!(
             protegees >= 90,
