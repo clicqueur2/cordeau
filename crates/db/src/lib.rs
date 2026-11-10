@@ -92,6 +92,7 @@ pub mod recur_generation;
 pub mod recurrence;
 pub mod reglement;
 pub mod relance;
+pub mod releve;
 pub mod reservation;
 pub mod ressource;
 pub mod salaire;

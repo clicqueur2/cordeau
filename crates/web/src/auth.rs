@@ -22,6 +22,8 @@ use axum::Extension;
 use axum::Form;
 use maud::{html, Markup};
 
+use std::time::{Duration, Instant};
+
 use crate::*;
 
 pub(crate) fn jeton(login: &str) -> String {
@@ -200,6 +202,60 @@ pub(crate) async fn connexion_page(Query(q): Query<HashMap<String, String>>) -> 
     )
 }
 
+/// Le frein de connexion : cinq echecs par adresse en quinze minutes.
+///
+/// Sans lui, un mot de passe se devine par force brute a quelques milliers
+/// d'essais par minute. Le compteur vit en memoire : il ne survit pas a un
+/// redemarrage, et c'est acceptable — un attaquant ne redemarre pas le serveur.
+fn frein() -> &'static Mutex<HashMap<String, (u32, Instant)>> {
+    static F: std::sync::OnceLock<Mutex<HashMap<String, (u32, Instant)>>> =
+        std::sync::OnceLock::new();
+    F.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+const ESSAIS_MAX: u32 = 5;
+const FENETRE: Duration = Duration::from_secs(15 * 60);
+
+/// Cette adresse a-t-elle le droit d'essayer encore ?
+pub(crate) fn peut_essayer(ip: &str) -> bool {
+    let Ok(g) = frein().lock() else {
+        // Verrou empoisonne : on laisse passer plutot que de bloquer tout le
+        // monde a cause d'une panique anterieure.
+        return true;
+    };
+    match g.get(ip) {
+        None => true,
+        Some((n, depuis)) => *n < ESSAIS_MAX || depuis.elapsed() > FENETRE,
+    }
+}
+
+/// Note un echec. Rend le nombre d'echecs dans la fenetre.
+pub(crate) fn echec(ip: &str) -> u32 {
+    let Ok(mut g) = frein().lock() else {
+        return 0;
+    };
+    let compte = {
+        let entree = g.entry(ip.to_string()).or_insert((0, Instant::now()));
+        if entree.1.elapsed() > FENETRE {
+            *entree = (0, Instant::now());
+        }
+        entree.0 += 1;
+        entree.0
+    };
+    // Menage au passage : une carte qui grossit sans fin est une fuite.
+    if g.len() > 10_000 {
+        g.retain(|_, (_, depuis)| depuis.elapsed() <= FENETRE);
+    }
+    compte
+}
+
+/// Efface le compteur apres une reussite.
+pub(crate) fn reussi(ip: &str) {
+    if let Ok(mut g) = frein().lock() {
+        g.remove(ip);
+    }
+}
+
 pub(crate) async fn connexion(
     State(app): State<App>,
     headers: axum::http::HeaderMap,
@@ -208,6 +264,26 @@ pub(crate) async fn connexion(
     let login = f.get("login").map(|s| s.trim()).unwrap_or("");
     let mdp = f.get("mdp").cloned().unwrap_or_default();
     let ip = ip_client(&headers);
+
+    // Frein : cinq echecs en quinze minutes ferment la porte pour un moment.
+    if !peut_essayer(&ip) {
+        let _ = db::events::enregistrer(
+            &app.pool,
+            &db::events::Nouvel::connexion(
+                db::events::CONNEXION_ECHEC,
+                0,
+                None,
+                &format!("trop d'essais depuis {ip}"),
+                &ip,
+                agent_client(&headers).as_deref(),
+            ),
+        );
+        return (
+            axum::http::StatusCode::TOO_MANY_REQUESTS,
+            "Trop d'essais. Reessayez dans quinze minutes.",
+        )
+            .into_response();
+    }
     let agent = agent_client(&headers);
     match db::user::authentifier(&app.pool, login, &mdp) {
         Ok(Some(u)) => {
@@ -224,6 +300,7 @@ pub(crate) async fn connexion(
                     agent.as_deref(),
                 ),
             );
+            reussi(&ip);
             let j = jeton(&u.login);
             app.sessions.lock().unwrap().insert(
                 j.clone(),
@@ -265,6 +342,8 @@ pub(crate) async fn connexion(
                     agent.as_deref(),
                 ),
             );
+            let n = echec(&ip);
+            let _ = n;
             Redirect::to("/connexion?erreur=1").into_response()
         }
     }

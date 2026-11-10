@@ -62,7 +62,11 @@ pub fn ca_mensuel(
 /// « NaN » sur un tableau de bord.
 pub fn delai_moyen(pool: &Pool, entity: i64) -> Result<f64, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
-    let jours: Option<f64> = conn.exec_first(
+    // `AVG()` sur zero ligne rend **NULL**, et `NULL` ne se decode pas en `f64` :
+    // le pilote leve avant qu'on puisse voir l'`Option`, et le fil de travail
+    // meurt — c'est ce qui arrivait sur une base neuve, ou la page d'accueil
+    // tombait en 000. On decode donc `Option<f64>` **dans** la ligne.
+    let jours: Option<Option<f64>> = conn.exec_first(
         "SELECT AVG(DATEDIFF(p.datep, f.datef)) \
          FROM llx_paiement_facture pf \
          JOIN llx_paiement p ON p.rowid = pf.fk_paiement \
@@ -70,7 +74,7 @@ pub fn delai_moyen(pool: &Pool, entity: i64) -> Result<f64, Box<dyn Error>> {
          WHERE f.entity = :entity AND p.datep IS NOT NULL AND f.datef IS NOT NULL",
         params! { "entity" => entity },
     )?;
-    Ok(jours.unwrap_or(0.0))
+    Ok(jours.flatten().unwrap_or(0.0))
 }
 
 /// Les cinq premiers clients par chiffre d'affaires facture (HT, hors avoirs).

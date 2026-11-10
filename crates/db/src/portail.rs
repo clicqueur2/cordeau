@@ -46,11 +46,22 @@ pub struct Compte {
 /// dans l'empreinte evite que deux comptes au meme mot de passe aient la meme
 /// empreinte, sans sel stocke a part.
 pub fn empreinte(login: &str, mot_de_passe: &str) -> String {
+    // 100 000 tours : un seul SHA-256 se casse par force brute sur GPU en
+    // quelques secondes ; itere, il coute 100 000 fois plus. Sans nouvelle
+    // dependance, et sans changer le format stocke (64 caracteres hexa).
+    const TOURS: u32 = 100_000;
     let mut h = Sha256::new();
     h.update(login.as_bytes());
     h.update(b":");
     h.update(mot_de_passe.as_bytes());
-    format!("{:x}", h.finalize())
+    let mut sortie = h.finalize();
+    for _ in 1..TOURS {
+        let mut h = Sha256::new();
+        h.update(sortie);
+        h.update(login.as_bytes());
+        sortie = h.finalize();
+    }
+    format!("{sortie:x}")
 }
 
 /// Cree un compte de portail pour un tiers.

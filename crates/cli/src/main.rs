@@ -15,6 +15,10 @@ USAGE:
   dolibarr-rs party show      --id N
   dolibarr-rs party delete    --id N
 
+  dolibarr-rs user add      --login X --mdp Y [--entity N] [--admin]
+  dolibarr-rs preset lister
+  dolibarr-rs preset appliquer --code btp [--entity N]
+
   dolibarr-rs money line      --qty N --pu N [--remise P] [--tva N] [--base ht|ttc] [--npr]
 ";
 
@@ -61,10 +65,125 @@ fn main() -> ExitCode {
         (Some("invoice"), Some(cmd)) => invoice_cmd(cmd, &args),
         (Some("company"), Some(cmd)) => company_cmd(cmd, &args),
         (Some("payment"), Some(cmd)) => payment_cmd(cmd, &args),
+        (Some("user"), Some(cmd)) => user_cmd(cmd, &args),
+        (Some("preset"), Some(cmd)) => preset_cmd(cmd, &args),
         (Some("money"), Some("line")) => money_line(&args),
         _ => {
             print!("{USAGE}");
             ExitCode::SUCCESS
+        }
+    }
+}
+
+/// `cordeau user add --login X --mdp Y [--entity N] [--admin]`
+///
+/// Le mot de passe passe en argument : il apparait donc dans l'historique du
+/// shell. C'est le prix d'une commande d'installation ; en service, on passe par
+/// l'ecran dedie.
+fn user_cmd(cmd: &str, args: &[String]) -> ExitCode {
+    if cmd != "add" {
+        eprintln!("usage : cordeau user add --login X --mdp Y [--entity N] [--admin]");
+        return ExitCode::FAILURE;
+    }
+    let dsn = dsn_or_env(args);
+    let login = match flag(args, "--login") {
+        Some(v) => v.to_string(),
+        None => {
+            eprintln!("--login requis");
+            return ExitCode::FAILURE;
+        }
+    };
+    let mdp = match flag(args, "--mdp") {
+        Some(v) => v.to_string(),
+        None => {
+            eprintln!("--mdp requis");
+            return ExitCode::FAILURE;
+        }
+    };
+    let entity: i64 = flag(args, "--entity")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1);
+    let admin = args.iter().any(|a| a == "--admin");
+
+    let pool = match db::pool(&dsn) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("connexion impossible : {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let nouveau = db::user::NouvelUtilisateur {
+        login: login.clone(),
+        mot_de_passe: mdp,
+        nom: flag(args, "--nom").unwrap_or(&login).to_string(),
+        prenom: flag(args, "--prenom").unwrap_or_default().to_string(),
+        email: flag(args, "--email").map(str::to_string),
+        admin,
+    };
+    match db::user::creer(&pool, entity, &nouveau) {
+        Ok(id) => {
+            println!("utilisateur {login} cree (rowid={id}, entite={entity}, admin={admin})");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("creation impossible : {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// `cordeau preset lister` et `cordeau preset appliquer --code btp [--entity N]`
+///
+/// Un preset allume des modules ; il n'eteint rien et n'ecrit aucune donnee
+/// metier. Voir `db::preset` pour les trois regles.
+fn preset_cmd(cmd: &str, args: &[String]) -> ExitCode {
+    match cmd {
+        "lister" => {
+            for p in db::preset::PRESETS {
+                println!("{:<14} {} — {}", p.code, p.libelle, p.description);
+            }
+            ExitCode::SUCCESS
+        }
+        "appliquer" => {
+            let code = match flag(args, "--code") {
+                Some(v) => v.to_string(),
+                None => {
+                    eprintln!("--code requis (voir : cordeau preset lister)");
+                    return ExitCode::FAILURE;
+                }
+            };
+            let entity: i64 = flag(args, "--entity")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(1);
+            let dsn = dsn_or_env(args);
+            let pool = match db::pool(&dsn) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("connexion impossible : {e}");
+                    return ExitCode::FAILURE;
+                }
+            };
+            match db::preset::appliquer(&pool, entity, &code) {
+                Ok(r) => {
+                    println!(
+                        "preset {code} : {} module(s) active(s), {} deja en place",
+                        r.actives.len(),
+                        r.deja_actifs.len()
+                    );
+                    if !r.inconnus.is_empty() {
+                        println!("  non activables (inconnus) : {}", r.inconnus.join(", "));
+                    }
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("application impossible : {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        _ => {
+            eprintln!("usage : cordeau preset lister | appliquer --code <code> [--entity N]");
+            ExitCode::FAILURE
         }
     }
 }
