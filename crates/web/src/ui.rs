@@ -18,7 +18,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
     if section.is_empty() {
         return html! {
             (DOCTYPE)
-            html lang="fr" {
+            html lang="fr" data-style=(crate::utilisateur::style()) {
                 head {
                     meta charset="utf-8";
                     meta name="viewport" content="width=device-width, initial-scale=1";
@@ -59,7 +59,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
 
     html! {
         (DOCTYPE)
-        html lang="fr" {
+        html lang="fr" data-style=(crate::utilisateur::style()) {
             head {
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1";
@@ -71,7 +71,17 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                 // Premier element focusable : qui tabule peut sauter le menu.
                 a .saut href="#contenu" { (crate::langue::tr("Aller au contenu")) }
 
+                // Le tiroir du menu, sur petit ecran : une case a cocher et deux
+                // `label`. Pas de JavaScript, donc pas de menu qui reste ouvert
+                // quand le script n'a pas charge.
+                input type="checkbox" id="bascule-menu" .bascule;
+
                 header {
+                    label for="bascule-menu" .bascule-bouton
+                          title=(crate::langue::tr("Menu")) {
+                        span aria-hidden="true" { "☰" }
+                        span .invisible { (crate::langue::tr("Menu")) }
+                    }
                     a .marque href="/" title=(app::PRODUIT) {
                         span .sceau { "C" }
                         span { (app::PRODUIT) }
@@ -114,16 +124,19 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                     }
 
                     span .compte {
-                        select id="style" aria-label=(crate::langue::tr("Style d'affichage"))
-                               title=(crate::langue::tr("Style d'affichage"))
-                               onchange="document.documentElement.setAttribute('data-style',this.value);try{localStorage.setItem('cordeau-style',this.value)}catch(e){}" {
-                            option value="systeme" { (crate::langue::tr("Style système")) }
-                            option value="collaboratif" { (crate::langue::tr("Collaboratif")) }
-                            option value="comptable" { (crate::langue::tr("Comptable")) }
-                            option value="futuriste" { (crate::langue::tr("Futuriste")) }
-                            option value="minuit" { (crate::langue::tr("Minuit")) }
-                            option value="sable" { (crate::langue::tr("Sable")) }
-                            option value="classique" { (crate::langue::tr("Classique")) }
+                        // Un formulaire, pas un bout de JavaScript : le choix
+                        // part au serveur et se range sur le compte.
+                        form method="post" action="/style" .style-form {
+                            select name="style" id="style"
+                                   aria-label=(crate::langue::tr("Style d'affichage"))
+                                   title=(crate::langue::tr("Style d'affichage"))
+                                   onchange="this.form.submit()" {
+                                @for (cle, nom, _) in crate::theme::STYLES {
+                                    option value=(cle) selected[*cle == crate::utilisateur::style()] {
+                                        (crate::langue::tr(nom))
+                                    }
+                                }
+                            }
                         }
                         a .bouton.secondaire.petit href="/compte" { (crate::langue::tr("Mon compte")) }
                         form method="post" action="/deconnexion" {
@@ -136,6 +149,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                 }
 
                 div .corps {
+                    label for="bascule-menu" .voile title=(crate::langue::tr("Fermer le menu")) {}
                     aside .menu-gauche {                        div .module-titre {
                             (crate::icones::du_module(module.cle))
                             (crate::langue::tr(module.libelle))
@@ -162,7 +176,7 @@ pub fn page(section: &str, onglet: &str, titre: &str, contenu: Markup) -> Markup
                 // Sans JavaScript, la page garde le style système — rien ne casse.
                 script {
                     (maud::PreEscaped(
-                        "(function(){try{var s=localStorage.getItem('cordeau-style')||'systeme';document.documentElement.dataset.style=s;var el=document.getElementById('style');if(el){el.value=s;el.addEventListener('change',function(){document.documentElement.dataset.style=el.value;localStorage.setItem('cordeau-style',el.value);});}}catch(e){}})();"
+                        "(function(){try{if(localStorage.getItem('cordeau-menu')==='reduit'){document.documentElement.dataset.menu='reduit';}}catch(e){}})();"
                     ))
                 }
                 // Quatre lignes de JavaScript, uniquement pour le raccourci « / ».

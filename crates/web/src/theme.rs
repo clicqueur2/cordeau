@@ -11,6 +11,58 @@
 //! emploient : ce fichier les redessine, il ne les renomme pas.
 
 /// La feuille de style complète, servie dans chaque page.
+/// Les styles proposes : cle technique, nom affiche, intention.
+///
+/// Une seule liste : le selecteur de l'en-tete, la page de choix et les apercus
+/// la lisent. Ajouter un style, c'est ajouter une ligne ici et un bloc de
+/// jetons plus bas — rien d'autre.
+pub const STYLES: &[(&str, &str, &str)] = &[
+    (
+        "systeme",
+        "Style système",
+        "Suit le réglage clair/sombre de la machine. Le choix par défaut.",
+    ),
+    (
+        "collaboratif",
+        "Collaboratif",
+        "Angles doux, accent bleu, beaucoup d'air. Pour travailler à plusieurs.",
+    ),
+    (
+        "comptable",
+        "Comptable",
+        "Chiffres alignés, traits nets, vert sobre. Pour lire des totaux.",
+    ),
+    (
+        "futuriste",
+        "Futuriste",
+        "Fond profond, halos froids, accent cyan. Pour les longues sessions.",
+    ),
+    (
+        "minuit",
+        "Minuit",
+        "Sombre et dense, sans reflet. Pour l'atelier ou la nuit.",
+    ),
+    (
+        "sable",
+        "Sable",
+        "Papier chaud, accent terre cuite. Le plus proche du devis imprimé.",
+    ),
+    (
+        "classique",
+        "Classique",
+        "Gris neutre, bordures franches. L'apparence d'un logiciel de gestion.",
+    ),
+];
+
+/// La feuille des apercus : les memes blocs, portes par `.apercu` au lieu de
+/// `html`.
+///
+/// Un aperçu a besoin des jetons complets ; les dupliquer a la main serait la
+/// garantie qu'ils divergent. On les reecrit donc mecaniquement.
+pub fn css_apercus() -> String {
+    CSS.replace("html[data-style=\"", ".apercu[data-style=\"")
+}
+
 pub(crate) const CSS: &str = r#"
 /* ===== jetons ========================================================== */
 :root {
@@ -562,6 +614,56 @@ h1 .petite { font-weight: 400; color: var(--muet); letter-spacing: 0; }
 .connexion form { display: flex; flex-direction: column; gap: var(--e3); }
 .connexion input { height: 34px; }
 
+@media (max-width: 720px) {
+  /* Un tableau plus large que l'ecran defile dans son propre cadre : la page,
+     elle, ne bouge pas horizontalement. */
+  main table {
+    display: block; width: 100%; overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  main table thead, main table tbody { display: table; width: 100%; min-width: 520px; }
+  .widget { padding: var(--e3); border-radius: 13px; }
+  .bandeau-bas { gap: var(--e3); }
+}
+
+/* ===== page de style =================================================== */
+.grille-styles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--e3); margin: var(--e3) 0 var(--e4);
+}
+.style-carte {
+  display: block; cursor: pointer; position: relative;
+  border: 1px solid var(--trait); border-radius: 14px; overflow: hidden;
+  background: var(--surface); transition: box-shadow var(--duree) var(--courbe), border-color var(--duree);
+}
+.style-carte:hover { box-shadow: var(--ombre-2); }
+.style-carte:has(input:checked) { border-color: var(--accent-trait); box-shadow: 0 0 0 2px var(--accent-clair); }
+.style-carte input { position: absolute; top: 10px; right: 10px; z-index: 2; }
+
+/* L'aperçu : un vrai bout de l'application, dans les jetons du style. */
+.apercu {
+  background: var(--papier); color: var(--encre);
+  border-bottom: 1px solid var(--trait);
+  padding: 12px; font-size: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  height: 158px; overflow: hidden;
+}
+.apercu-titre { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muet); }
+.apercu-kpi {
+  background: var(--surface); border: 1px solid var(--trait); border-radius: 10px;
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;
+}
+.apercu-titre-kpi { font-size: 10px; color: var(--muet); }
+.apercu-valeur { font-size: 17px; font-weight: 600; letter-spacing: -.03em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.apercu-ligne { display: flex; align-items: center; justify-content: space-between; }
+.apercu-nombre { font-variant-numeric: tabular-nums; color: var(--encre-douce); }
+.apercu-actions { display: flex; gap: 6px; }
+.apercu-actions .bouton { padding: 4px 9px; font-size: 11px; border-radius: 6px; }
+
+.style-texte { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 2px; }
+.style-texte strong { font-size: 13px; }
+.style-texte span { font-size: 11.5px; color: var(--muet); line-height: 1.35; }
+
 /* ===== adaptatif ======================================================= */
 @media (max-width: 1080px) {
   .contenu { padding: var(--e4) var(--e4) 0; }
@@ -580,14 +682,24 @@ h1 .petite { font-weight: 400; color: var(--muet); letter-spacing: 0; }
   .contenu { padding: var(--e3) 12px 0; }
   .fiche { grid-template-columns: 1fr; }
   .corps { display: block; }
+  /* Le tiroir : hors ecran par defaut, il glisse quand la case est cochee. */
   .menu-gauche {
-    position: static; height: auto; width: auto; display: flex; overflow-x: auto;
-    border-right: none; border-bottom: 0.5px solid var(--trait); padding: 6px 8px;
-    background: var(--surface);
+    position: fixed; inset: 0 auto 0 0; z-index: 40;
+    width: 264px; max-width: 84vw; height: 100%;
+    display: block; overflow-y: auto;
+    transform: translateX(-102%);
+    transition: transform var(--duree) var(--courbe);
+    box-shadow: var(--ombre-3);
+    padding: var(--e3) 10px;
   }
-  .menu-gauche .module-titre, .menu-gauche hr { display: none; }
-  .menu-gauche a, .menu-gauche span.avenir { white-space: nowrap; padding: 5px 9px; }
-  .menu-gauche a svg { display: none; }
+  .bascule:checked ~ .corps .menu-gauche { transform: translateX(0); }
+  .bascule:checked ~ .corps .voile {
+    position: fixed; inset: 0; z-index: 35;
+    background: rgba(0, 0, 0, .38); backdrop-filter: blur(1.5px);
+  }
+  .bascule-bouton { display: inline-flex; }
+  .menu-gauche a, .menu-gauche span.avenir { padding: 9px 10px; font-size: 13.5px; }
+  .menu-gauche a svg, .menu-gauche span.avenir svg { display: inline-block; }
   thead th { position: static; }
   h1 { font-size: 23px; }
 }

@@ -200,9 +200,24 @@ pub(crate) async fn garde(
     // contexte de la personne connectee : un ecran qui ecrit une piece doit
     // pouvoir dire qui l'a creee sans le deviner.
     let entite_courante = entite_de_session(&app, req.headers()).unwrap_or(1);
+
+    // Le style d'affichage voyage avec la personne, pas avec le navigateur :
+    // deux postes, une seule apparence. Une lecture par requete sur une table
+    // de preference (cle primaire) ne se sent pas.
+    let style = db::user::par_login(&app.pool, &courant.login)
+        .ok()
+        .flatten()
+        .and_then(|u| {
+            db::preferences::lire(&app.pool, entite_courante, u.rowid, "cordeau.style")
+                .ok()
+                .flatten()
+        })
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "systeme".to_string());
+
     entite::avec(
         entite_courante,
-        utilisateur::avec(courant.login.clone(), next.run(req)),
+        utilisateur::avec_style(courant.login.clone(), style, next.run(req)),
     )
     .await
 }

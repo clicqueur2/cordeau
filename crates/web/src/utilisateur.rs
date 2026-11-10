@@ -12,6 +12,8 @@
 
 tokio::task_local! {
     static LOGIN: String;
+    /// Le style d'affichage choisi par la personne (`cordeau.style`).
+    static STYLE: String;
 }
 
 /// Le login de la requête en cours, `None` hors requête HTTP (CLI, tests).
@@ -24,8 +26,31 @@ pub fn courant() -> Option<String> {
 }
 
 /// Exécute un futur dans le contexte d'un utilisateur.
+#[cfg(test)]
 pub async fn avec<F: std::future::Future>(login: String, futur: F) -> F::Output {
-    LOGIN.scope(login, futur).await
+    // Sans style choisi, c'est celui du systeme : on ne force rien.
+    LOGIN
+        .scope(login, STYLE.scope("systeme".to_string(), futur))
+        .await
+}
+
+/// Execute un futur dans le contexte d'un utilisateur et de son style.
+pub async fn avec_style<F: std::future::Future>(
+    login: String,
+    style: String,
+    futur: F,
+) -> F::Output {
+    LOGIN.scope(login, STYLE.scope(style, futur)).await
+}
+
+/// Le style d'affichage de la requete en cours.
+///
+/// Rend `systeme` hors requete : un style inconnu ne doit jamais laisser la
+/// page sans feuille.
+pub fn style() -> String {
+    STYLE
+        .try_with(|s| s.clone())
+        .unwrap_or_else(|_| "systeme".to_string())
 }
 
 #[cfg(test)]

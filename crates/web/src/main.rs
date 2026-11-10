@@ -147,6 +147,8 @@ mod securite_ecran;
 mod sepa_ecran;
 mod site_web_ecran;
 mod stats_ecran;
+pub(crate) use style_ecran::{choisir as choisir_style, page as style_page};
+mod style_ecran;
 mod theme;
 mod traduction_ecran;
 mod transfert_ecran;
