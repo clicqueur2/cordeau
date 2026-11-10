@@ -568,6 +568,8 @@ pub fn routes(app: App) -> Router {
             "/parametres/sauvegarde",
             get(sauvegarde_page).post(sauvegarder_maintenant),
         )
+        .route("/tiers/doublons", get(doublons))
+        .route("/tiers/fusionner", post(fusionner_tiers))
         .route("/tiers/nouveau", get(tiers_nouveau).post(tiers_creer))
         .route(
             "/produits/nouveau",

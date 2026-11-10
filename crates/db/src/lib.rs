@@ -34,6 +34,7 @@ pub mod contrat;
 pub mod dict;
 pub mod divers;
 pub mod dons;
+pub mod doublons;
 pub mod droit;
 pub mod ecritures;
 pub mod ecritures_tva;

@@ -191,6 +191,7 @@ pub fn droits_du_chemin(chemin: &str) -> &'static [i64] {
         ("/commandes", &[9003, 81]),
         ("/comptabilite", &[9008, 95]),
         ("/export", &[9008, 95]),
+        ("/tiers/doublons", &[9001, 241]),
         ("/tiers", &[9001, 241, 242]),
         ("/contacts", &[9001, 241, 242]),
         ("/produits", &[9001, 31]),
