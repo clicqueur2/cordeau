@@ -29,7 +29,10 @@ pub(crate) async fn doublons(
             (message(q.get("ok")))
             h1 {(crate::langue::tr("Doublons de tiers")) }
             p .sous-titre {
-                (crate::langue::tr("Trois clés, de la plus forte à la plus faible : le SIRET, l'e-mail, le nom normalisé. Un groupe est une proposition, pas une preuve."))
+                (crate::langue::tr("Trois clés, de la plus forte à la plus faible : le SIRET, l'e-mail, puis le nom et la ville. Un groupe est une proposition, pas une preuve."))
+            }
+            p .aide.bloc {
+                (crate::langue::tr("Les groupes sont classés par confiance : « certaine » quand le SIRET est identique, « forte » quand l'e-mail l'est, « à vérifier » quand seul le nom et la ville concordent. Deux noms identiques dans deux villes différentes ne sont pas proposés."))
             }
 
             @if groupes.is_empty() {
@@ -49,7 +52,12 @@ pub(crate) async fn doublons(
                 @for g in &groupes {
                     section .widget {
                         div .widget-entete {
-                            h2 { (crate::langue::tr("Similitude")) }
+                            h2 {
+                                span class=(format!("pastille {}", g.confiance.classe())) {
+                                    (g.confiance.libelle())
+                                }
+                                " " (g.membres.len()) " fiches"
+                            }
                             span .widget-sous { (g.raison) " — " code { (g.cle.clone()) } }
                         }
                         table .tableau-serre {
