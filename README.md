@@ -2,10 +2,53 @@
 
 > Pour contribuer : **[DEVELOPPEMENT.md](DEVELOPPEMENT.md)** — architecture, règles de code,
 > recettes pour ajouter un écran ou un module, et les pièges qui coûtent une heure.
-> Analyse du forum Dolibarr : C:\Users\Maxime\Documents\Default Project\DOLIBARR-FORUM-PROBLEMES.md.
+> Pour publier : **[PUBLIER.md](PUBLIER.md)**.
 
-Noyau Dolibarr réécrit en Rust, **sur le schéma de données officiel de Dolibarr**.
-Écrans, calculs, PDF et API en Rust ; PHP ne reste que pour exécuter les modules Dolistore.
+Noyau Dolibarr 24.0.1 réécrit en Rust, **sur le schéma de données officiel**.
+Écrans, calculs, PDF, API et serveur MCP en Rust ; PHP ne sert plus qu'à exécuter
+les modules du Dolistore.
+
+## État, mesuré le 10 novembre 2026
+
+| | |
+|---|---|
+| Commits | **241**, étiquette `v0.1.0` |
+| Tests | **1 083**, 0 en échec |
+| Modules de base (`crates/db`) | **101** |
+| Crates | 24 |
+| Écrans | 97 fichiers |
+| Routes HTTP | ~280, dont **une API compatible Dolibarr** sous `/api/index.php` |
+| Serveur MCP | 26 outils, dont 7 qui écrivent |
+| Migrations prouvées | 12 → 24, 19 → 24, 23 → 24 |
+| Base de référence | 487 tables, empreinte `7293039a…8b2f` |
+
+**Vérification** : `tools/verifier.ps1` — huit étages (formatage, clippy `-D warnings`,
+1 083 tests, empreinte du schéma, chaîne métier, interface, migrations, annuaire).
+
+## Ce qui marche
+
+- **Devis → commande → facture → règlement → relance**, PDF au centime près,
+  RIB, décennale, pénalités.
+- **Achats fournisseurs**, banque et rapprochement, grand livre, journal, FEC,
+  lettrage, clôture.
+- **Chantiers**, tâches, **Gantt** en SVG (sans JavaScript), carnet de commandes,
+  marge par chantier.
+- **Tiers, contacts, produits, stock, lots et séries**, caisse, GED, contrats,
+  salaires, recrutement, ressources, réservations, inscriptions.
+- **Recherche globale en SQL**, filtres et **choix de colonnes par utilisateur**
+  (`llx_user_param`), **7 styles** d'affichage suivant le compte.
+- **Portail client** (`/public/portail`) : le client voit ses devis et ses
+  factures, en lecture seule, et rien d'autre.
+- **API compatible Dolibarr** : les intégrations n8n existantes marchent sans
+  changement.
+- **Presets de métier** : base nue, BTP, architecte, logistique, commerce,
+  bureau d'études, association.
+
+## Ce qui ne marche pas encore
+
+- Les connecteurs externes : **Stripe, PayPal, LDAP, OAuth**, import de relevé
+  bancaire. Rien n'est livré sans clé de test et sans essai réel.
+- Le **rodage** : Cordeau n'a jamais servi un mois entier en production.
 
 ## État
 
