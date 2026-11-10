@@ -94,6 +94,39 @@ pub const PRESETS: &[Preset] = &[
             "AGENDA",
             "ECM",
             "USER",
+            // Ce qu'une entreprise de maconnerie utilise vraiment, et qui
+            // manquait : les lots (tracabilite d'un materiaal), les marges, les
+            // conges, les bulletins et les notes de frais.
+            "PRODUCTBATCH",
+            "MARGIN",
+            "HOLIDAY",
+            "SALARIES",
+            "EXPENSEREPORT",
+        ],
+        constantes: &[
+            ("PROPALE_ADDON_PDF", "standard"),
+            ("FACTURE_ADDON_PDF", "standard"),
+            ("COMMANDE_ADDON_PDF", "standard"),
+        ],
+    },
+    Preset {
+        code: "architecte",
+        libelle: "Agence d'architecture",
+        description: "Missions, contrats, projets, notes de frais et documents.",
+        modules: &[
+            "SOCIETE",
+            "PRODUCT",
+            "PROPALE",
+            "COMMANDE",
+            "FACTURE",
+            "PROJET",
+            "CONTRAT",
+            "EXPENSEREPORT",
+            "AGENDA",
+            "ECM",
+            "BANQUE",
+            "COMPTABILITE",
+            "USER",
         ],
         constantes: &[
             ("PROPALE_ADDON_PDF", "standard"),
