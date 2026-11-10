@@ -233,6 +233,10 @@ pub fn plan(valeur: Decimal, duree_annees: u32, date_mise_en_service: &str) -> V
     let dotation_courante = round_money(valeur / Decimal::from(i64::from(duree_annees)));
 
     let mut cumule = Decimal::ZERO;
+    // Une duree non bornee allouait `4 294 967 295` emplacements avant meme la
+    // premiere iteration : l'allocation echoue et le processus meurt. Cent ans
+    // couvrent tout plan d'amortissement reel.
+    let duree_annees = duree_annees.clamp(1, 100);
     let mut annuites = Vec::with_capacity(duree_annees as usize);
     for exercice in 1..=duree_annees {
         let dotation = if exercice == duree_annees {

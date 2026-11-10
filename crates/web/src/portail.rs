@@ -187,12 +187,28 @@ pub async fn accueil(State(app): State<App>, headers: HeaderMap) -> Res<Response
 
 pub async fn connexion(
     State(app): State<App>,
+    headers: HeaderMap,
     Form(f): Form<HashMap<String, String>>,
 ) -> Res<Response> {
     let login = f.get("login").map(|s| s.trim()).unwrap_or("");
     let mdp = f.get("mdp").cloned().unwrap_or_default();
+    let ip = crate::auth::ip_client(&headers);
+
+    // Le frein du personnel ne couvrait pas cette porte : 100 000 tours de
+    // SHA-256 par tentative, sans limite, sur une page publique — l'attaquant
+    // n'a qu'a marteler pour saturer le serveur, et chaque essai lui coute
+    // 100 000 fois moins qu'a nous.
+    if !crate::auth::peut_essayer(&ip) {
+        return Ok((
+            axum::http::StatusCode::TOO_MANY_REQUESTS,
+            "Trop d'essais. Reessayez dans quinze minutes.",
+        )
+            .into_response());
+    }
+
     match db::portail::authentifier(&app.pool, login, &mdp)? {
         Some(c) => {
+            crate::auth::reussi(&ip);
             let j = jeton();
             sessions().lock().unwrap().insert(
                 j.clone(),
@@ -216,16 +232,19 @@ pub async fn connexion(
             )
                 .into_response())
         }
-        None => Ok(coque(
-            "Espace client",
-            html! {
-                h1 {(crate::langue::tr("Espace client")) }
-                (ui::echec("Identifiant ou mot de passe incorrect."))
-                a .bouton href="/public/portail" { (crate::langue::tr("Réessayer")) }
-            },
-            false,
-        )
-        .into_response()),
+        None => {
+            crate::auth::echec(&ip);
+            Ok(coque(
+                "Espace client",
+                html! {
+                    h1 {(crate::langue::tr("Espace client")) }
+                    (ui::echec("Identifiant ou mot de passe incorrect."))
+                    a .bouton href="/public/portail" { (crate::langue::tr("Réessayer")) }
+                },
+                false,
+            )
+            .into_response())
+        }
     }
 }
 

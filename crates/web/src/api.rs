@@ -173,16 +173,50 @@ pub(crate) async fn document_telecharger(
             )
         })?;
 
-    // Deux garde-fous : pas de `..` (traversee de dossier) et pas de chemin
-    // absolu. Le parametre vient d'un client HTTP.
-    if original.contains("..") || original.starts_with('/') || modulepart.contains("..") {
+    // Le parametre vient d'un client HTTP. Deux pieges, pas un :
+    //
+    // 1. `..` sort du dossier ;
+    // 2. **`Path::join` avec un composant absolu REMPLACE la racine** — sur
+    //    Windows `C:\Windows\win.ini` et `\\serveur\partage` ne contiennent
+    //    aucun `..` et ne commencent pas par `/` : l'ancien garde les laissait
+    //    passer, et le serveur lisait n'importe quel fichier de la machine.
+    //
+    // On refuse donc tout caractere qui permet de sortir, puis on verifie que le
+    // chemin **resolu** reste sous la racine. Le controle final est le seul qui
+    // vaille : il ne depend d'aucune liste de motifs.
+    let sur = |s: &str| {
+        !s.is_empty()
+            && !s.contains("..")
+            && !s.contains('\\')
+            && !s.contains(':')
+            && !s.starts_with('/')
+            && !s.starts_with('.')
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/'))
+    };
+    if !sur(&modulepart) || !sur(&original) {
         return Err(ApiErreur(
             axum::http::StatusCode::BAD_REQUEST,
             "chemin refuse".into(),
         ));
     }
 
-    let chemin = db::ged::racine().join(&modulepart).join(&original);
+    let racine = db::ged::racine();
+    let chemin = racine.join(&modulepart).join(&original);
+    let (Ok(racine_reelle), Ok(chemin_reel)) = (racine.canonicalize(), chemin.canonicalize())
+    else {
+        return Err(ApiErreur(
+            axum::http::StatusCode::NOT_FOUND,
+            format!("document introuvable : {modulepart}/{original}"),
+        ));
+    };
+    if !chemin_reel.starts_with(&racine_reelle) {
+        return Err(ApiErreur(
+            axum::http::StatusCode::BAD_REQUEST,
+            "chemin hors du dossier des documents".into(),
+        ));
+    }
+    let chemin = chemin_reel;
     match std::fs::read(&chemin) {
         Ok(octets) => {
             let nom = chemin
@@ -422,10 +456,13 @@ async fn projets(
     if !autorise(&headers) {
         return Err(refus());
     }
+    // Un `limit` non plafonne fait lire et serialiser la table entiere : c'est
+    // un deni de service a un parametre de requete.
     let limite = q
         .get("limit")
         .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(100);
+        .unwrap_or(100)
+        .clamp(1, 200);
     Ok(Json(json!(db::projet::list(
         &app.pool,
         entity(),
@@ -589,7 +626,11 @@ async fn tiers(
     if !autorise(&headers) {
         return Err(refus());
     }
-    let limite: u32 = q.get("limit").and_then(|v| v.parse().ok()).unwrap_or(50);
+    let limite: u32 = q
+        .get("limit")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(50)
+        .clamp(1, 200);
     let liste = db::party::list(&app.pool, entity(), limite, 0)?;
     Ok(Json(json!(liste
         .iter()

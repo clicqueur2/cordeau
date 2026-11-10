@@ -10,6 +10,8 @@
 use std::error::Error;
 use std::io::{self, BufRead, Write};
 
+use std::str::FromStr;
+
 use rust_decimal::Decimal;
 use serde_json::{json, Value};
 
@@ -258,7 +260,9 @@ fn arg_str(corps: &Value, nom: &str) -> Result<String, Box<dyn Error>> {
 
 fn arg_dec(corps: &Value, nom: &str) -> Result<Decimal, Box<dyn Error>> {
     let s = arg_str(corps, nom)?;
-    Ok(money::dec(&s))
+    // `money::dec()` fait `.expect()` : un agent qui envoie `"quantite": "deux"`
+    // tuait le serveur MCP. Un argument illisible est une erreur, pas un arret.
+    Decimal::from_str(s.trim()).map_err(|_| format!("{nom} : « {s} » n'est pas un nombre").into())
 }
 
 fn texte(v: Value) -> Value {
