@@ -30,17 +30,30 @@ pub(crate) fn politique(app: &App, req: &axum::extract::Request) -> db::securite
     // d'entite ne soit etabli. Lire `courante()` ici renverrait toujours 1, et
     // une politique reglee sur l'entite 7 resterait invisible.
     let entity = crate::auth::lire_cookie(req.headers())
-        .and_then(|j| app.sessions.lock().unwrap().get(&j).map(|s| s.entity))
+        .and_then(|j| {
+            app.sessions
+                .lock()
+                .ok()
+                .and_then(|s| s.get(&j).map(|s| s.entity))
+        })
         .unwrap_or(1);
 
-    let mut garde = cache_politique().lock().unwrap();
-    if let Some((quand, cache_entity, config)) = garde.as_ref() {
-        if *cache_entity == entity && quand.elapsed() < Duration::from_secs(30) {
-            return config.clone();
+    // Le verrou ne doit couvrir **que** la lecture du cache. La version
+    // precedente le tenait pendant la requete MySQL bloquante, sur chaque
+    // requete HTTP : avec deux societes connectees, le cache mono-entite ne
+    // prenait jamais et tout le serveur se serialisait derriere ce verrou.
+    if let Ok(garde) = cache_politique().lock() {
+        if let Some((quand, cache_entity, config)) = garde.as_ref() {
+            if *cache_entity == entity && quand.elapsed() < Duration::from_secs(30) {
+                return config.clone();
+            }
         }
     }
+
     let config = db::securite::config(&app.pool, entity).unwrap_or_default();
-    *garde = Some((Instant::now(), entity, config.clone()));
+    if let Ok(mut garde) = cache_politique().lock() {
+        *garde = Some((Instant::now(), entity, config.clone()));
+    }
     config
 }
 
@@ -59,7 +72,9 @@ fn cache_politique(
 /// prendrait effet jusqu'à trente secondes plus tard, et l'utilisateur
 /// conclurait que le formulaire ne marche pas.
 pub(crate) fn oublier_politique() {
-    *cache_politique().lock().unwrap() = None;
+    if let Ok(mut g) = cache_politique().lock() {
+        *g = None;
+    }
 }
 
 /// L'adresse de l'instance, pour l'en-tête CORS.

@@ -184,10 +184,44 @@ pub async fn table_page(
 }
 
 /// Greffons charges depuis le dossier : ce que le noyau accepte d'executer.
+///
+/// # Pourquoi le chemin doit etre absolu
+///
+/// Le defaut etait `"greffons"`, resolu depuis le repertoire courant. Le depot en
+/// contient un : ouvrir `/parametres/greffons` depuis le depot **chargeait et
+/// executait** `greffons/greffon_exemple.dll` — une bibliotheque livree avec le
+/// code, sur une simple visite d'ecran. Un chemin relatif depend du repertoire de
+/// lancement : c'est une porte qui s'ouvre toute seule.
+///
+/// On exige donc un chemin **absolu**, et l'ecran ne charge rien tant que la
+/// variable n'est pas posee.
 pub async fn greffons_page() -> Res<Markup> {
-    let dossier = std::env::var("DOLIBARR_GREFFONS").unwrap_or_else(|_| "greffons".to_string());
-    let liste = greffons::charger_dossier(std::path::Path::new(&dossier))
-        .map_err(|e| Erreur(e.to_string()))?;
+    let demande = std::env::var("DOLIBARR_GREFFONS").unwrap_or_default();
+    let dossier = if demande.trim().is_empty() {
+        None
+    } else if std::path::Path::new(&demande).is_absolute() {
+        Some(demande)
+    } else {
+        return Ok(crate::ui::page(
+            "parametres",
+            "greffons",
+            "Greffons",
+            maud::html! {
+                h1 {(crate::langue::tr("Greffons")) }
+                (crate::ui::echec(
+                    "DOLIBARR_GREFFONS doit être un chemin absolu : un chemin relatif dépend du dossier de lancement, et le dépôt en contient un."
+                ))
+            },
+        ));
+    };
+
+    let liste = match dossier.as_deref() {
+        None => Vec::new(),
+        Some(d) => {
+            greffons::charger_dossier(std::path::Path::new(d)).map_err(|e| Erreur(e.to_string()))?
+        }
+    };
+    let dossier = dossier.unwrap_or_else(|| "(non configuré)".to_string());
 
     Ok(crate::ui::page(
         "parametres",
