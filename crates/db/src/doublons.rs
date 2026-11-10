@@ -60,10 +60,43 @@ pub const TABLES_LIEES: &[(&str, &str)] = &[
     ("llx_product_thirdparty", "fk_soc"),
 ];
 
-/// Un groupe de fiches qui se ressemblent, avec la raison.
+/// Ce que vaut une proposition de fusion.
+///
+/// L'ordre compte : il sert au tri, et « Certaine » passe avant « Moyenne ».
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Confiance {
+    /// Meme SIRET : c'est la meme entreprise.
+    Certaine,
+    /// Meme e-mail : c'est le meme interlocuteur.
+    Forte,
+    /// Meme nom et meme ville : a regarder avant de fusionner.
+    Moyenne,
+}
+
+impl Confiance {
+    pub fn libelle(self) -> &'static str {
+        match self {
+            Confiance::Certaine => "certaine",
+            Confiance::Forte => "forte",
+            Confiance::Moyenne => "à vérifier",
+        }
+    }
+
+    /// La classe de pastille : vert, bleu, ambre.
+    pub fn classe(self) -> &'static str {
+        match self {
+            Confiance::Certaine => "p-payee",
+            Confiance::Forte => "p-validee",
+            Confiance::Moyenne => "p-brouillon",
+        }
+    }
+}
+
+/// Un groupe de fiches qui se ressemblent, avec la raison et sa force.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Groupe {
     pub raison: &'static str,
+    pub confiance: Confiance,
     pub cle: String,
     pub membres: Vec<Party>,
 }
@@ -155,6 +188,7 @@ pub fn groupes(pool: &Pool, entity: i64) -> Result<Vec<Groupe>, Box<dyn Error>> 
         if membres.len() > 1 {
             groupes.push(Groupe {
                 raison: "même SIRET",
+                confiance: Confiance::Certaine,
                 cle,
                 membres,
             });
@@ -177,6 +211,7 @@ pub fn groupes(pool: &Pool, entity: i64) -> Result<Vec<Groupe>, Box<dyn Error>> 
         if membres.len() > 1 {
             groupes.push(Groupe {
                 raison: "même e-mail",
+                confiance: Confiance::Forte,
                 cle,
                 membres,
             });
@@ -192,13 +227,31 @@ pub fn groupes(pool: &Pool, entity: i64) -> Result<Vec<Groupe>, Box<dyn Error>> 
         }
     }
     for (cle, membres) in par_nom {
-        if membres.len() > 1 {
-            groupes.push(Groupe {
-                raison: "nom identique",
-                cle,
-                membres,
-            });
+        if membres.len() < 2 {
+            continue;
         }
+        // Un nom ne suffit pas : deux « Martin » a Lyon et a Marseille ne sont
+        // pas la meme entreprise. On ne garde le groupe que si **deux fiches au
+        // moins** partagent une ville — ou si l'une n'en porte pas, auquel cas
+        // on ne peut pas trancher et on laisse l'humain regarder.
+        let mut villes: BTreeMap<String, usize> = BTreeMap::new();
+        let mut sans_ville = 0usize;
+        for m in &membres {
+            match m.town.as_deref().map(normaliser).filter(|v| !v.is_empty()) {
+                Some(v) => *villes.entry(v).or_default() += 1,
+                None => sans_ville += 1,
+            }
+        }
+        let commune = villes.values().any(|n| *n > 1) || sans_ville > 0;
+        if !commune {
+            continue;
+        }
+        groupes.push(Groupe {
+            raison: "nom identique et même ville",
+            confiance: Confiance::Moyenne,
+            cle,
+            membres,
+        });
     }
 
     // Deux groupes qui designent exactement les memes fiches n'en font qu'un :
@@ -210,8 +263,13 @@ pub fn groupes(pool: &Pool, entity: i64) -> Result<Vec<Groupe>, Box<dyn Error>> 
         vus.insert(ids)
     });
 
-    // Les plus gros groupes d'abord : c'est la ou il y a le plus a gagner.
-    groupes.sort_by_key(|g| std::cmp::Reverse(g.membres.len()));
+    // La force d'abord (une certitude passe avant une supposition), puis la
+    // taille : c'est la ou il y a le plus a gagner.
+    groupes.sort_by(|a, b| {
+        a.confiance
+            .cmp(&b.confiance)
+            .then(b.membres.len().cmp(&a.membres.len()))
+    });
     Ok(groupes)
 }
 
@@ -305,6 +363,14 @@ mod tests {
     fn les_telephones_se_comparent_sur_les_chiffres() {
         assert_eq!(chiffres("06 12 34 56 78"), "0612345678");
         assert_eq!(chiffres("+33 6 12 34 56 78"), "33612345678");
+    }
+
+    #[test]
+    fn la_confiance_se_classe_dans_l_ordre() {
+        assert!(Confiance::Certaine < Confiance::Forte);
+        assert!(Confiance::Forte < Confiance::Moyenne);
+        assert_eq!(Confiance::Certaine.libelle(), "certaine");
+        assert_eq!(Confiance::Moyenne.classe(), "p-brouillon");
     }
 
     #[test]
