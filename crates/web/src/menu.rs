@@ -245,6 +245,7 @@ pub const MODULES: &[Module] = &[
         libelle: "Outils",
         entrees: &[
             e("societe", "Société ou organisation", "/parametres"),
+            e("style", "Style d'affichage", "/style"),
             e(
                 "utilisateurs",
                 "Utilisateurs et groupes",

@@ -72,6 +72,7 @@ pub fn routes(app: App) -> Router {
         .route("/commandes", get(commandes))
         .route("/commandes/actions", post(actions_masse::commandes))
         .route("/colonnes", post(colonnes::enregistrer))
+        .route("/style", get(style_page).post(choisir_style))
         .route("/commandes/carnet", get(carnet))
         .route("/commandes/:id", get(commande_fiche))
         .route("/commandes/:id/valider", post(commande_valider))
