@@ -115,6 +115,8 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
 
     let alertes = retard.len() + sans_reponse.len() + stock.len();
 
+    let ca_douze = db::tableau_bord::ca_mensuel(p, entity, 12).unwrap_or_default();
+
     let delai = db::tableau_bord::delai_moyen(p, entite::courante()).unwrap_or(0.0);
     let carnet = db::carnet::ouvertes(p, entity)?;
     let carnet_total = db::carnet::total(&carnet);
@@ -131,19 +133,26 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
         "",
         "Tableau de bord",
         html! {
-            h1 { (crate::langue::tr("Tableau de bord")) }
-            p .sous-titre { (crate::langue::tr("Exercice en cours")) " — " (jour.clone()) }
-
-            // Les quatre gestes qui commencent une journee. Un logiciel de
-            // gestion se juge a ce qu'on peut lancer sans chercher : ils sont
-            // la, en haut, avant les chiffres.
-            div .actions {
-                a .bouton href="/devis/nouveau" { (crate::langue::tr("Nouveau devis")) }
-                a .bouton.secondaire href="/factures/nouveau" { (crate::langue::tr("Nouvelle facture")) }
-                a .bouton.secondaire href="/tiers/nouveau" { (crate::langue::tr("Nouveau tiers")) }
-                a .bouton.secondaire href="/produits/nouveau" { (crate::langue::tr("Nouveau produit")) }
+            // Le bandeau : qui, quand, et par quoi commencer. Les quatre gestes
+            // sont la, avant les chiffres — un logiciel de gestion se juge a ce
+            // qu'on peut lancer sans chercher.
+            section .hero {
+                div {
+                    p .surtitre { "PIERRE ANGULAIRE" }
+                    h1 { (crate::langue::tr("Bonjour")) }
+                    p .hero-date {
+                        (app::fmt_date_fr(Some(&jour)))
+                    }
+                }
+                div .hero-actions {
+                    a .bouton href="/devis/nouveau" { (crate::langue::tr("Nouveau devis")) }
+                    a .bouton.secondaire href="/factures/nouveau" { (crate::langue::tr("Nouvelle facture")) }
+                    a .bouton.secondaire href="/tiers/nouveau" { (crate::langue::tr("Nouveau tiers")) }
+                    a .bouton.secondaire href="/produits/nouveau" { (crate::langue::tr("Nouveau produit")) }
+                }
             }
 
+            // Six chiffres, pas davantage : au-dela, on ne lit plus.
             div .kpis {
                 div .kpi.fort {
                     div .titre { (crate::langue::tr("Facturé")) }
@@ -160,208 +169,136 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                     div .valeur { (ui::euros(chiffres.reste)) }
                     div .note { (crate::langue::tr("encours client")) }
                 }
-                div .kpi {
-                    div .titre { (crate::langue::tr("Devisé")) }
-                    div .valeur { (ui::euros(devis.en_cours)) }
-                    div .note { (devis.nb_en_cours.to_string()) " " (crate::langue::tr("devis en attente")) }
-                }
-                div .kpi {
-                    div .titre { (crate::langue::tr("Taux de signature")) }
-                    div .valeur { (devis.taux.to_string()) " %" }
-                    div .note {
-                        (ui::euros(devis.signes)) " / " (ui::euros(devis.emis()))
-                    }
-                }
-                div .kpi {
-                    div .titre { (crate::langue::tr("Délai de paiement")) }
-                    div .valeur { (format!("{:.0}", delai)) " j" }
-                    div .note { (crate::langue::tr("moyenne constatée")) }
-                }
-                div .kpi {
-                    div .titre { (crate::langue::tr("Panier moyen")) }
-                    div .valeur { (ui::euros(panier)) }
-                    div .note { (crate::langue::tr("par facture validée")) }
-                }
                 div .kpi.alerte {
                     div .titre { (crate::langue::tr("En retard")) }
                     div .valeur { (ui::euros(total_retard)) }
                     div .note { (retard.len().to_string()) " " (crate::langue::tr("factures à relancer")) }
                 }
                 div .kpi {
-                    div .titre { a href="/commandes/carnet" { (crate::langue::tr("Carnet de commandes")) } }
+                    div .titre { a href="/commandes/carnet" { (crate::langue::tr("Carnet")) } }
                     div .valeur { (ui::euros(carnet_total)) }
                     div .note {
-                        (crate::langue::tr("dont")) " " (ui::euros(carnet_a_facturer))
-                        " " (crate::langue::tr("livré à facturer"))
-                        " — " (pluriel(carnet_pieces, "commande ouverte", "commandes ouvertes"))
+                        (pluriel(carnet_pieces, "commande ouverte", "commandes ouvertes"))
+                    }
+                }
+                div .kpi {
+                    div .titre { (crate::langue::tr("Devis en attente")) }
+                    div .valeur { (ui::euros(devis.en_cours)) }
+                    div .note {
+                        (devis.nb_en_cours.to_string()) " " (crate::langue::tr("devis sans réponse"))
                     }
                 }
             }
 
-            @let ca_douze = db::tableau_bord::ca_mensuel(p, entite::courante(), 12).unwrap_or_default();
-            @if !ca_douze.is_empty() {
-                h2 {(crate::langue::tr("Chiffre d'affaires des douze derniers mois")) }
-                div .curve {
-                    (ui::barres(&ca_douze))
-                    p .aide.petite {
-                        (crate::langue::tr("Factures validées, hors avoirs, HT."))
+            // Deux colonnes : ce qui se suit (le CA) et ce qui se traite (les
+            // alertes). A droite on agit, a gauche on regarde.
+            div .grille-2 {
+                section .widget {
+                    div .widget-entete {
+                        h2 { (crate::langue::tr("Chiffre d'affaires")) }
+                        span .widget-sous { (crate::langue::tr("douze derniers mois")) }
+                    }
+                    @if ca_douze.is_empty() {
+                        p .vide {(crate::langue::tr("Aucune facture sur la période.")) }
+                    } @else {
+                        (ui::barres(&ca_douze))
+                        p .aide.petite {
+                            (crate::langue::tr("Factures validées, hors avoirs, HT."))
+                        }
+                    }
+                }
+
+                section .widget {
+                    div .widget-entete {
+                        h2 { (crate::langue::tr("À traiter")) }
+                        @if alertes > 0 {
+                            span .pastille.p-retard { (alertes) }
+                        }
+                    }
+                    @if alertes == 0 {
+                        p .widget-vide {
+                            (crate::langue::tr("Rien en attente : aucune facture en retard, aucun devis oublié, aucun stock bas."))
+                        }
+                    } @else {
+                        ul .liste-alertes {
+                            @for f in &retard {
+                                li {
+                                    a href={ "/factures/" (f.rowid) } { (f.reference.clone()) }
+                                    span .liste-detail { (f.tiers.clone()) }
+                                    span .liste-droit { (ui::euros(f.reste)) }
+                                }
+                            }
+                            @for d in &sans_reponse {
+                                li {
+                                    a href={ "/devis/" (d.rowid) } { (d.reference.clone()) }
+                                    span .liste-detail {
+                                        (crate::langue::tr("sans réponse depuis")) " " (d.jours) " j"
+                                    }
+                                    span .liste-droit { (ui::euros(d.montant)) }
+                                }
+                            }
+                            @for s in &stock {
+                                li {
+                                    span .liste-detail { (s.libelle.clone()) }
+                                    span .liste-droit { (app::fmt_qte(Some(s.stock))) }
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            @if alertes > 0 {
-                p .sous-titre.espace-dessus {
-                    (alertes.to_string()) " " (crate::langue::tr("point(s) à traiter — voir plus bas."))
-                }
-            } @else {
-                (ui::flash("Rien en attente : aucune facture en retard, aucun devis oublié, aucun stock bas."))
-            }
-
-            h2 { (crate::langue::tr("Douze derniers mois")) }
-            div .curve {
-                table {
-                    tbody {
-                        @for m in &serie {
-                            tr {
-                                td .ref.champ-court { (m.mois.clone()) }
-                                td .col-46 {
-                                    div .piste {
-                                        div .vente style=(format!(
-                                            "width:{}%",
-                                            if maxi > Decimal::ZERO {
-                                                (m.ventes / maxi * Decimal::from(100)).round_dp(1).normalize()
-                                            } else { Decimal::ZERO }
-                                        )) {}
+            div .grille-2 {
+                section .widget {
+                    div .widget-entete {
+                        h2 { (crate::langue::tr("Meilleurs clients")) }
+                        span .widget-sous { (crate::langue::tr("exercice en cours")) }
+                    }
+                    @if clients.is_empty() {
+                        p .widget-vide {(crate::langue::tr("Aucune facture sur l'exercice.")) }
+                    } @else {
+                        table .tableau-serre {
+                            tbody {
+                                @for c in &clients {
+                                    tr {
+                                        td { (c.libelle.clone()) }
+                                        td .num { (ui::euros(c.montant)) }
+                                        td .col-32 {
+                                            div .piste {
+                                                div .vente style=(format!(
+                                                    "width:{}%",
+                                                    if maxi_client > Decimal::ZERO {
+                                                        (c.montant / maxi_client * Decimal::from(100)).round_dp(1).normalize()
+                                                    } else { Decimal::ZERO }
+                                                )) {}
+                                            }
+                                        }
                                     }
                                 }
-                                td .num.champ-court { (ui::euros(m.ventes)) }
-                                td .col-30 {
-                                    div .piste {
-                                        div .achat style=(format!(
-                                            "width:{}%",
-                                            if maxi > Decimal::ZERO {
-                                                (m.achats / maxi * Decimal::from(100)).round_dp(1).normalize()
-                                            } else { Decimal::ZERO }
-                                        )) {}
-                                    }
-                                }
-                                td .num.etroit.muet { (ui::euros(m.achats)) }
                             }
                         }
                     }
                 }
-                p.aide.petite.sous-champ {
-                    span .temoin {}
-                    (crate::langue::tr("Ventes"))
-                    "   "
-                    span .temoin.achat {}
-                    (crate::langue::tr("Achats"))
-                }
-            }
 
-            @if !retard.is_empty() {
-                h2 { (crate::langue::tr("Factures en retard")) }
-                table {
-                    thead {
-                        tr {
-                            th { (crate::langue::tr("Réf.")) }
-                            th { (crate::langue::tr("Client")) }
-                            th { (crate::langue::tr("Échéance")) }
-                            th .num { (crate::langue::tr("Retard")) }
-                            th .num { (crate::langue::tr("Reste dû")) }
-                        }
+                section .widget {
+                    div .widget-entete {
+                        h2 { (crate::langue::tr("Dernières factures")) }
+                        a .widget-lien href="/factures" { (crate::langue::tr("Tout voir")) }
                     }
-                    tbody {
-                        @for f in &retard {
-                            tr {
-                                td .ref { a href={ "/factures/" (f.rowid) } { (f.reference.clone()) } }
-                                td { (f.tiers.clone()) }
-                                td .ref { (f.echeance.clone()) }
-                                td .num { span .pastille.p-retard { (f.jours.to_string()) " j" } }
-                                td .num { (ui::euros(f.reste)) }
-                            }
+                    @if recentes.is_empty() {
+                        p .widget-vide {
+                            (crate::langue::tr("Aucune facture pour l'instant.")) " "
+                            a href="/devis" {(crate::langue::tr("Partir d'un devis")) }
                         }
-                    }
-                }
-            }
-
-            @if !sans_reponse.is_empty() {
-                h2 { (crate::langue::tr("Devis sans réponse")) }
-                table {
-                    thead {
-                        tr {
-                            th { (crate::langue::tr("Réf.")) }
-                            th { (crate::langue::tr("Client")) }
-                            th { (crate::langue::tr("Envoyé le")) }
-                            th .num { (crate::langue::tr("Depuis")) }
-                            th .num { (crate::langue::tr("TTC")) }
-                        }
-                    }
-                    tbody {
-                        @for d in &sans_reponse {
-                            tr {
-                                td .ref { a href={ "/devis/" (d.rowid) } { (d.reference.clone()) } }
-                                td { (d.tiers.clone()) }
-                                td .ref { (d.date.clone()) }
-                                td .num { (d.jours.to_string()) " j" }
-                                td .num { (ui::euros(d.montant)) }
-                            }
-                        }
-                    }
-                }
-            }
-
-            @if !stock.is_empty() {
-                h2 { (crate::langue::tr("Stock sous le seuil")) }
-                table {
-                    thead {
-                        tr {
-                            th { (crate::langue::tr("Réf.")) }
-                            th { (crate::langue::tr("Produit")) }
-                            th .num { (crate::langue::tr("Stock")) }
-                            th .num { (crate::langue::tr("Seuil")) }
-                        }
-                    }
-                    tbody {
-                        @for s in &stock {
-                            tr {
-                                td .ref { (s.reference.clone()) }
-                                td { (s.libelle.clone()) }
-                                td .num { (s.stock.normalize().to_string()) }
-                                td .num { (s.seuil.normalize().to_string()) }
-                            }
-                        }
-                    }
-                }
-            }
-
-            h2 { (crate::langue::tr("Meilleurs clients de l'année")) }
-            @if clients.is_empty() {
-                (ui::vide("Aucune facture validée cette année.", None))
-            } @else {
-                table {
-                    thead {
-                        tr {
-                            th { (crate::langue::tr("Client")) }
-                            th .num { (crate::langue::tr("Factures")) }
-                            th .num { (crate::langue::tr("Total TTC")) }
-                            th { "" }
-                        }
-                    }
-                    tbody {
-                        @for c in &clients {
-                            tr {
-                                td { (c.libelle.clone()) }
-                                td .num { (c.nombre.to_string()) }
-                                td .num { (ui::euros(c.montant)) }
-                                td .col-26 {
-                                    div .piste {
-                                        div .vente style=(format!(
-                                            "width:{}%",
-                                            if maxi_client > Decimal::ZERO {
-                                                (c.montant / maxi_client * Decimal::from(100)).round_dp(1).normalize()
-                                            } else { Decimal::ZERO }
-                                        )) {}
+                    } @else {
+                        table .tableau-serre {
+                            tbody {
+                                @for f in &recentes {
+                                    tr {
+                                        td .ref { a href={ "/factures/" (f.rowid) } { (f.ref_.clone()) } }
+                                        td { (nom_tiers(p, f.fk_soc)?) }
+                                        td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
+                                        td { (ui::pastille(f.fk_statut, f.paye, en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour))) }
                                     }
                                 }
                             }
@@ -370,34 +307,14 @@ pub(crate) async fn accueil(State(app): State<App>) -> Res<Markup> {
                 }
             }
 
-            h2 { (crate::langue::tr("Dernières factures")) }
-            @if recentes.is_empty() {
-                (ui::vide("Aucune facture pour l'instant.", Some(("/devis", "Partir d'un devis"))))
-            } @else {
-                table {
-                    thead {
-                        tr {
-                            th { (crate::langue::tr("Réf.")) }
-                            th { (crate::langue::tr("Client")) }
-                            th { (crate::langue::tr("Échéance")) }
-                            th .num { (crate::langue::tr("TTC")) }
-                            th .num { (crate::langue::tr("Reste dû")) }
-                            th { (crate::langue::tr("Statut")) }
-                        }
-                    }
-                    tbody {
-                        @for f in &recentes {
-                            tr {
-                                td .ref { a href={ "/factures/" (f.rowid) } { (f.ref_.clone()) } }
-                                td { (nom_tiers(p, f.fk_soc)?) }
-                                td { (f.date_lim_reglement.clone().unwrap_or_default()) }
-                                td .num { (ui::euros(f.total_ttc.unwrap_or_default())) }
-                                td .num { (ui::euros(db::payment::balance(p, entity, f.rowid)?.reste)) }
-                                td { (ui::pastille(f.fk_statut, f.paye, en_retard(f.date_lim_reglement.as_deref(), f.fk_statut, f.paye, &jour))) }
-                            }
-                        }
-                    }
-                }
+            // Les deux mesures qui disent si l'annee tient : le delai reel de
+            // paiement et le panier moyen. Elles sont en bas, en petit, parce
+            // qu'on les regarde une fois par semaine, pas tous les jours.
+            div .bandeau-bas {
+                span { (crate::langue::tr("Délai de paiement constaté")) " " strong { (format!("{:.0}", delai)) " j" } }
+                span { (crate::langue::tr("Panier moyen")) " " strong { (ui::euros(panier)) } }
+                span { (crate::langue::tr("Taux de signature")) " " strong { (devis.taux.to_string()) " %" } }
+                span { (crate::langue::tr("Livré, à facturer")) " " strong { (ui::euros(carnet_a_facturer)) } }
             }
         },
     ))
