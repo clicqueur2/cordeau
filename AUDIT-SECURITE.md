@@ -302,18 +302,23 @@ presente dans deux sous-ensembles (cas ordinaire) etait declaree « Cycle ».
 Chaque noeud pose desormais une marque de fermeture, et le chemin ne contient
 plus que la branche en cours. Test : diamant A -> B, C -> vis, quantites 2 + 3.
 
+### Suite : les trois points qui restaient
+
+| Constat | Correction |
+|---|---|
+| **trop-percu masque** : un encaissement au-dela du du etait accepte, et `balance` ecrétait le reste a zero — le client avait paye 300 EUR de trop et rien ne le disait | refuse, avec le reste du et l'ecart nommes : « le reglement (1500) depasse le reste du (1200.00) de 300.00 : corrigez le montant, ou emettez un avoir ». Test : 1500 refuse, 1200 solde |
+| **deux commandes du meme devis** : le chemin devis -> facture avait son garde, pas devis -> commande — deux commandes, donc deux factures, pour un seul devis | garde **sous le verrou de numerotation** (sinon deux clics simultanes passent tous les deux avant que le lien n'existe) ; test : la seconde commande est refusee, et trois devis donnent bien trois references uniques |
+| **acompte non deduit des situations** : 30 % d'acompte puis quatre situations de 25 % facturaient 130 % du devis | l'acompte (memes trois marques) est deduit de la situation finale, et toute situation qui ferait depasser le TTC du devis est refusee en nommant le deja-facture. Test : 3 500 TTC = 1 750 + 1 390 + 360, une quatrieme situation est refusee |
+
 ### Ce qui reste ouvert, et pourquoi
 
-- **Encaissement superieur au du** : accepte, le trop-percu est masque par
-  l'ecretage du solde. A traiter avec la question du trop-percu (remboursement,
-  avoir) — c'est une decision metier, pas un correctif.
-- **Deux commandes issues du meme devis** : aucun garde. Le lien devis ->
-  commande n'est pas verifie.
-- **Deduction de l'acompte sur une situation** : un acompte encaisse avant des
-  situations n'est pas deduit des situations (seule la facture finale l'est).
-- **Numerotation Dolibarr PHP** : notre noyau attribue le numero a la validation,
-  mais une facture creee **par Dolibarr PHP** garde ses conventions ; les deux
-  outils partagent la table, pas la politique de numerotation.
+- **Numerotation Dolibarr PHP** : notre noyau attribue le numero legal a la
+  validation, Dolibarr PHP le sien a sa maniere ; les deux outils partagent la
+  table, pas la politique de numerotation. Un document cree par PHP garde ses
+  conventions.
+- **Deduction de l'acompte sur les situations intermediaires** : seule la
+  situation finale deduit l'acompte (les intermediaires facturent leur
+  pourcentage). Le plafond global, lui, empeche tout depassement.
 
 ---
 

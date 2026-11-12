@@ -782,6 +782,56 @@ fn acompte_par_taux(
     Ok(par_taux.into_values().collect())
 }
 
+/// Les acomptes **valides** d'un devis, hors taxes, par taux de TVA.
+///
+/// Memes trois marques que `acomptes_du_devis` : le lien
+/// `llx_element_element`, `ref_ext = 'PA-ACOMPTE-<id>'` (automatisations n8n) et
+/// `ref_ext = 'AC-<ref>'` (ce noyau). Sert aux situations, qui doivent deduire
+/// l'acompte avant de facturer le reste.
+pub(crate) fn acomptes_par_taux<Q>(
+    conn: &mut Q,
+    entity: i64,
+    fk_propal: i64,
+    ref_propal: &str,
+) -> Result<std::collections::BTreeMap<String, Decimal>, Box<dyn Error>>
+where
+    Q: mysql::prelude::Queryable,
+{
+    let marque_n8n = format!("PA-ACOMPTE-{fk_propal}");
+    let marque_noyau = format!("AC-{ref_propal}");
+    let rows: Vec<mysql::Row> = conn.exec(
+        "SELECT CAST(d.tva_tx AS CHAR), CAST(SUM(d.total_ht) AS CHAR) \
+         FROM llx_facturedet d \
+         JOIN llx_facture f ON f.rowid = d.fk_facture \
+         WHERE f.entity = :entity AND f.type = :type AND f.fk_statut >= 1 \
+           AND d.product_type <> 9 \
+           AND (f.ref_ext IN (:n8n, :noyau) \
+                OR EXISTS (SELECT 1 FROM llx_element_element e \
+                            WHERE e.sourcetype = 'propal' AND e.fk_source = :devis \
+                              AND e.targettype = 'facture' AND e.fk_target = f.rowid)) \
+         GROUP BY d.tva_tx",
+        params! {
+            "entity" => entity,
+            "type" => TYPE_ACOMPTE,
+            "n8n" => marque_n8n.as_str(),
+            "noyau" => marque_noyau.as_str(),
+            "devis" => fk_propal,
+        },
+    )?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|r| {
+            let taux = r.get_opt::<String, _>(0).and_then(|v| v.ok())?;
+            let ht = r
+                .get_opt::<String, _>(1)
+                .and_then(|v| v.ok())
+                .and_then(|s| Decimal::from_str(s.trim()).ok())
+                .unwrap_or_default();
+            Some((taux, ht))
+        })
+        .collect())
+}
+
 /// Les acomptes **valides** d'un devis : `(rowid, reference, lignes par taux)`.
 ///
 /// Trois marques coexistent dans les bases reelles : le lien

@@ -146,11 +146,24 @@ fn les_commandes_sont_numerotees_sans_doublon() -> Result<(), Box<dyn Error>> {
 
     let mut refs = Vec::new();
     for _ in 0..3 {
-        let id = db::commande::create_from_proposal(&pool, ENTITY, propal)?;
+        // Un devis ne se commande qu'une fois : trois devis, trois commandes.
+        let d = db::proposal::create(&pool, ENTITY, &devis)?;
+        db::proposal::validate(&pool, ENTITY, d)?;
+        let id = db::commande::create_from_proposal(&pool, ENTITY, d)?;
         refs.push(db::commande::get(&pool, ENTITY, id)?.unwrap().ref_);
     }
     let uniques: std::collections::BTreeSet<&String> = refs.iter().collect();
     assert_eq!(uniques.len(), 3, "references dupliquees: {refs:?}");
+
+    // Et la seconde commande du meme devis est refusee : deux commandes
+    // produiraient deux factures pour un seul devis.
+    db::commande::create_from_proposal(&pool, ENTITY, propal)?;
+    let err = db::commande::create_from_proposal(&pool, ENTITY, propal)
+        .expect_err("une seconde commande du meme devis doit etre refusee");
+    assert!(
+        err.to_string().contains("deja commande"),
+        "message inattendu : {err}"
+    );
 
     nettoyer(&pool, nom)?;
     Ok(())

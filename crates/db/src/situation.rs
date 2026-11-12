@@ -254,6 +254,10 @@ fn creer_sous_verrou(
         return Err("le devis n'a aucune ligne facturable".into());
     }
     let deja_ht = deja_par_taux(conn, entity, fk_propal)?;
+    // L'acompte deja encaisse se deduit du solde, et compte dans le plafond :
+    // sans lui, 30 % d'acompte puis quatre situations de 25 % facturaient 130 %
+    // du devis.
+    let acompte_ht = crate::invoice::acomptes_par_taux(conn, entity, fk_propal, &devis.ref_)?;
 
     let counter = deja.len() as i32 + 1;
     // La derniere situation prend le reste : la somme des situations egale
@@ -265,8 +269,11 @@ fn creer_sous_verrou(
     let mut lignes: Vec<(String, Decimal, Decimal)> = Vec::new(); // (libelle, ht, taux)
     for (taux_txt, (ht, _tva)) in &taux {
         let deja_ht_taux = deja_ht.get(taux_txt).copied().unwrap_or_default();
+        let acompte_taux = acompte_ht.get(taux_txt).copied().unwrap_or_default();
         let montant = if finale {
-            arrondi(*ht - deja_ht_taux)
+            // Le solde : ce que le devis demande, moins les situations deja
+            // facturees, moins l'acompte deja encaisse.
+            arrondi(*ht - deja_ht_taux - acompte_taux)
         } else {
             arrondi(*ht * pct)
         };
@@ -294,7 +301,42 @@ fn creer_sous_verrou(
         ));
     }
     if lignes.is_empty() {
-        return Err("cette situation ne produit aucun montant".into());
+        return Err(format!(
+            "cette situation ne produit aucun montant : les {} % demandes sont deja \
+             couverts par l'acompte et les situations precedentes",
+            pourcentage
+        )
+        .into());
+    }
+
+    // Le plafond : le TTC du devis. Situations + acomptes + cette situation ne
+    // peuvent pas le depasser.
+    let plafond: Decimal = taux.iter().map(|(_, (ht, tva))| ht + tva).sum();
+    let nouveau: Decimal = lignes
+        .iter()
+        .map(|(_, ht, taux_ligne)| ht + arrondi(*ht * *taux_ligne / Decimal::from(100)))
+        .sum();
+    let situations_ttc: Decimal = deja.iter().map(|s| s.total_ttc).sum();
+    let acomptes_ttc: Decimal = acompte_ht
+        .iter()
+        .map(|(taux_txt, ht)| {
+            let t = Decimal::from_str(taux_txt.trim()).unwrap_or_default();
+            ht + arrondi(*ht * t / Decimal::from(100))
+        })
+        .sum();
+    if situations_ttc + acomptes_ttc + nouveau
+        > plafond + Decimal::from_str("0.02").unwrap_or_default()
+    {
+        return Err(format!(
+            "cette situation depasserait le devis : deja facture {} (situations {} + \
+             acomptes {}), demande {}, total du devis {}",
+            arrondi(situations_ttc + acomptes_ttc),
+            arrondi(situations_ttc),
+            arrondi(acomptes_ttc),
+            arrondi(nouveau),
+            arrondi(plafond)
+        )
+        .into());
     }
 
     // Totaux, avec la meme arithmetique que le reste du noyau.

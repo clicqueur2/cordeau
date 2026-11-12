@@ -169,7 +169,10 @@ fn deux_reglements_soldent_la_facture() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn un_trop_percu_solde_aussi_la_facture() -> Result<(), Box<dyn Error>> {
+fn un_trop_percu_est_refuse_en_nommant_l_ecart() -> Result<(), Box<dyn Error>> {
+    // Politique : on refuse de prendre plus que le du. L'ancien comportement
+    // acceptait l'encaissement puis ecrétait le reste a zero — le client avait
+    // paye 300 EUR de trop et rien, nulle part, ne le disait.
     let nom = "Tiers Paiement Trop Perçu";
     let Some(pool) = pool_or_skip() else {
         return Ok(());
@@ -177,26 +180,39 @@ fn un_trop_percu_solde_aussi_la_facture() -> Result<(), Box<dyn Error>> {
     nettoyer(&pool, nom)?;
     let id = facture_de_1200(&pool, nom)?;
 
-    let p = db::payment::create(
+    let err = db::payment::create(
         &pool,
         ENTITY,
         &NewPayment {
             fk_facture: id,
             montant: dec("1500"),
             fk_paiement: MODE_VIREMENT,
-            // Ce test ne parle pas de banque : aucun compte ne correspond,
-            // donc aucune ligne bancaire n'est ecrite et il n'y a pas de contention.
+            fk_compte: Some(-1),
+            ..Default::default()
+        },
+    )
+    .expect_err("1500 sur une facture de 1200 doit etre refuse");
+    let message = err.to_string();
+    assert!(
+        message.contains("1200") && message.contains("300"),
+        "le message doit nommer le reste du et l'ecart : {message}"
+    );
+
+    // Le solde exact, lui, passe et solde la facture.
+    let p = db::payment::create(
+        &pool,
+        ENTITY,
+        &NewPayment {
+            fk_facture: id,
+            montant: dec("1200"),
+            fk_paiement: MODE_VIREMENT,
             fk_compte: Some(-1),
             ..Default::default()
         },
     )?;
     assert_eq!(db::invoice::get(&pool, ENTITY, id)?.unwrap().paye, 1);
     let b = db::payment::balance(&pool, ENTITY, id)?;
-    assert_eq!(
-        b.reste,
-        Decimal::ZERO,
-        "le reste du ne descend pas sous zero"
-    );
+    assert_eq!(b.reste, Decimal::ZERO);
 
     db::payment::delete(&pool, ENTITY, p)?;
     menage::facture(&pool, ENTITY, id)?;
@@ -401,6 +417,73 @@ fn refuse_les_reglements_invalides() -> Result<(), Box<dyn Error>> {
 
     db::payment::delete(&pool, ENTITY, p)?;
     menage::facture(&pool, ENTITY, id)?;
+    nettoyer(&pool, nom)?;
+    Ok(())
+}
+
+/// Le trop-percu etait masque par l'ecretage du solde : la facture passait
+/// « soldee » et l'argent en trop ne se voyait nulle part.
+#[test]
+fn un_encaissement_superieur_au_du_est_refuse() -> Result<(), Box<dyn Error>> {
+    let nom = "Tiers Trop Percu";
+    let Some(pool) = pool_or_skip() else {
+        return Ok(());
+    };
+    nettoyer(&pool, nom)?;
+    let id = facture_de_1200(&pool, nom)?;
+
+    // 1 200 TTC : 1 300 est refuse, et le message dit l'ecart.
+    let err = db::payment::create(
+        &pool,
+        ENTITY,
+        &NewPayment {
+            fk_facture: id,
+            montant: dec("1300"),
+            date: Some("2026-03-01".to_string()),
+            fk_paiement: MODE_VIREMENT,
+            num_paiement: None,
+            note: None,
+            fk_compte: None,
+        },
+    )
+    .expect_err("un reglement au-dela du du doit etre refuse");
+    let message = err.to_string();
+    assert!(message.contains("depasse"), "message inattendu : {message}");
+    assert!(
+        message.contains("100"),
+        "le trop-percu doit etre nomme : {message}"
+    );
+
+    // Un acompte de 700 passe, puis 500 solde pile.
+    db::payment::create(
+        &pool,
+        ENTITY,
+        &NewPayment {
+            fk_facture: id,
+            montant: dec("700"),
+            date: Some("2026-03-01".to_string()),
+            fk_paiement: MODE_VIREMENT,
+            num_paiement: None,
+            note: None,
+            fk_compte: None,
+        },
+    )?;
+    db::payment::create(
+        &pool,
+        ENTITY,
+        &NewPayment {
+            fk_facture: id,
+            montant: dec("500"),
+            date: Some("2026-04-01".to_string()),
+            fk_paiement: MODE_VIREMENT,
+            num_paiement: None,
+            note: None,
+            fk_compte: None,
+        },
+    )?;
+    let f = db::invoice::get(&pool, ENTITY, id)?.expect("facture");
+    assert_eq!(f.fk_statut, db::invoice::STATUT_PAYEE);
+
     nettoyer(&pool, nom)?;
     Ok(())
 }

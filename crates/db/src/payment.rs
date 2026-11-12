@@ -309,6 +309,33 @@ fn create_sous_verrou(
         .and_then(|s| Decimal::from_str(s.trim()).ok())
         .unwrap_or_default();
 
+    // Le reste du, sous le verrou : deux encaissements simultanes ne peuvent pas
+    // passer tous les deux sur la meme facture.
+    let regle_deja: Option<String> = conn.exec_first(
+        "SELECT CAST(COALESCE(SUM(pf.amount), 0) AS CHAR) \
+         FROM llx_paiement_facture pf \
+         INNER JOIN llx_paiement p ON p.rowid = pf.fk_paiement \
+         WHERE p.entity = :entity AND pf.fk_facture = :facture",
+        params! { "entity" => entity, "facture" => new.fk_facture },
+    )?;
+    let regle_deja = regle_deja
+        .and_then(|s| Decimal::from_str(s.trim()).ok())
+        .unwrap_or_default();
+    let reste = total_ttc - regle_deja;
+    if new.montant > reste + Decimal::from_str("0.005").unwrap_or_default() {
+        // Le trop-percu etait masque : `balance` ecretait le reste a zero, la
+        // facture passait « soldee », et l'argent en trop n'apparaissait nulle
+        // part. On refuse, en nommant les deux chiffres.
+        return Err(format!(
+            "le reglement ({}) depasse le reste du ({}) de {} : corrigez le montant, \
+             ou emettez un avoir si le client a trop paye",
+            new.montant,
+            money::round_money(reste),
+            money::round_money(new.montant - reste)
+        )
+        .into());
+    }
+
     for attempt in 0..5u32 {
         let mut tx = conn.start_transaction(TxOpts::default())?;
         let reference = next_ref(&mut tx, entity, attempt)?;

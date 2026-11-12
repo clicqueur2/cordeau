@@ -225,6 +225,25 @@ fn creer_sous_verrou(
     fk_soc: i64,
     lignes: &[crate::proposal::ProposalLine],
 ) -> Result<i64, Box<dyn Error>> {
+    // Un devis ne se commande qu'une fois. Le controle est ici, sous le verrou
+    // de numerotation : deux clics simultanes passeraient tous les deux si on
+    // le posait avant, puisque le lien n'existe pas encore.
+    let deja: Option<(i64, Option<String>)> = conn.exec_first(
+        "SELECT c.rowid, c.ref FROM llx_element_element e \
+         JOIN llx_commande c ON c.rowid = e.fk_target AND c.entity = :entity \
+         WHERE e.sourcetype = 'propal' AND e.fk_source = :devis \
+           AND e.targettype = 'commande' LIMIT 1",
+        params! { "entity" => entity, "devis" => devis.rowid },
+    )?;
+    if let Some((id, reference)) = deja {
+        return Err(format!(
+            "ce devis est deja commande (commande {}, n° {id}) : une seconde commande \
+             produirait une seconde facture pour le meme devis",
+            reference.unwrap_or_default()
+        )
+        .into());
+    }
+
     let utiles = |l: &&crate::proposal::ProposalLine| !l.is_section();
     let total_ht = sum(&lignes
         .iter()
