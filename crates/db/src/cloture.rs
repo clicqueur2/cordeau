@@ -195,8 +195,13 @@ pub fn soldes(
         out.push(Solde {
             compte: compte.trim().to_string(),
             libelle: libelle.unwrap_or_default(),
-            debit: Decimal::from_str(debit.trim()).unwrap_or_default(),
-            credit: Decimal::from_str(credit.trim()).unwrap_or_default(),
+            // Un solde illisible a zero passe inapercu : `construire()`
+            // auto-equilibre la difference sur 120000, donc la balance reste
+            // juste et l'erreur est indetectable. On refuse la ligne.
+            debit: Decimal::from_str(debit.trim())
+                .map_err(|_| format!("solde debit illisible : « {debit} »"))?,
+            credit: Decimal::from_str(credit.trim())
+                .map_err(|_| format!("solde credit illisible : « {credit} »"))?,
         });
     }
     Ok(out)

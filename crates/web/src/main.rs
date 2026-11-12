@@ -209,7 +209,7 @@ fn code_pour(message: &str) -> StatusCode {
     let m = message.to_lowercase();
     if m.contains("introuvable") || m.contains("inconnu") {
         StatusCode::NOT_FOUND
-    } else if m.contains("obligatoire") || m.contains("invalide") {
+    } else if m.contains("obligatoire") || m.contains("invalide") || m.contains("illisible") {
         // Un champ manquant n'est pas une adresse morte : c'est une demande
         // mal formee.
         StatusCode::BAD_REQUEST

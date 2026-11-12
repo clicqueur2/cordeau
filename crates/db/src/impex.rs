@@ -231,6 +231,30 @@ pub fn importer_produits(
     Ok(rapport)
 }
 
+/// Un montant lu dans un CSV, ou une erreur nommee.
+///
+/// `1 234,56`, `12,50 €` et `1.234,56` sont refuses **explicitement** : mieux
+/// vaut une ligne refusee qu'une facture a zero euro.
+fn lire_decimal(
+    valeur: Option<&str>,
+    defaut: rust_decimal::Decimal,
+) -> Result<rust_decimal::Decimal, String> {
+    use std::str::FromStr;
+    let Some(brut) = valeur else {
+        return Ok(defaut);
+    };
+    let nettoye: String = brut
+        .trim()
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '€' && *c != '\u{00a0}')
+        .collect();
+    if nettoye.is_empty() {
+        return Ok(defaut);
+    }
+    rust_decimal::Decimal::from_str(&nettoye.replace(',', "."))
+        .map_err(|_| format!("illisible : « {brut} »"))
+}
+
 /// Importe un historique de factures. Une ligne = une ligne de facture ; les
 /// lignes sont regroupees par (client, reference de facture).
 ///
@@ -304,15 +328,15 @@ pub fn importer_factures(
             let Some(libelle) = valeur(ligne, Some(i_libelle)) else {
                 continue;
             };
-            let qte = valeur(ligne, i_qte)
-                .and_then(|v| v.replace(',', ".").parse().ok())
-                .unwrap_or(rust_decimal::Decimal::ONE);
-            let pu = valeur(ligne, i_pu)
-                .and_then(|v| v.replace(',', ".").parse().ok())
-                .unwrap_or_default();
-            let tva = valeur(ligne, i_tva)
-                .and_then(|v| v.replace(',', ".").parse().ok())
-                .unwrap_or_default();
+            // Un prix illisible ne vaut **pas** zero : une facture a 0 € qui
+            // part chez le client est pire qu'une ligne refusee. On refuse la
+            // ligne, on dit pourquoi, et la facture ne sera pas creee.
+            let qte = lire_decimal(valeur(ligne, i_qte).as_deref(), rust_decimal::Decimal::ONE)
+                .map_err(|e| format!("{cle} : quantite {e}"))?;
+            let pu = lire_decimal(valeur(ligne, i_pu).as_deref(), rust_decimal::Decimal::ZERO)
+                .map_err(|e| format!("{cle} : prix unitaire {e}"))?;
+            let tva = lire_decimal(valeur(ligne, i_tva).as_deref(), rust_decimal::Decimal::ZERO)
+                .map_err(|e| format!("{cle} : TVA {e}"))?;
             nouvelle
                 .lines
                 .push(crate::invoice::NewInvoiceLine::new(&libelle, qte, pu, tva));
@@ -324,9 +348,16 @@ pub fn importer_factures(
 
         match crate::invoice::create(pool, entity, &nouvelle) {
             Ok(id) => {
-                // Une facture reprise est deja emise : on la valide.
-                let _ = crate::invoice::validate(pool, entity, id);
-                rapport.crees += 1;
+                // Une facture reprise est deja emise : on la valide. Si la
+                // validation echoue, la facture reste en brouillon `(PROV…)`
+                // **sans numero legal** : la compter comme creee serait mentir,
+                // et l'ecran annonce « validees automatiquement ».
+                match crate::invoice::validate(pool, entity, id) {
+                    Ok(()) => rapport.crees += 1,
+                    Err(e) => rapport.erreurs.push(format!(
+                        "{cle} : facture brouillon creee mais NON validee (pas de numero legal) : {e}"
+                    )),
+                }
             }
             Err(e) => rapport.erreurs.push(format!("{cle} : {e}")),
         }
