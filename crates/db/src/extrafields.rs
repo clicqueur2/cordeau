@@ -490,7 +490,11 @@ pub fn options(param: Option<&str>) -> Vec<(String, String)> {
 fn php_tableau(brut: &str) -> Option<Vec<(String, String)>> {
     let mut reste = brut.strip_prefix("a:")?;
     let (n, apres) = reste.split_once(':')?;
-    let n: usize = n.parse().ok()?;
+    // Le compte vient de `llx_extrafields.param`, une colonne écrite par
+    // l'interface Dolibarr, un import, ou une restauration partielle :
+    // `a:100000000:{` demandait 4,8 Go, et l'échec d'allocation abandonne le
+    // processus. Aucun champ réel n'a 64 options.
+    let n: usize = n.parse().ok().filter(|n| *n <= 64)?;
     reste = apres.strip_prefix('{')?;
 
     let mut sortie = Vec::with_capacity(n);
@@ -510,6 +514,12 @@ fn php_chaine(brut: &str) -> Option<(String, &str)> {
     let longueur: usize = longueur.parse().ok()?;
     let apres = apres.strip_prefix('"')?;
     if apres.len() < longueur {
+        return None;
+    }
+    // `apres.len() < longueur` est vérifié juste avant, mais pas la frontière
+    // de caractère : `s:3:"éé"` (chaque « é » compte deux octets) faisait
+    // paniquer `split_at`.
+    if !apres.is_char_boundary(longueur) {
         return None;
     }
     let (contenu, fin) = apres.split_at(longueur);

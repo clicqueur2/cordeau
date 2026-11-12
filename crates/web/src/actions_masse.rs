@@ -68,9 +68,13 @@ pub async fn factures(
     let entity = entite::courante();
     let mut bilan = Bilan::nouveau();
     for id in choix {
-        let r = db::invoice::validate(&app.pool, entity, id).map(|()| {
-            // Le PDF part dans la GED, comme a la validation a l'unite.
-            let _ = app::archiver_facture(&app.pool, entity, id);
+        let r = db::invoice::validate(&app.pool, entity, id).and_then(|()| {
+            // Le PDF part dans la GED, comme a la validation a l'unite — et
+            // comme a l'unite, un echec se voit. L'avaler laissait des factures
+            // validees sans document, decouvertes au premier envoi au client.
+            app::archiver_facture(&app.pool, entity, id)
+                .map(|_| ())
+                .map_err(|e| format!("facture validee, mais PDF non archive : {e}").into())
         });
         bilan.ajouter(id, r);
     }

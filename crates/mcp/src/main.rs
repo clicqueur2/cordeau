@@ -10,8 +10,6 @@
 use std::error::Error;
 use std::io::{self, BufRead, Write};
 
-use std::str::FromStr;
-
 use rust_decimal::Decimal;
 use serde_json::{json, Value};
 
@@ -259,10 +257,18 @@ fn arg_str(corps: &Value, nom: &str) -> Result<String, Box<dyn Error>> {
 }
 
 fn arg_dec(corps: &Value, nom: &str) -> Result<Decimal, Box<dyn Error>> {
-    let s = arg_str(corps, nom)?;
     // `money::dec()` fait `.expect()` : un agent qui envoie `"quantite": "deux"`
     // tuait le serveur MCP. Un argument illisible est une erreur, pas un arret.
-    Decimal::from_str(s.trim()).map_err(|_| format!("{nom} : « {s} » n'est pas un nombre").into())
+    // Le nombre JSON est accepte comme la chaine : `12.5` et `"12,50"`.
+    let valeur = corps
+        .get(nom)
+        .ok_or_else(|| format!("argument {nom} manquant"))?;
+    let brut = match valeur {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        autre => return Err(format!("{nom} doit etre un nombre, pas {autre}").into()),
+    };
+    money::tenter(&brut).map_err(|e| format!("{nom} : {e}").into())
 }
 
 fn texte(v: Value) -> Value {
@@ -333,17 +339,37 @@ fn appeler_outil(pool: &db::Pool, requete: &Value) -> Result<Value, Box<dyn Erro
             nouveau.fin_validite = arg(&corps, "validite")
                 .and_then(|v| v.as_str())
                 .map(str::to_string);
+            // Un montant peut arriver en chaine (`"12,50"`) ou en nombre JSON
+            // (`12.5`). Un `as_str()` seul rendait `None` sur le nombre, donc
+            // le defaut : la ligne partait a 0 EUR sans un mot.
             nouveau.lines = lignes
                 .iter()
-                .map(|l| {
-                    db::proposal::NewProposalLine::new(
+                .enumerate()
+                .map(|(rang, l)| {
+                    let nombre = |cle: &str, defaut: &str| -> Result<Decimal, Box<dyn Error>> {
+                        let brut = match l.get(cle) {
+                            Some(Value::String(s)) => s.clone(),
+                            Some(Value::Number(n)) => n.to_string(),
+                            Some(Value::Null) | None => defaut.to_string(),
+                            Some(autre) => {
+                                return Err(format!(
+                                    "ligne {} : {cle} doit etre un nombre, pas {autre}",
+                                    rang + 1
+                                )
+                                .into())
+                            }
+                        };
+                        money::tenter(&brut)
+                            .map_err(|e| format!("ligne {} : {cle} : {e}", rang + 1).into())
+                    };
+                    Ok(db::proposal::NewProposalLine::new(
                         l.get("label").and_then(|v| v.as_str()).unwrap_or("Ligne"),
-                        money::dec(l.get("qty").and_then(|v| v.as_str()).unwrap_or("1")),
-                        money::dec(l.get("pu_ht").and_then(|v| v.as_str()).unwrap_or("0")),
-                        money::dec(l.get("tva").and_then(|v| v.as_str()).unwrap_or("20")),
-                    )
+                        nombre("qty", "1")?,
+                        nombre("pu_ht", "0")?,
+                        nombre("tva", "20")?,
+                    ))
                 })
-                .collect();
+                .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
             let id = db::proposal::create(pool, ENTITY, &nouveau)?;
             Ok(json!({ "id": id }))
         }

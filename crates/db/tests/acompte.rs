@@ -71,6 +71,8 @@ fn nettoyer(pool: &Pool, fk_soc: i64, devis: i64, commande: i64) {
 
 /// Le cas de reference : 1 200 TTC avec 30 % d'acompte font 360,00 TTC,
 /// soit 300,00 HT et 60,00 de TVA.
+mod menage;
+
 #[test]
 fn un_acompte_de_30_pour_cent_sur_1200_ttc_fait_360() -> Result<(), Box<dyn Error>> {
     let Some(pool) = pool_or_skip() else {
@@ -100,7 +102,7 @@ fn un_acompte_de_30_pour_cent_sur_1200_ttc_fait_360() -> Result<(), Box<dyn Erro
 
 fn nettooyer_ou_pas(pool: &Pool, fk_soc: i64, devis: i64, commande: i64, facture: Option<i64>) {
     if let Some(fid) = facture {
-        let _ = db::invoice::delete(pool, ENTITY, fid);
+        let _ = menage::facture(pool, ENTITY, fid);
     }
     nettoyer(pool, fk_soc, devis, commande);
 }
@@ -236,7 +238,7 @@ fn le_chantier_suit_du_devis_jusqu_a_la_facture() -> Result<(), Box<dyn Error>> 
         "la facture herite du chantier de la commande"
     );
 
-    let _ = db::invoice::delete(&pool, ENTITY, facture);
+    let _ = menage::facture(&pool, ENTITY, facture);
     nettoyer(&pool, fk_soc, devis, commande);
     Ok(())
 }

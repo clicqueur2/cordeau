@@ -35,7 +35,7 @@ fn nettoyer(pool: &Pool, nom: &str) -> Result<(), Box<dyn Error>> {
 
     for f in db::invoice::list(pool, ENTITY, 1000, 0)? {
         if appartient(f.fk_soc, pool) {
-            db::invoice::delete(pool, ENTITY, f.rowid)?;
+            menage::facture(pool, ENTITY, f.rowid)?;
         }
     }
     for p in db::proposal::list(pool, ENTITY, 1000, 0)? {
@@ -54,6 +54,8 @@ fn nettoyer(pool: &Pool, nom: &str) -> Result<(), Box<dyn Error>> {
 fn tiers(pool: &Pool, nom: &str) -> Result<i64, Box<dyn Error>> {
     db::party::create(pool, ENTITY, &db::party::NewParty::client(nom))
 }
+
+mod menage;
 
 #[test]
 fn cree_une_facture_avec_sections_et_totaux() -> Result<(), Box<dyn Error>> {
@@ -95,7 +97,7 @@ fn cree_une_facture_avec_sections_et_totaux() -> Result<(), Box<dyn Error>> {
         "une facture validee ne se revalide pas"
     );
 
-    db::invoice::delete(&pool, ENTITY, id)?;
+    menage::facture(&pool, ENTITY, id)?;
     assert!(db::invoice::get(&pool, ENTITY, id)?.is_none());
     assert!(db::invoice::lines(&pool, ENTITY, id)?.is_empty());
     nettoyer(&pool, nom)?;
@@ -144,7 +146,7 @@ fn convertit_un_devis_en_facture_au_meme_montant() -> Result<(), Box<dyn Error>>
     )?;
     assert!(lien.unwrap_or(0) >= 1, "lien devis -> facture absent");
 
-    db::invoice::delete(&pool, ENTITY, facture)?;
+    menage::facture(&pool, ENTITY, facture)?;
     db::proposal::delete(&pool, ENTITY, devis)?;
     nettoyer(&pool, nom)?;
     Ok(())
@@ -211,7 +213,7 @@ fn numerote_les_factures_sans_doublon() -> Result<(), Box<dyn Error>> {
     assert_eq!(uniques.len(), 10, "references dupliquees: {refs:?}");
 
     for id in &ids {
-        db::invoice::delete(&pool, ENTITY, *id)?;
+        menage::facture(&pool, ENTITY, *id)?;
     }
     nettoyer(&pool, nom)?;
     Ok(())
@@ -274,8 +276,8 @@ fn l_echeance_se_deduit_de_la_condition_de_reglement() -> Result<(), Box<dyn Err
         Some("2026-03-31")
     );
 
-    db::invoice::delete(&pool, ENTITY, id)?;
-    db::invoice::delete(&pool, ENTITY, id2)?;
+    menage::facture(&pool, ENTITY, id)?;
+    menage::facture(&pool, ENTITY, id2)?;
     nettoyer(&pool, nom)?;
     Ok(())
 }
@@ -315,7 +317,7 @@ fn une_ligne_sans_fiche_produit_est_acceptee() -> Result<(), Box<dyn Error>> {
     );
     assert_eq!(lignes[0].fk_product, Some(0));
 
-    db::invoice::delete(&pool, ENTITY, id)?;
+    menage::facture(&pool, ENTITY, id)?;
     nettoyer(&pool, nom)?;
     Ok(())
 }

@@ -81,6 +81,57 @@ pub const DEFINITIONS: &[Definition] = &[
         libelle: "Parametres",
         coeur: &[],
     },
+    // Les droits d'ECRITURE. Ils etaient utilises par la carte des chemins
+    // (voir `droits_ecriture_du_chemin`) sans jamais etre definis : un
+    // administrateur ne pouvait donc pas les attribuer, et tout
+    // non-administrateur se voyait refuser chaque ecriture sans comprendre
+    // pourquoi. `coeur` reste vide : une autorisation Dolibarr de « lire » ne
+    // doit pas ouvrir l'ecriture.
+    Definition {
+        id: 9011,
+        libelle: "Tiers, produits et stock - ecriture",
+        coeur: &[],
+    },
+    Definition {
+        id: 9012,
+        libelle: "Devis et contrats - ecriture",
+        coeur: &[],
+    },
+    Definition {
+        id: 9013,
+        libelle: "Commandes et tickets - ecriture",
+        coeur: &[],
+    },
+    Definition {
+        id: 9014,
+        libelle: "Factures, reglements et caisse - ecriture",
+        coeur: &[],
+    },
+    Definition {
+        id: 9015,
+        libelle: "Achats - ecriture",
+        coeur: &[],
+    },
+    Definition {
+        id: 9016,
+        libelle: "Chantiers - ecriture",
+        coeur: &[],
+    },
+    Definition {
+        id: 9017,
+        libelle: "Banques - ecriture",
+        coeur: &[],
+    },
+    Definition {
+        id: 9018,
+        libelle: "Comptabilite, paie et immobilisations - ecriture",
+        coeur: &[],
+    },
+    Definition {
+        id: 9019,
+        libelle: "Administration et documents - ecriture",
+        coeur: &[],
+    },
 ];
 
 /// Cree les definitions manquantes. Idempotent.
@@ -284,28 +335,80 @@ pub fn droits_du_chemin(chemin: &str) -> &'static [i64] {
 /// sont les notres (9001 et suivants sont la lecture) et n'existent pas chez
 /// Dolibarr, ce qui est voulu : on n'invente pas la semantique de ses ids.
 pub fn droits_ecriture_du_chemin(chemin: &str) -> &'static [i64] {
+    // Chaque prefixe qui accepte une ecriture doit figurer ici : la carte est
+    // la seule chose qui separe un utilisateur connecte d'une validation de
+    // facture. Les prefixes absents de cette liste sont refuses en ecriture par
+    // `garde` (voir `DOLIBARR_RS_AUTORISES_SANS_DROIT` pour les exceptions).
     let carte: &[(&str, &'static [i64])] = &[
-        ("/chantiers", &[9016]),
-        ("/achats", &[9015]),
-        ("/banques", &[9017]),
-        ("/factures", &[9014]),
-        ("/reglements", &[9014]),
-        ("/avoirs", &[9014]),
-        ("/devis", &[9012]),
-        ("/commandes", &[9013]),
-        ("/comptabilite", &[9018]),
-        ("/export", &[9018]),
+        // Administration et documents.
+        ("/parametres", &[9019]),
+        ("/documents", &[9019]),
+        ("/agenda", &[9019]),
+        ("/extrafields", &[9019]),
+        ("/colonnes", &[9019]),
+        ("/presets", &[9019]),
+        ("/pages", &[9019]),
+        ("/devises", &[9019]),
+        ("/ressources", &[9019]),
+        ("/reservations", &[9019]),
+        // Tiers, produits, stock, CRM.
         ("/tiers", &[9011]),
         ("/contacts", &[9011]),
         ("/produits", &[9011]),
         ("/stock", &[9011]),
+        ("/lots", &[9011]),
+        ("/variantes", &[9011]),
+        ("/categories", &[9011]),
+        ("/nomenclatures", &[9011]),
+        ("/mrp", &[9011]),
+        ("/expeditions", &[9011]),
+        ("/inventaires", &[9011]),
+        ("/transferts", &[9011]),
+        ("/livraisons", &[9011]),
+        ("/adherents", &[9011]),
+        ("/dons", &[9011]),
+        ("/inscriptions", &[9011]),
+        ("/connaissances", &[9011]),
+        ("/partenariats", &[9011]),
+        // Devis, contrats, interventions.
+        ("/devis", &[9012]),
+        ("/contrats", &[9012]),
+        ("/interventions", &[9012]),
+        // Commandes, tickets, achats.
+        ("/commandes", &[9013]),
         ("/tickets", &[9013]),
-        ("/documents", &[9019]),
-        ("/agenda", &[9019]),
-        ("/campagnes", &[9014]),
+        ("/achats", &[9015]),
+        ("/achats-fournisseur", &[9015]),
+        ("/commandes-fournisseurs", &[9015]),
+        ("/receptions", &[9015]),
+        // Factures, reglements, caisse.
+        ("/factures", &[9014]),
+        ("/reglements", &[9014]),
+        ("/avoirs", &[9014]),
+        ("/caisse", &[9014]),
+        ("/relances", &[9014]),
         ("/recurrences", &[9014]),
+        ("/campagnes", &[9014]),
+        ("/mailings", &[9014]),
+        // Chantiers.
+        ("/chantiers", &[9016]),
+        ("/sites", &[9016]),
+        // Banques.
+        ("/banques", &[9017]),
+        ("/echeancier", &[9017]),
+        // Comptabilite, paie, immobilisations.
+        ("/comptabilite", &[9018]),
+        ("/export", &[9018]),
+        ("/salaires", &[9018]),
+        ("/prets", &[9018]),
+        ("/immobilisations", &[9018]),
+        ("/notes-frais", &[9018]),
+        ("/conges", &[9018]),
+        ("/recrutement", &[9018]),
+        ("/postes", &[9018]),
+        ("/statistiques", &[9018]),
+        ("/marges", &[9018]),
         ("/liste", &[9019]),
-        ("/parametres", &[9019]),
     ];
     carte
         .iter()

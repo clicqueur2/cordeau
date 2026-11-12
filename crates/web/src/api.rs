@@ -871,15 +871,24 @@ pub(crate) async fn devis_situation(
     if !autorise(&headers) {
         return Err(refus());
     }
+    // `money::tenter` : une valeur venue d'un client ne doit pas paniquer, et
+    // « 30,5 » est l'écriture naturelle d'un utilisateur français.
     let pct = corps
         .get("pourcentage")
         .and_then(|v| v.as_str())
-        .map(money::dec)
         .ok_or_else(|| {
             ApiErreur(
                 axum::http::StatusCode::BAD_REQUEST,
                 "champ pourcentage obligatoire".into(),
             )
+        })
+        .and_then(|v| {
+            money::tenter(v).map_err(|e| {
+                ApiErreur(
+                    axum::http::StatusCode::BAD_REQUEST,
+                    format!("pourcentage : {e}"),
+                )
+            })
         })?;
     let date = corps.get("date").and_then(|v| v.as_str());
     let facture = db::situation::creer(&app.pool, entity(), id, pct, date)?;
@@ -968,12 +977,19 @@ pub(crate) async fn facture_reglement(
     let montant = corps
         .get("montant")
         .and_then(|v| v.as_str())
-        .map(money::dec)
         .ok_or_else(|| {
             ApiErreur(
                 axum::http::StatusCode::BAD_REQUEST,
                 "champ montant obligatoire".into(),
             )
+        })
+        .and_then(|v| {
+            money::tenter(v).map_err(|e| {
+                ApiErreur(
+                    axum::http::StatusCode::BAD_REQUEST,
+                    format!("montant : {e}"),
+                )
+            })
         })?;
     let mode = match corps
         .get("mode")

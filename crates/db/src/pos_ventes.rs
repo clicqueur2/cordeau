@@ -484,6 +484,9 @@ pub fn enregistrer(
             // La remise du panier est globale ; la reporter sur chaque ligne
             // garde le total HT identique a celui du panier.
             remise_percent: remise,
+            // Une vente au détail se compte en pièces : sans unité, le ticket
+            // imprime une quantité nue.
+            fk_unit: Some(1),
             section: None,
         })
         .collect();

@@ -485,6 +485,7 @@ pub fn generer(
             unit_price: ligne.subprice,
             tva_tx: ligne.tva_tx,
             remise_percent: ligne.remise_percent,
+            fk_unit: ligne.fk_unit,
             section: None,
         })
         .collect();

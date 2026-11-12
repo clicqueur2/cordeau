@@ -139,7 +139,7 @@ impl Garde {
                     .map(|p| p.nom == *nom)
                     .unwrap_or(false);
                 if appartient {
-                    db::invoice::delete(&self.pool, *entity, f.rowid)?;
+                    menage::facture(&self.pool, *entity, f.rowid)?;
                 }
             }
             for p in db::party::list(&self.pool, *entity, 10_000, 0)? {
@@ -163,6 +163,8 @@ impl Drop for Garde {
 // ---------------------------------------------------------------------------
 // 1. La vente encaissee existe, au centime, et se retrouve au journal du jour.
 // ---------------------------------------------------------------------------
+
+mod menage;
 
 #[test]
 fn une_vente_encaissee_devient_une_facture_validee_et_payee() -> Result<(), Box<dyn Error>> {

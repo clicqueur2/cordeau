@@ -416,6 +416,21 @@ pub fn delete(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>
         )?;
     }
 
+    // L'ecriture comptable du reglement part avec lui : la laisser donnerait
+    // un encaissement au grand livre et au FEC pour une piece disparue.
+    // Le filtre sur le journal (BQ) et sur notre `doc_type` evite d'emporter
+    // les lignes d'une facture qui porterait le meme `rowid`.
+    tx.exec_drop(
+        "DELETE FROM llx_accounting_bookkeeping \
+         WHERE entity = :entity AND fk_doc = :rowid \
+           AND code_journal = :journal AND doc_type = :type",
+        params! {
+            "entity" => entity,
+            "rowid" => rowid,
+            "journal" => crate::ecritures::JOURNAL_BANQUE,
+            "type" => crate::persist_ecritures::DOC_TYPE,
+        },
+    )?;
     tx.exec_drop(
         "DELETE FROM llx_paiement_facture WHERE fk_paiement = :rowid",
         params! { "rowid" => rowid },
@@ -443,8 +458,13 @@ pub fn delete(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>
             .unwrap_or_default();
         let soldee = regle >= total;
         tx.exec_drop(
+            // Le retour a 1 est la partie qui manquait : sans lui, une
+            // facture payee puis dé-payee restait « payee » avec un reste dû,
+            // et n'apparaissait dans aucun des deux filtres de relance.
             "UPDATE llx_facture SET paye = :paye, \
-              fk_statut = CASE WHEN :soldee THEN 2 ELSE fk_statut END, tms = NOW() \
+              fk_statut = CASE WHEN :soldee THEN 2 \
+                               WHEN fk_statut = 2 THEN 1 \
+                               ELSE fk_statut END, tms = NOW() \
              WHERE rowid = :rowid",
             params! {
                 "paye" => if soldee { 1 } else { 0 },

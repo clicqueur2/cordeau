@@ -31,7 +31,7 @@ fn nettoyer(pool: &Pool, nom: &str) -> Result<(), Box<dyn Error>> {
     };
     for f in db::invoice::list(pool, ENTITY, 1000, 0)? {
         if appartient(f.fk_soc, pool) {
-            db::invoice::delete(pool, ENTITY, f.rowid)?;
+            menage::facture(pool, ENTITY, f.rowid)?;
         }
     }
     for p in db::party::list(pool, ENTITY, 10_000, 0)? {
@@ -41,6 +41,8 @@ fn nettoyer(pool: &Pool, nom: &str) -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+
+mod menage;
 
 #[test]
 fn un_avoir_annule_une_facture_validee() -> Result<(), Box<dyn Error>> {
@@ -93,8 +95,8 @@ fn un_avoir_annule_une_facture_validee() -> Result<(), Box<dyn Error>> {
         "message inattendu : {err}"
     );
 
-    db::invoice::delete(&pool, ENTITY, avoir)?;
-    db::invoice::delete(&pool, ENTITY, facture)?;
+    menage::facture(&pool, ENTITY, avoir)?;
+    menage::facture(&pool, ENTITY, facture)?;
     db::party::delete(&pool, ENTITY, fk_soc)?;
     nettoyer(&pool, nom)?;
     Ok(())
@@ -129,8 +131,8 @@ fn pas_d_avoir_sur_un_brouillon_ni_sur_un_avoir() -> Result<(), Box<dyn Error>> 
         .expect_err("un avoir ne doit pas recevoir d'avoir");
     assert!(err.to_string().contains("avoir"), "message : {err}");
 
-    db::invoice::delete(&pool, ENTITY, avoir)?;
-    db::invoice::delete(&pool, ENTITY, brouillon)?;
+    menage::facture(&pool, ENTITY, avoir)?;
+    menage::facture(&pool, ENTITY, brouillon)?;
     db::party::delete(&pool, ENTITY, fk_soc)?;
     nettoyer(&pool, nom)?;
     Ok(())

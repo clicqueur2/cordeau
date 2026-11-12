@@ -58,6 +58,8 @@ const REQUETE_DOLIBARR: &str = "SELECT \
 /// C'est le sens qui manquait : notre grand livre reconstituait les ecritures
 /// depuis les factures, et ne voyait donc rien de ce que Dolibarr avait
 /// ventile.
+mod menage;
+
 #[test]
 fn une_ecriture_de_dolibarr_se_lit_dans_notre_grand_livre() -> Result<(), Box<dyn Error>> {
     let Some(pool) = pool_or_skip() else {
@@ -166,7 +168,7 @@ fn une_ecriture_de_cordeau_se_relit_avec_la_requete_de_dolibarr() -> Result<(), 
             "aucune ecriture pour {} : plan comptable non configure, test ignore",
             facture.ref_
         );
-        db::invoice::delete(&pool, ENTITY, id).ok();
+        menage::facture(&pool, ENTITY, id).ok();
         return Ok(());
     }
 
@@ -211,6 +213,6 @@ fn une_ecriture_de_cordeau_se_relit_avec_la_requete_de_dolibarr() -> Result<(), 
         "le debit egale le TTC de la facture (compte client)"
     );
 
-    db::invoice::delete(&pool, ENTITY, id).ok();
+    menage::facture(&pool, ENTITY, id).ok();
     Ok(())
 }

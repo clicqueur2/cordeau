@@ -184,6 +184,12 @@ pub fn echeancier(
         return Vec::new();
     };
 
+    // Un nombre d'échéances non borné n'alloue pas « un peu trop » : la boucle
+    // qui suit tourne 4 294 967 295 fois (fil bloqué plusieurs minutes) puis
+    // `Vec::with_capacity` demande des centaines de gigaoctets, échoue, et le
+    // processus est abandonné. Cinquante ans de mensualités couvrent tout prêt
+    // réel ; `create` refuse la même borne avec un message.
+    let nb_echeances = nb_echeances.min(600);
     let taux_mensuel = taux_annuel / Decimal::from(MOIS_PAR_AN) / Decimal::from(POURCENT);
     let n = Decimal::from(i64::from(nb_echeances));
 
@@ -428,6 +434,17 @@ pub fn create(pool: &Pool, entity: i64, new: &NewPret) -> Result<i64, Box<dyn Er
     }
     if new.nbterm == 0 {
         return Err("le nombre d'échéances du prêt doit être au moins 1".into());
+    }
+    // Refus explicite plutôt que correction silencieuse : l'utilisateur doit
+    // savoir que sa saisie n'a pas été prise telle quelle. Même borne que
+    // `echeancier`, qui la protège aussi quand on l'appelle directement.
+    if new.nbterm > 600 {
+        return Err(format!(
+            "le nombre d'échéances ({}) dépasse 600 : un prêt de plus de cinquante \
+             ans n'a pas de sens, et le calcul refuserait de l'allouer",
+            new.nbterm
+        )
+        .into());
     }
     let datestart = new.datestart.trim();
     if lire_date(datestart).is_none() {

@@ -26,6 +26,8 @@ fn dec(s: &str) -> Decimal {
 ///
 /// C'est le chainon qui manquait a l'audit du FEC : sans l'ecriture de
 /// reglement, le 411 ne s'epuise jamais et le solde est inexpliquable.
+mod menage;
+
 #[test]
 fn une_facture_payee_solde_le_compte_client() -> Result<(), Box<dyn Error>> {
     let Some(pool) = pool_or_skip() else {
@@ -91,7 +93,7 @@ fn une_facture_payee_solde_le_compte_client() -> Result<(), Box<dyn Error>> {
     );
 
     // Menage.
-    db::invoice::delete(&pool, ENTITY, facture)?;
+    menage::facture(&pool, ENTITY, facture)?;
     db::party::delete(&pool, ENTITY, fk_soc)?;
     println!("lettrage : 411 solde par 1 paire, reste 0.00");
     Ok(())

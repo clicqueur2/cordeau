@@ -94,10 +94,37 @@ Etape "Chaîne métier (devis → facture → règlement → PDF)" {
     $taille = (Get-Item "$env:TEMP\verif.pdf").Length
     Write-Host "    PDF : $taille octets"
     if ($taille -lt 2000) { throw "PDF suspect (trop petit)" }
-    # ménage
-    cargo run -q -p cordeau -- invoice delete --id $fac | Out-Null
-    cargo run -q -p cordeau -- proposal delete --id $dev | Out-Null
-    cargo run -q -p cordeau -- party delete --id $soc | Out-Null
+    # Ménage. `invoice delete` refuse une facture validée — c'est la règle de
+    # production, et ce script ne la contourne pas : il efface lui-même les
+    # lignes qu'il vient de créer, en SQL, dans la base de travail.
+    $mysql = Join-Path (Split-Path $env:DOLIBARR_MYSQLDUMP) "mysql.exe"
+    $hote = "127.0.0.1"
+    $port = "3307"
+    $base = "dolibarr"
+    if ($env:DOLIBARR_DSN -match '@([^:]+):(\d+)/([A-Za-z0-9_]+)') {
+        $hote = $Matches[1]
+        $port = $Matches[2]
+        $base = $Matches[3]
+    }
+    # Les règlements d'abord : la clé étrangère interdit de les supprimer tant
+    # que le lien existe, donc on lit leurs identifiants, on casse le lien,
+    # puis on supprime.
+    $pay = (& $mysql -h $hote -P $port -u root "-p$env:DOLIBARR_DB_PASSWORD" -D $base -N `
+        -e "SELECT GROUP_CONCAT(fk_paiement) FROM llx_paiement_facture WHERE fk_facture = $fac" 2>$null)
+    $pay = ($pay | Out-String).Trim()
+    $sql = "DELETE FROM llx_paiement_facture WHERE fk_facture = $fac; "
+    if ($pay -and $pay -ne "NULL") {
+        $sql += "DELETE FROM llx_paiement WHERE rowid IN ($pay); "
+    }
+    $sql += "DELETE FROM llx_facturedet WHERE fk_facture = $fac; " +
+            "DELETE FROM llx_element_element WHERE fk_target = $fac; " +
+            "DELETE FROM llx_accounting_bookkeeping WHERE fk_doc = $fac; " +
+            "DELETE FROM llx_facture WHERE rowid = $fac; " +
+            "DELETE FROM llx_propaldet WHERE fk_propal = $dev; " +
+            "DELETE FROM llx_propal WHERE rowid = $dev; " +
+            "DELETE FROM llx_societe WHERE rowid = $soc;"
+    & $mysql -h $hote -P $port -u root "-p$env:DOLIBARR_DB_PASSWORD" -D $base -e $sql 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "ménage SQL en échec (code $LASTEXITCODE)" }
     Remove-Item "$env:TEMP\verif.pdf" -ErrorAction SilentlyContinue
 }
 

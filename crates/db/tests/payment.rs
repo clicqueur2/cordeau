@@ -36,7 +36,7 @@ fn nettoyer(pool: &Pool, nom: &str) -> Result<(), Box<dyn Error>> {
             for p in db::payment::list_for_invoice(pool, ENTITY, f.rowid)? {
                 db::payment::delete(pool, ENTITY, p.rowid)?;
             }
-            db::invoice::delete(pool, ENTITY, f.rowid)?;
+            menage::facture(pool, ENTITY, f.rowid)?;
         }
     }
     for p in db::party::list(pool, ENTITY, 10_000, 0)? {
@@ -61,6 +61,8 @@ fn facture_de_1200(pool: &Pool, nom: &str) -> Result<i64, Box<dyn Error>> {
     db::invoice::validate(pool, ENTITY, id)?;
     Ok(id)
 }
+
+mod menage;
 
 #[test]
 fn un_reglement_partiel_ne_solde_pas_la_facture() -> Result<(), Box<dyn Error>> {
@@ -98,7 +100,7 @@ fn un_reglement_partiel_ne_solde_pas_la_facture() -> Result<(), Box<dyn Error>> 
     assert_eq!(f.fk_statut, db::invoice::STATUT_VALIDEE);
 
     db::payment::delete(&pool, ENTITY, p)?;
-    db::invoice::delete(&pool, ENTITY, id)?;
+    menage::facture(&pool, ENTITY, id)?;
     nettoyer(&pool, nom)?;
     Ok(())
 }
@@ -161,7 +163,7 @@ fn deux_reglements_soldent_la_facture() -> Result<(), Box<dyn Error>> {
     );
 
     db::payment::delete(&pool, ENTITY, b)?;
-    db::invoice::delete(&pool, ENTITY, id)?;
+    menage::facture(&pool, ENTITY, id)?;
     nettoyer(&pool, nom)?;
     Ok(())
 }
@@ -197,7 +199,7 @@ fn un_trop_percu_solde_aussi_la_facture() -> Result<(), Box<dyn Error>> {
     );
 
     db::payment::delete(&pool, ENTITY, p)?;
-    db::invoice::delete(&pool, ENTITY, id)?;
+    menage::facture(&pool, ENTITY, id)?;
     nettoyer(&pool, nom)?;
     Ok(())
 }
@@ -271,7 +273,7 @@ fn le_reglement_ecrit_une_ligne_bancaire() -> Result<(), Box<dyn Error>> {
     )?;
     assert_eq!(restantes.unwrap_or(-1), 0);
 
-    db::invoice::delete(&pool, ENTITY, id)?;
+    menage::facture(&pool, ENTITY, id)?;
     // Menage : les lignes bancaires de ce compte avant le compte lui-meme,
     // sinon la cle etrangere bloque si un autre test y a ecrit.
     conn.exec_drop(
@@ -322,7 +324,7 @@ fn refuse_de_regler_un_brouillon() -> Result<(), Box<dyn Error>> {
         "message inattendu : {err}"
     );
 
-    db::invoice::delete(&pool, ENTITY, id)?;
+    menage::facture(&pool, ENTITY, id)?;
     nettoyer(&pool, nom)?;
     Ok(())
 }
@@ -398,7 +400,7 @@ fn refuse_les_reglements_invalides() -> Result<(), Box<dyn Error>> {
     .is_err());
 
     db::payment::delete(&pool, ENTITY, p)?;
-    db::invoice::delete(&pool, ENTITY, id)?;
+    menage::facture(&pool, ENTITY, id)?;
     nettoyer(&pool, nom)?;
     Ok(())
 }

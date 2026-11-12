@@ -109,6 +109,9 @@ pub struct NewInvoiceLine {
     pub unit_price: Decimal,
     pub tva_tx: Decimal,
     pub remise_percent: Decimal,
+    /// Unite de la ligne (`llx_c_units`) : sans elle, le PDF n'imprime pas
+    /// « m² », « ml » ou « forfait » et le client lit un nombre nu.
+    pub fk_unit: Option<i64>,
     pub section: Option<String>,
 }
 
@@ -173,6 +176,7 @@ struct Ligne {
     total_ttc: Decimal,
     product_type: i16,
     special_code: i32,
+    fk_unit: Option<i64>,
 }
 
 const SELECT_COLS: &str = "rowid, entity, ref, fk_soc, type, \
@@ -412,6 +416,7 @@ fn create_sous_verrou(
                     fk_product: None,
                     label: titre.to_string(),
                     description: None,
+                    fk_unit: None,
                     tva_tx: Decimal::ZERO,
                     qty: Decimal::ZERO,
                     remise_percent: Decimal::ZERO,
@@ -458,6 +463,7 @@ fn create_sous_verrou(
             fk_product: l.fk_product,
             label: l.label.clone(),
             description: l.description.clone(),
+            fk_unit: l.fk_unit,
             tva_tx: l.tva_tx,
             qty: l.qty,
             remise_percent: l.remise_percent,
@@ -570,17 +576,18 @@ fn create_sous_verrou(
                         "INSERT INTO llx_facturedet \
                          (fk_facture, fk_product, label, description, tva_tx, qty, \
                           remise_percent, subprice, price, total_ht, total_tva, \
-                          total_ttc, product_type, rang, special_code, date_start) \
+                          total_ttc, product_type, rang, special_code, date_start, fk_unit) \
                          VALUES (:fk_facture, :fk_product, :label, :description, :tva_tx, \
                           :qty, :remise_percent, :subprice, :subprice, :total_ht, \
                           :total_tva, :total_ttc, :product_type, :rang, :special_code, \
-                          :date_start)",
+                          :date_start, :fk_unit)",
                         params! {
                             "fk_facture" => rowid,
                             "fk_product" => l.fk_product,
                             "label" => l.label.as_str(),
                             "description" => l.description.as_deref(),
                             "tva_tx" => l.tva_tx.to_string(),
+                            "fk_unit" => l.fk_unit,
                             "qty" => l.qty.to_string(),
                             "remise_percent" => l.remise_percent.to_string(),
                             "subprice" => l.unit_price_ht.to_string(),
@@ -647,6 +654,7 @@ pub fn create_from_proposal(
             fk_product: l.fk_product,
             label: l.label.clone().unwrap_or_default(),
             description: l.description.clone(),
+            fk_unit: l.fk_unit,
             qty: l.qty.unwrap_or_default(),
             unit_price: l.subprice.unwrap_or_default(),
             tva_tx: l.tva_tx.unwrap_or_default(),
@@ -893,6 +901,7 @@ pub fn create_from_commande(
             fk_product: l.fk_product,
             label: l.label.clone().unwrap_or_default(),
             description: l.description.clone(),
+            fk_unit: l.fk_unit,
             qty: l.qty.unwrap_or_default(),
             unit_price: l.subprice.unwrap_or_default(),
             tva_tx: l.tva_tx.unwrap_or_default(),
@@ -910,6 +919,9 @@ pub fn create_from_commande(
             for (taux, (ht, _remise)) in parts {
                 new.lines.push(NewInvoiceLine {
                     fk_product: None,
+                    // Un forfait : la deduction ne se mesure ni en metres ni en
+                    // heures, et sans unite le PDF imprime un nombre nu.
+                    fk_unit: Some(2),
                     label: format!("Acompte déjà facturé ({acompte_ref})"),
                     description: Some(format!("Déduction de la facture d'acompte n° {acompte_id}")),
                     qty: Decimal::ONE,
@@ -994,6 +1006,7 @@ fn avoir_sous_verrou(
             fk_product: l.fk_product,
             label: l.label.clone().unwrap_or_default(),
             description: l.description.clone(),
+            fk_unit: l.fk_unit,
             qty: -(l.qty.unwrap_or_default()),
             unit_price: l.subprice.unwrap_or_default(),
             tva_tx: l.tva_tx.unwrap_or_default(),
@@ -1072,12 +1085,24 @@ pub fn validate(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Erro
 
 pub fn delete(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
-    let existe: Option<i64> = conn.exec_first(
-        "SELECT rowid FROM llx_facture WHERE entity = :entity AND rowid = :rowid",
+    // Une facture validee porte un numero legal et une ecriture comptable : la
+    // supprimer laissait un trou dans la numerotation, un reglement disparu et
+    // une ligne de grand livre sans piece. La sortie legitime est l'avoir ; la
+    // remise en brouillon existe pour corriger une saisie.
+    let etat: Option<(i8, Option<String>)> = conn.exec_first(
+        "SELECT fk_statut, ref FROM llx_facture WHERE entity = :entity AND rowid = :rowid",
         params! { "entity" => entity, "rowid" => rowid },
     )?;
-    if existe.is_none() {
+    let Some((statut, reference)) = etat else {
         return Ok(());
+    };
+    if statut != 0 {
+        return Err(format!(
+            "la facture {} est validee (statut {statut}) : elle ne se supprime pas. \
+             Emettez un avoir, ou remettez-la en brouillon si la saisie est fausse",
+            reference.unwrap_or_else(|| rowid.to_string())
+        )
+        .into());
     }
     let mut tx = conn.start_transaction(TxOpts::default())?;
 

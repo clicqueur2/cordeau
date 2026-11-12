@@ -193,3 +193,28 @@ fn nettoyer_dossier(dossier: &Path) {
         let _ = fs::remove_dir(dossier);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refuse_de_sortir_de_documents() {
+        // Les trois ecritures qui sortent de la racine : parent, absolu POSIX,
+        // absolu Windows. Le deuxieme et le troisieme sont refuses par deux
+        // regles differentes, d'ou les trois cas.
+        assert!(!composant_sur("../etc"));
+        assert!(!composant_sur("propale/../../etc"));
+        assert!(!composant_sur("/etc/passwd"));
+        assert!(!composant_sur("C:\\Windows"));
+        assert!(!composant_sur(".."));
+        assert!(!composant_sur(""));
+        // Un octet nul couperait le chemin en C : il n'est pas dans la liste.
+        assert!(!composant_sur("a\u{0}b"));
+        // Un chemin de Dolibarr ordinaire passe : module puis reference, avec
+        // un tiret et un point.
+        assert!(composant_sur("propale"));
+        assert!(composant_sur("propale/PR2611-0015"));
+        assert!(composant_sur("F-2611-0015.pdf"));
+    }
+}

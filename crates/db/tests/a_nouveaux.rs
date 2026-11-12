@@ -26,6 +26,8 @@ fn dec(s: &str) -> Decimal {
 /// Une facture de 1 200 TTC encaissee, portee au grand livre, doit donner a
 /// l'ouverture suivante : 512 debit 1 200, 706 credit 1 000, 445710 credit 200,
 /// et **rien** au 411 (solde nul). Total debits = total credits = 1 200.
+mod menage;
+
 #[test]
 fn l_ouverture_reprend_les_soldes_et_s_equilibre() -> Result<(), Box<dyn Error>> {
     let Some(pool) = pool_or_skip() else {
@@ -68,7 +70,7 @@ fn l_ouverture_reprend_les_soldes_et_s_equilibre() -> Result<(), Box<dyn Error>>
     let an = db::ecritures::a_nouveaux(&pool, ENTITY, "2027-01-01");
     let Ok(an) = an else {
         eprintln!("a-nouveaux indisponible (base sans ecriture) : test ignore");
-        db::invoice::delete(&pool, ENTITY, facture)?;
+        menage_facture(&pool, ENTITY, facture)?;
         db::party::delete(&pool, ENTITY, fk_soc)?;
         return Ok(());
     };
@@ -113,9 +115,51 @@ fn l_ouverture_reprend_les_soldes_et_s_equilibre() -> Result<(), Box<dyn Error>>
         "DELETE FROM llx_accounting_bookkeeping WHERE entity = :entity",
         params! { "entity" => ENTITY },
     )?;
-    db::invoice::delete(&pool, ENTITY, facture)?;
+    menage_facture(&pool, ENTITY, facture)?;
     db::party::delete(&pool, ENTITY, fk_soc)?;
 
     println!("a-nouveaux : {} ligne(s), equilibre", an.lignes.len());
+    Ok(())
+}
+
+/// Efface une facture de test et ses dependances.
+///
+/// `db::invoice::delete` refuse desormais les factures validees — c'est la regle
+/// de production, et un test ne doit pas la contourner par un chemin detourne.
+/// Il fait donc son menage lui-meme, en SQL, sur ses propres donnees.
+fn menage_facture(
+    pool: &db::Pool,
+    entity: i64,
+    facture: i64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use mysql::params;
+    use mysql::prelude::Queryable;
+    let mut conn = pool.get_conn()?;
+    let paiements: Vec<i64> = conn.exec(
+        "SELECT fk_paiement FROM llx_paiement_facture WHERE fk_facture = :f",
+        params! { "f" => facture },
+    )?;
+    conn.exec_drop(
+        "DELETE FROM llx_paiement_facture WHERE fk_facture = :f",
+        params! { "f" => facture },
+    )?;
+    for p in paiements {
+        conn.exec_drop(
+            "DELETE FROM llx_paiement WHERE entity = :e AND rowid = :p",
+            params! { "e" => entity, "p" => p },
+        )?;
+    }
+    conn.exec_drop(
+        "DELETE FROM llx_facturedet WHERE fk_facture = :f",
+        params! { "f" => facture },
+    )?;
+    conn.exec_drop(
+        "DELETE FROM llx_element_element WHERE targettype = 'facture' AND fk_target = :f",
+        params! { "f" => facture },
+    )?;
+    conn.exec_drop(
+        "DELETE FROM llx_facture WHERE entity = :e AND rowid = :f",
+        params! { "e" => entity, "f" => facture },
+    )?;
     Ok(())
 }

@@ -31,7 +31,7 @@ fn nettoyer(pool: &Pool, nom: &str) -> Result<(), Box<dyn Error>> {
     };
     for f in db::invoice::list(pool, ENTITY, 1000, 0)? {
         if appartient(f.fk_soc, pool) {
-            db::invoice::delete(pool, ENTITY, f.rowid)?;
+            menage::facture(pool, ENTITY, f.rowid)?;
         }
     }
     for p in db::proposal::list(pool, ENTITY, 1000, 0)? {
@@ -46,6 +46,8 @@ fn nettoyer(pool: &Pool, nom: &str) -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+
+mod menage;
 
 #[test]
 fn modifie_un_devis_brouillon_et_conserve_la_reference() -> Result<(), Box<dyn Error>> {
@@ -163,7 +165,7 @@ fn un_devis_ne_se_facture_qu_une_fois() -> Result<(), Box<dyn Error>> {
         "message inattendu : {err}"
     );
 
-    db::invoice::delete(&pool, ENTITY, facture)?;
+    menage::facture(&pool, ENTITY, facture)?;
     db::proposal::delete(&pool, ENTITY, devis)?;
     db::party::delete(&pool, ENTITY, fk_soc)?;
     nettoyer(&pool, nom)?;

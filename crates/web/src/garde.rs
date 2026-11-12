@@ -124,7 +124,10 @@ pub(crate) async fn garde(
         return next.run(req).await;
     }
     let courant = crate::auth::lire_cookie(req.headers()).and_then(|j| {
-        let s = app.sessions.lock().unwrap();
+        // `auth::sessions` tolère l'empoisonnement du verrou : un panic survenu
+        // sous verrou ne doit pas transformer le middleware — donc chaque
+        // requête — en 500 définitif.
+        let s = crate::auth::sessions(&app);
         s.get(&j)
             .filter(|s| s.expire > SystemTime::now())
             .map(|s| Courant {
@@ -177,16 +180,51 @@ pub(crate) async fn garde(
             None if ecriture => db::droit::droits_ecriture_du_chemin(&chemin).to_vec(),
             None => db::droit::droits_du_chemin(&chemin).to_vec(),
         };
+        // Une ecriture sans droit mappe n'est pas « libre » : c'est un trou.
+        // On refuse, en le disant, plutot que d'ouvrir par omission — et on
+        // nomme le chemin, sinon personne ne saura quoi corriger.
+        let sans_droit_connu =
+            ecriture && exiges.is_empty() && !crate::garde::autorise_sans_droit(&chemin);
+        if sans_droit_connu {
+            crate::journal_erreurs::enregistrer(
+                &chemin,
+                &format!(
+                    "écriture sans droit mappé (utilisateur {}) : le module doit \
+                     déclarer un droit, sinon chaque action est refusée",
+                    courant.login
+                ),
+            );
+            return (
+                axum::http::StatusCode::FORBIDDEN,
+                ui::page(
+                    "accueil",
+                    "",
+                    "Acces refuse",
+                    maud::html! {
+                        h1 {(crate::langue::tr("Accès refusé")) }
+                        p .sous-titre {
+                            "Cet écran n'est associé à aucun droit d'écriture : "
+                            "l'application refuse la modification par précaution. "
+                            "Un administrateur doit déclarer le droit du module."
+                        }
+                        a .bouton href="/" {(crate::langue::tr("Retour au tableau de bord")) }
+                    },
+                ),
+            )
+                .into_response();
+        }
         if !exiges.is_empty() {
+            // Echec ferme : si la base ne repond pas, on ne sait pas si le
+            // droit existe, et « ne pas savoir » ne vaut pas « autoriser ».
             let autorise = db::user::par_login(&app.pool, &courant.login)
                 .ok()
                 .flatten()
                 .map(|u| {
                     db::groupe::droits_effectifs(&app.pool, entite::courante(), u.rowid)
                         .map(|d| exiges.iter().any(|id| d.contains(id)))
-                        .unwrap_or(true)
+                        .unwrap_or(false)
                 })
-                .unwrap_or(true);
+                .unwrap_or(false);
             if !autorise {
                 return (
                     axum::http::StatusCode::FORBIDDEN,
@@ -237,9 +275,30 @@ pub(crate) async fn garde(
     .await
 }
 
+/// Les ecritures qui ne demandent aucun droit de module.
+///
+/// Ce sont les gestes de la personne sur son propre compte, la deconnexion, et
+/// les deux portes d'entree (connexion, installation) — toutes deja bornees
+/// ailleurs : la connexion a son frein, l'installation n'accepte qu'une base
+/// vierge, et changer d'entite ne fait que deplacer sa propre session.
+fn autorise_sans_droit(chemin: &str) -> bool {
+    const LIBRES: &[&str] = &[
+        "/compte",
+        "/style",
+        "/entite",
+        "/deconnexion",
+        "/connexion",
+        "/installation",
+        "/recherche",
+        "/public",
+        "/api",
+    ];
+    LIBRES.iter().any(|p| chemin.starts_with(p))
+}
+
 /// Entite portee par le cookie de session, 1 si inconnue.
 fn entite_de_session(app: &App, headers: &axum::http::HeaderMap) -> Option<i64> {
     let j = crate::auth::lire_cookie(headers)?;
-    let s = app.sessions.lock().unwrap();
+    let s = crate::auth::sessions(app);
     s.get(&j).map(|x| x.entity)
 }
