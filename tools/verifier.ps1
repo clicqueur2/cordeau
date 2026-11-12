@@ -97,7 +97,16 @@ Etape "Chaîne métier (devis → facture → règlement → PDF)" {
     # Ménage. `invoice delete` refuse une facture validée — c'est la règle de
     # production, et ce script ne la contourne pas : il efface lui-même les
     # lignes qu'il vient de créer, en SQL, dans la base de travail.
-    $mysql = Join-Path (Split-Path $env:DOLIBARR_MYSQLDUMP) "mysql.exe"
+    $mysql = "mysql"
+    if ($env:DOLIBARR_MYSQLDUMP) {
+        $mysql = Join-Path (Split-Path $env:DOLIBARR_MYSQLDUMP) "mysql.exe"
+    }
+    $outil = Get-Command $mysql -ErrorAction SilentlyContinue
+    if (-not $outil -or -not $env:DOLIBARR_DB_PASSWORD) {
+        Write-Host "    ménage SQL sauté : client mysql ou mot de passe absent (les pièces d'essai restent en base)"
+        Remove-Item "$env:TEMP\verif.pdf" -ErrorAction SilentlyContinue
+        return
+    }
     $hote = "127.0.0.1"
     $port = "3307"
     $base = "dolibarr"
