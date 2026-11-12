@@ -203,8 +203,13 @@ pub struct Erreur(pub String);
 
 /// Quel code HTTP pour quel message.
 ///
-/// « introuvable » et « inconnue » disent qu'une adresse ne mene nulle part :
-/// c'est un 404, pas une panne. Tout le reste est un 500, et se journalise.
+/// Trois familles, et elles disent trois choses differentes :
+///
+/// - « introuvable », « inconnue » : l'adresse ne mene nulle part → **404** ;
+/// - « obligatoire », « invalide », « illisible » : la demande est mal formee →
+///   **400** (un fichier CSV qu'on ne sait pas lire n'est pas une panne du
+///   serveur) ;
+/// - tout le reste : **500**, et la trace est journalisee.
 fn code_pour(message: &str) -> StatusCode {
     let m = message.to_lowercase();
     if m.contains("introuvable") || m.contains("inconnu") {

@@ -175,9 +175,15 @@ pub struct NouveauSalaire {
     pub fk_user: i64,
     /// Date de paiement (`AAAA-MM-JJ`).
     pub datep: String,
-    /// Date de valeur (`AAAA-MM-JJ`) ; elle ne peut pas précéder `datep`.
+    /// Date de valeur (`AAAA-MM-JJ`).
+    ///
+    /// **Aucune vérification ne lie `datev` et `datep`** : une date de valeur
+    /// anterieure au paiement est acceptee telle quelle. Le commentaire
+    /// precedent affirmait le contraire ; il decrivait une regle qui n'a jamais
+    /// ete ecrite.
     pub datev: String,
-    /// Montant net à verser, toujours positif.
+    /// Montant net à verser : **positif ou nul**. `creer` refuse une valeur
+    /// negative, il accepte zero (un bulletin a zero sert de regularisation).
     pub amount: Decimal,
     /// Libellé ; vide interdit, c'est la seule phrase qui explique le montant.
     pub label: String,

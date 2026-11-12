@@ -159,8 +159,15 @@ fn lire(dossier: &Path) -> Result<String, Box<dyn Error>> {
 
 /// Ajoute une ligne au journal. Rend (rang, empreinte).
 ///
-/// Le rang est le nombre de lignes deja presentes + 1 : deux ecritures
-/// simultanees ne peuvent pas produire le meme rang sans se voir.
+/// Le rang est le nombre de lignes deja presentes + 1. **Rien ne le protege** :
+/// deux ecritures simultanees lisent le meme fichier avant que l'une des deux
+/// ait ajoute sa ligne, et obtiennent **le meme rang**. La chaine se scinde
+/// alors en deux, et `verifier` la declarera falsifiee.
+///
+/// Le commentaire precedent affirmait le contraire (« sans se voir »). C'etait
+/// faux : il n'y a ni verrou de fichier, ni ouverture en `O_APPEND` atomique
+/// sur une chaine lue puis reecrite. Voir l'en-tete du module pour la limite et
+/// la correction a apporter.
 pub fn ajouter(dossier: &Path, sorte: &str, charge: &str) -> Result<(u64, String), Box<dyn Error>> {
     std::fs::create_dir_all(dossier)?;
     let existant = lire(dossier)?;
