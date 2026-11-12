@@ -153,6 +153,7 @@ mod sepa_ecran;
 mod site_web_ecran;
 mod stats_ecran;
 pub(crate) use style_ecran::{choisir as choisir_style, page as style_page};
+mod fil_propre;
 mod style_ecran;
 mod theme;
 mod traduction_ecran;
@@ -332,7 +333,10 @@ async fn main() {
         .await
         .expect("port indisponible");
     println!("dolibarr-web sur http://{ecoute}");
-    axum::serve(listener, routes).await.expect("serveur");
+    // Pas `axum::serve` : les handlers sont `async` mais bloquent sur MySQL, et
+    // une requete lente ne doit pas immobiliser un worker du reacteur. Voir
+    // `fil_propre` pour la raison et le plafond de fils.
+    fil_propre::servir(listener, routes).await;
 }
 
 // --- session ----------------------------------------------------------------

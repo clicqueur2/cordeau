@@ -159,23 +159,37 @@ fn lire(dossier: &Path) -> Result<String, Box<dyn Error>> {
 
 /// Ajoute une ligne au journal. Rend (rang, empreinte).
 ///
-/// Le rang est le nombre de lignes deja presentes + 1. **Rien ne le protege** :
-/// deux ecritures simultanees lisent le meme fichier avant que l'une des deux
-/// ait ajoute sa ligne, et obtiennent **le meme rang**. La chaine se scinde
-/// alors en deux, et `verifier` la declarera falsifiee.
+/// Le rang est le nombre de lignes deja presentes + 1. Le **cycle entier** —
+/// lire, calculer, ecrire — tient sous un verrou exclusif de fichier
+/// (`File::lock`, stable depuis Rust 1.89). Sans lui, deux ventes simultanees
+/// lisaient le meme fichier avant que l'une ait ecrit, prenaient le meme rang,
+/// scindaient la chaine, et `verifier` accusait ensuite l'exploitant d'avoir
+/// falsifie son journal.
 ///
-/// Le commentaire precedent affirmait le contraire (« sans se voir »). C'etait
-/// faux : il n'y a ni verrou de fichier, ni ouverture en `O_APPEND` atomique
-/// sur une chaine lue puis reecrite. Voir l'en-tete du module pour la limite et
-/// la correction a apporter.
+/// Le verrou est bloquant : une seconde vente attend quelques millisecondes.
+/// C'est le prix de l'integrite, et il est faible.
 pub fn ajouter(dossier: &Path, sorte: &str, charge: &str) -> Result<(u64, String), Box<dyn Error>> {
     std::fs::create_dir_all(dossier)?;
-    let existant = lire(dossier)?;
+
+    // Un seul descripteur, ouvert en lecture **et** en ajout : la lecture pour
+    // connaitre le rang, l'ajout pour ecrire a la fin sans jamais reecrire.
+    let mut f = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .append(true)
+        .open(chemin(dossier))?;
+
+    // Exclusif et bloquant. Le verrou tombe au plus tard au `drop`.
+    f.lock()?;
+
+    let mut existant = String::new();
+    f.read_to_string(&mut existant)?;
     let (rang, precedente) = match existant.lines().last() {
         None => (1u64, "GENESE".to_string()),
         Some(l) => {
             let champs: Vec<&str> = l.split('|').collect();
             if champs.len() < 5 {
+                let _ = f.unlock();
                 return Err(format!("journal corrompu, derniere ligne illisible : {l}").into());
             }
             let rang: u64 = champs[0].parse()?;
@@ -193,12 +207,11 @@ pub fn ajouter(dossier: &Path, sorte: &str, charge: &str) -> Result<(u64, String
         None => "-".to_string(),
     };
 
-    let mut f = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(chemin(dossier))?;
     writeln!(f, "{rang}|{horodatage}|{sorte}|{charge}|{emp}|{sig}")?;
     f.flush()?;
+    // Relacher explicitement : le `drop` le ferait, mais le rendre visible dit
+    // ou s'arrete la section critique.
+    let _ = f.unlock();
     Ok((rang, emp))
 }
 
@@ -378,5 +391,43 @@ mod tests {
 
         std::env::remove_var("DOLIBARR_SCELLE_CLE");
         let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Huit ecritures simultanees : chaque rang doit apparaitre une fois, et la
+    /// chaine doit rester verifiable. Sans le verrou, deux ventes prenaient le
+    /// meme rang et `verifier` declarait le journal falsifie.
+    #[test]
+    fn huit_ecritures_simultanees_ne_scindent_pas_la_chaine() {
+        let dossier = std::env::temp_dir().join(format!(
+            "cordeau-journal-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::remove_dir_all(&dossier);
+
+        let mut fils = Vec::new();
+        for i in 0..8 {
+            let d = dossier.clone();
+            fils.push(std::thread::spawn(move || {
+                ajouter(&d, "vente", &format!("facture={i}")).expect("ajout")
+            }));
+        }
+        let mut rangs: Vec<u64> = fils.into_iter().map(|f| f.join().expect("fil").0).collect();
+        rangs.sort_unstable();
+        assert_eq!(
+            rangs,
+            (1..=8).collect::<Vec<u64>>(),
+            "les rangs se repetent"
+        );
+
+        let rapport = verifier(&dossier).expect("verification");
+        assert_eq!(rapport.lignes, 8);
+        assert!(
+            rapport.premiere_erreur.is_none(),
+            "chaine scindee : {:?}",
+            rapport.motif
+        );
+
+        let _ = std::fs::remove_dir_all(&dossier);
     }
 }

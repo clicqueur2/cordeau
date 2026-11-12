@@ -30,12 +30,38 @@ pub struct DocumentAAchiver<'a> {
     pub extension: &'a str,
 }
 
+/// Un composant de chemin venu de la base ou d'une reference : on refuse tout ce
+/// qui peut sortir de `documents/`.
+///
+/// `path` construit `documents/<modulepart>/<reference>/<fichier>` : une
+/// reference `../../etc` sortirait de la racine. Le controle porte sur les
+/// **composants** (pas sur la chaine), donc `a/../b` est refuse aussi.
+fn composant_sur(s: &str) -> bool {
+    !s.is_empty()
+        && !s.contains("..")
+        && !s.contains('\\')
+        && !s.contains(':')
+        && !s.starts_with('/')
+        && s.chars().all(|c| {
+            c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ' ' | '/' | '&' | '(' | ')')
+        })
+}
+
 /// Ecrit le fichier puis l'indexe. Renvoie le `rowid` de `llx_ecm_files`.
 pub fn archiver(
     pool: &Pool,
     entity: i64,
     doc: &DocumentAAchiver<'_>,
 ) -> Result<i64, Box<dyn Error>> {
+    // `modulepart` et `reference` viennent du code appelant, mais une reference
+    // de document (devis, facture) peut contenir ce qu'on veut : on verifie.
+    if !composant_sur(doc.modulepart) || !composant_sur(doc.reference) {
+        return Err(format!(
+            "chemin de document refuse : {}/{}",
+            doc.modulepart, doc.reference
+        )
+        .into());
+    }
     let dossier = racine().join(doc.modulepart).join(doc.reference);
     fs::create_dir_all(&dossier)?;
 
@@ -145,6 +171,9 @@ pub fn supprimer_pour_element(
         params! { "entity" => entity, "otype" => object_type, "oid" => object_id },
     )?;
     for (dossier, nom) in fichiers {
+        if !composant_sur(&dossier) || !composant_sur(&nom) {
+            return Err(format!("chemin de document refuse : {dossier}/{nom}").into());
+        }
         let chemin: PathBuf = racine().join(&dossier).join(&nom);
         if chemin.is_file() {
             let _ = fs::remove_file(&chemin);

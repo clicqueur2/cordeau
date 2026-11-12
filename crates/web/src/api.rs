@@ -814,12 +814,15 @@ pub(crate) async fn devis_creer(
         let qty = nombre_json(l.get("qty"), Some("1"))?;
         let pu = nombre_json(l.get("pu_ht"), None)?;
         let tva = nombre_json(l.get("tva"), Some("20"))?;
-        pretes.push(db::proposal::NewProposalLine::new(
-            label,
-            money::dec(&qty),
-            money::dec(&pu),
-            money::dec(&tva),
-        ));
+        // `money::tenter` : une valeur venue d'un client ne doit pas paniquer.
+        let dec = |v: &str, nom: &str| {
+            money::tenter(v)
+                .map_err(|e| ApiErreur(axum::http::StatusCode::BAD_REQUEST, format!("{nom} : {e}")))
+        };
+        let qte = dec(&qty, "qty")?;
+        let prix = dec(&pu, "pu_ht")?;
+        let taux = dec(&tva, "tva")?;
+        pretes.push(db::proposal::NewProposalLine::new(label, qte, prix, taux));
     }
     nouveau.lines = pretes;
     let id = db::proposal::create(&app.pool, entity(), &nouveau)?;

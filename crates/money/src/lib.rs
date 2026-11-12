@@ -95,8 +95,30 @@ pub struct LineTotals {
     pub total_ttc: Decimal,
 }
 
+/// Un decimal **connu d'avance** : constantes du code, chaines deja validees.
+///
+/// Panique sur une entree illisible — c'est voulu pour les constantes, ou
+/// l'echec ne peut venir que d'une faute de frappe dans le source. **Ne jamais
+/// l'appeler sur une valeur venue d'un client** : utiliser [`tenter`].
 pub fn dec(s: &str) -> Decimal {
     Decimal::from_str(s).expect("decimal invalide")
+}
+
+/// Un decimal venu de l'exterieur : rend une erreur lisible au lieu de paniquer.
+///
+/// Accepte la virgule decimale (`12,50`) et les espaces de milliers, parce que
+/// c'est ce qu'on trouve dans un CSV ou un formulaire francais.
+pub fn tenter(s: &str) -> Result<Decimal, String> {
+    let brut = s.trim();
+    if brut.is_empty() {
+        return Err("valeur vide".to_string());
+    }
+    let nettoye: String = brut
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '\u{00a0}' && *c != '\u{20ac}')
+        .collect();
+    Decimal::from_str(&nettoye.replace(',', "."))
+        .map_err(|_| format!("« {brut} » n'est pas un nombre"))
 }
 
 pub fn line_totals(i: &LineInput) -> LineTotals {
@@ -283,5 +305,24 @@ mod tests {
         let totaux: Vec<Decimal> = lignes.iter().map(|l| line_totals(l).total_ht).collect();
         assert_eq!(totaux, vec![money("0.01"), money("0.01"), money("0.01")]);
         assert_eq!(sum(&totaux), money("0.03"));
+    }
+
+    #[test]
+    fn tenter_lit_un_montant_francais() {
+        assert_eq!(tenter("12,50").unwrap(), dec("12.50"));
+        assert_eq!(tenter("1 234,56").unwrap(), dec("1234.56"));
+        assert_eq!(tenter(" 1\u{00a0}200,00 ").unwrap(), dec("1200.00"));
+        assert_eq!(tenter("120.50").unwrap(), dec("120.50"));
+        assert_eq!(tenter("12,50\u{20ac}").unwrap(), dec("12.50"));
+    }
+
+    #[test]
+    fn tenter_refuse_au_lieu_de_paniquer() {
+        assert!(tenter("").is_err());
+        assert!(tenter("   ").is_err());
+        assert!(tenter("abc").is_err());
+        assert!(tenter("12,50,00").is_err());
+        // Le message nomme la valeur : on sait quoi corriger.
+        assert!(tenter("abc").unwrap_err().contains("abc"));
     }
 }

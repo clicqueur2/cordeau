@@ -56,7 +56,19 @@ fn copier(source: &Path, destination: &Path) -> std::io::Result<()> {
     for e in fs::read_dir(source)?.flatten() {
         let p = e.path();
         let cible = destination.join(e.file_name());
-        if p.is_dir() {
+        // `symlink_metadata` ne suit pas le lien : c'est ce qu'il faut, puisque
+        // `is_dir()` puis `fs::copy()` sur le meme chemin laisse le temps de
+        // remplacer le fichier par un lien vers l'exterieur (TOCTOU), et la
+        // sauvegarde copierait alors une cible hors du dossier.
+        let meta = match fs::symlink_metadata(&p) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        if meta.file_type().is_symlink() {
+            // On ne suit pas : un lien dans `documents/` n'est pas un document.
+            continue;
+        }
+        if meta.is_dir() {
             fs::create_dir_all(&cible)?;
             copier(&p, &cible)?;
         } else {
