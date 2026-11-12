@@ -787,17 +787,38 @@ pub(crate) async fn devis_creer(
         .get("validite")
         .and_then(|v| v.as_str())
         .map(str::to_string);
+    // Un prix peut arriver en chaine (`"120.00"`) ou en nombre (`120`) : les deux
+    // sont legitimes, et n'accepter que la chaine faisait **0 €** en silence sur
+    // un nombre. Une quantite par defaut de 1 est un choix ; un prix par defaut
+    // de 0 est un devis faux.
+    fn nombre_json(v: Option<&Value>, defaut: Option<&str>) -> Result<String, ApiErreur> {
+        match v {
+            Some(Value::String(s)) => Ok(s.trim().to_string()),
+            Some(Value::Number(n)) => Ok(n.to_string()),
+            Some(Value::Null) | None => defaut.map(str::to_string).ok_or_else(|| {
+                ApiErreur(
+                    axum::http::StatusCode::BAD_REQUEST,
+                    "chaque ligne doit porter un prix `pu_ht`".into(),
+                )
+            }),
+            Some(autre) => Err(ApiErreur(
+                axum::http::StatusCode::BAD_REQUEST,
+                format!("prix illisible : {autre}"),
+            )),
+        }
+    }
+
     let mut pretes = Vec::new();
     for l in lignes {
         let label = l.get("label").and_then(|v| v.as_str()).unwrap_or("Ligne");
-        let qty = l.get("qty").and_then(|v| v.as_str()).unwrap_or("1");
-        let pu = l.get("pu_ht").and_then(|v| v.as_str()).unwrap_or("0");
-        let tva = l.get("tva").and_then(|v| v.as_str()).unwrap_or("20");
+        let qty = nombre_json(l.get("qty"), Some("1"))?;
+        let pu = nombre_json(l.get("pu_ht"), None)?;
+        let tva = nombre_json(l.get("tva"), Some("20"))?;
         pretes.push(db::proposal::NewProposalLine::new(
             label,
-            money::dec(qty),
-            money::dec(pu),
-            money::dec(tva),
+            money::dec(&qty),
+            money::dec(&pu),
+            money::dec(&tva),
         ));
     }
     nouveau.lines = pretes;
