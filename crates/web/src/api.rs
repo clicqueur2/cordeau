@@ -37,11 +37,32 @@ pub fn cle_attendue() -> String {
 
 fn autorise(headers: &HeaderMap) -> bool {
     let attendu = cle_attendue();
-    headers
+    let recue = headers
         .get("DOLAPIKEY")
         .and_then(|v| v.to_str().ok())
-        .map(|v| v == attendu)
-        .unwrap_or(false)
+        .unwrap_or("");
+    egal_temps_constant(recue, &attendu)
+}
+
+/// Comparaison a temps constant.
+///
+/// `==` sort au premier octet different : le temps de reponse dit combien de
+/// caracteres de la cle sont justes, et une cle se devine octet par octet. Ce
+/// n'est pas une faille a distance sur un serveur local, mais la correction
+/// coute huit lignes.
+///
+/// La longueur, elle, est divulguee : la cle a une longueur connue de son
+/// proprietaire, et le taire n'apporte rien.
+fn egal_temps_constant(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut difference = 0u8;
+    for (x, y) in a.iter().zip(b) {
+        difference |= x ^ y;
+    }
+    difference == 0
 }
 
 type ApiResult = Result<Json<Value>, ApiErreur>;
@@ -1038,4 +1059,20 @@ pub(crate) async fn banques(State(app): State<App>, headers: HeaderMap) -> ApiRe
         }));
     }
     Ok(Json(json!(sortie)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn comparaison_de_cle_egale() {
+        assert!(egal_temps_constant("secret", "secret"));
+        assert!(!egal_temps_constant("secret", "secreT"));
+        assert!(!egal_temps_constant("secret", "secre"));
+        assert!(!egal_temps_constant("", "secret"));
+        // Deux chaines vides sont egales : la fonction ne sert qu'a comparer
+        // une cle configuree, jamais a valider une absence.
+        assert!(egal_temps_constant("", ""));
+    }
 }

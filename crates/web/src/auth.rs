@@ -39,6 +39,19 @@ pub(crate) fn jeton(login: &str) -> String {
     format!("{nanos:x}{h:x}")
 }
 
+/// La table des sessions, sous verrou.
+///
+/// `lock().unwrap()` etait un piege : un panic survenu **pendant** qu'un fil
+/// tenait le verrou l'empoisonne, et toutes les requetes suivantes repondaient
+/// 500 jusqu'au redemarrage. Une `HashMap` reste utilisable apres l'empoisonnement
+/// (la panique n'a pas forcement corrompu la table), donc on recupere la donnee
+/// au lieu de refuser le service.
+pub(crate) fn sessions(
+    app: &App,
+) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, Session>> {
+    app.sessions.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 pub(crate) fn lire_cookie(headers: &axum::http::HeaderMap) -> Option<String> {
     let brut = headers.get(axum::http::header::COOKIE)?.to_str().ok()?;
     for morceau in brut.split(';') {
@@ -86,8 +99,8 @@ pub(crate) async fn changer_entite(
         .and_then(|v| v.parse().ok())
         .ok_or_else(|| Erreur("entite invalide".into()))?;
     if let Some(j) = lire_cookie(&headers) {
-        let mut sessions = app.sessions.lock().unwrap();
-        if let Some(s) = sessions.get_mut(&j) {
+        let mut table = sessions(&app);
+        if let Some(s) = table.get_mut(&j) {
             s.entity = entity;
         }
     }
@@ -302,7 +315,7 @@ pub(crate) async fn connexion(
             );
             reussi(&ip);
             let j = jeton(&u.login);
-            app.sessions.lock().unwrap().insert(
+            sessions(&app).insert(
                 j.clone(),
                 Session {
                     login: u.login.clone(),
@@ -313,14 +326,23 @@ pub(crate) async fn connexion(
                 },
             );
             // Purge des sessions expirees au passage.
-            app.sessions
-                .lock()
-                .unwrap()
-                .retain(|_, s| s.expire > SystemTime::now());
+            sessions(&app).retain(|_, s| s.expire > SystemTime::now());
+            // `Secure` seulement si la requete est arrivee par HTTPS : le
+            // poser en clair rendrait le cookie inutilisable en developpement,
+            // et ne pas le poser derriere un proxy laisserait le jeton fuir par
+            // une requete HTTP. On lit l'en-tete que pose le proxy.
+            let https = headers
+                .get("x-forwarded-proto")
+                .and_then(|v| v.to_str().ok())
+                .map(|v| v.eq_ignore_ascii_case("https"))
+                .unwrap_or(false);
+            let securite = if https { "; Secure" } else { "" };
             (
                 [(
                     axum::http::header::SET_COOKIE,
-                    format!("{COOKIE}={j}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800"),
+                    format!(
+                        "{COOKIE}={j}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800{securite}"
+                    ),
                 )],
                 Redirect::to("/"),
             )
@@ -355,7 +377,7 @@ pub(crate) async fn deconnexion(
 ) -> Response {
     let mut compte: Option<(String, i64, Option<i64>)> = None;
     if let Some(j) = lire_cookie(&headers) {
-        if let Some(s) = app.sessions.lock().unwrap().remove(&j) {
+        if let Some(s) = sessions(&app).remove(&j) {
             compte = Some((s.login, s.entity, None));
         }
     }
