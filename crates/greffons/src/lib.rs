@@ -3,7 +3,19 @@
 //! Dolibarr appelle des fonctions PHP par hooks. Rust n'a pas d'ABI stable, donc
 //! un greffon ne peut pas etre un crate charge a chaud. Il peut etre une
 //! **bibliotheque dynamique en C ABI** : c'est la seule frontiere stable que
-//! Rust garantit, et elle est deja celle de tous les langages.
+//! Rust garantit.
+//!
+//! # Ce contrat n'est pas « celui de tous les langages »
+//!
+//! Il transporte une **allocation** : `dolibarr_greffon` rend un `char *` que le
+//! noyau libere lui-meme. Cela ne fonctionne que si le greffon et le noyau
+//! partagent le **meme allocateur**. Sous Windows, une `cdylib` Rust liee a la
+//! CRT statique a **son propre tas** : un greffon ecrit en C, avec le `malloc`
+//! de son processus, provoque un free inter-tas, fatal et silencieux.
+//!
+//! La correction propre — un tampon de sortie fourni par le noyau — supprimerait
+//! le troisieme symbole. Elle n'est pas faite : le contrat tel qu'il est ecrit
+//! vaut **pour un greffon ecrit en Rust**, pas pour un `.c` arbitraire.
 //!
 //! # Le contrat
 //!

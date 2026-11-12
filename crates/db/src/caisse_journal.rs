@@ -4,6 +4,19 @@
 //! journal-ci va plus loin : il vit dans un fichier, on n'y écrit qu'en
 //! ajoutant, et chaque ligne porte une empreinte qui reprend la précédente.
 //!
+//! # Ce qu'il ne garantit PAS : l'écriture concurrente
+//!
+//! `ajouter` lit tout le fichier, prend le rang suivant, puis ajoute — **sans
+//! verrou**. Deux ventes simultanées (deux caisses, ou deux requêtes qui se
+//! croisent) obtiennent le **même rang** : la chaîne se scinde en deux, et
+//! `verifier` accuse ensuite l'exploitant d'avoir falsifié son journal. Le
+//! défaut est réel, relevé par la revue `rust-review`, et **il n'est pas
+//! corrigé**.
+//!
+//! Tant qu'il ne l'est pas, ce journal vaut pour une caisse à un seul poste.
+//! Pour plusieurs, il faut un verrou de fichier — ou une écriture sérialisée
+//! par un service unique.
+//!
 //! # Pourquoi hors base
 //!
 //! Le schéma Dolibarr ne doit pas bouger — c'est la règle du projet depuis le

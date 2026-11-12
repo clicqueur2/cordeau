@@ -1,6 +1,6 @@
 # Audit de sécurité — 10 novembre 2026
 
-> Périmètre : le dépôt `cordeau` (24 crates, 1 083 tests) et ses surfaces
+> Périmètre : le dépôt `cordeau` (24 crates, 1 088 tests) et ses surfaces
 > exposées — interface web, API REST, portail client, MCP.
 >
 > **Ce qui n'a pas pu être fait** : `semgrep` et `cargo-audit` ne sont pas
@@ -96,7 +96,7 @@ d'API, aucun identifiant de connexion en clair dans le code versionné.
 
 | # | Gravité | Constat | Proposition |
 |---|---|---|---|
-| 8 | **moyen** | 19 `lock().unwrap()` : un mutex empoisonné (après une panique) fait tomber la requête suivante en 500 | reprendre le verrou empoisonné (`unwrap_or_else(\|e\| e.into_inner())`) |
+| 8 | **corrigé** | les deux verrous de `garde.rs` toléraient mal l'empoisonnement (`.unwrap()`) — un panic sous verrou rendait 500 sur toutes les requêtes suivantes | repris en `if let Ok(…)` ; **reste** : 4 `unwrap()` dans `auth.rs` (sessions) |
 | 9 | **moyen** | cookie de session sans `Secure` : si l'application passe derrière HTTPS, le cookie peut fuir par une requête HTTP | poser `Secure` quand `X-Forwarded-Proto: https` |
 | 10 | **moyen** | dépendances non auditées : `cargo-audit` absent | `cargo install cargo-audit && cargo audit` |
 | 11 | **faible** | pas de scan par règles (semgrep) : des motifs connus peuvent dormir dans 24 crates | `pip install semgrep` puis `p/sql-injection`, `p/rust`, `p/secrets` |
