@@ -147,6 +147,13 @@ Etape "Interface web (10 écrans)" {
                 "/liste/Loan/nouveau", "/liste/Asset/nouveau",
                 "/liste/ProductBatch/nouveau", "/liste/Resource/nouveau",
                 "/liste/Tax/nouveau")
+    # Sans mot de passe de vérification, on ne peut pas se connecter : autant le
+    # dire que d'échouer sur une page de connexion. Le crochet pre-push tourne
+    # sans ce secret, et un push ne doit pas dépendre d'un mot de passe.
+    if (-not $env:DOLIBARR_VERIF_MDP) {
+        Write-Host "    mot de passe de vérification absent (DOLIBARR_VERIF_MDP) — écrans non testés"
+        return
+    }
     $vivant = $false
     try { Invoke-WebRequest -Uri "http://127.0.0.1:8090/connexion" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop | Out-Null; $vivant = $true } catch {}
     if (-not $vivant) {
