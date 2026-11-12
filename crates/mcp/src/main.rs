@@ -8,7 +8,7 @@
 //! Les montants sont des chaines decimales, jamais des flottants.
 
 use std::error::Error;
-use std::io::{self, BufRead, Write};
+use std::io::{self, Write};
 
 use rust_decimal::Decimal;
 use serde_json::{json, Value};
@@ -28,8 +28,27 @@ fn main() {
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();
-    for ligne in stdin.lock().lines() {
-        let Ok(ligne) = ligne else { break };
+    let mut entree = std::io::BufReader::new(stdin.lock());
+    loop {
+        let ligne = match lire_ligne(&mut entree, MAX_LIGNE) {
+            Ok(None) => break,
+            Ok(Some(l)) => l,
+            Err(_) => {
+                // Ligne demesuree : on la jette en entier (jusqu'au saut de
+                // ligne) et on le dit, plutot que de grandir jusqu'a l'OOM ou de
+                // lire la suite au milieu d'une requete.
+                let _ = writeln!(
+                    stdout,
+                    "{}",
+                    json!({"jsonrpc":"2.0","id":null,"error":{
+                        "code":-32600,
+                        "message":format!("ligne trop longue (maximum {MAX_LIGNE} octets)")
+                    }})
+                );
+                let _ = stdout.flush();
+                continue;
+            }
+        };
         if ligne.trim().is_empty() {
             continue;
         }
@@ -59,7 +78,21 @@ fn main() {
                 "serverInfo": { "name": "dolibarr-mcp", "version": env!("CARGO_PKG_VERSION") }
             })),
             "tools/list" => Ok(json!({ "tools": outils() })),
-            "tools/call" => appeler_outil(&pool, &requete).map_err(|e| e.to_string()),
+            // `catch_unwind` : une panique dans un outil (une donnee qui
+            // deborde, un index hors bornes) ne doit pas arreter le service.
+            // Le client recoit une erreur JSON-RPC et la session continue.
+            "tools/call" => {
+                let pool = &pool;
+                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    appeler_outil(pool, &requete)
+                })) {
+                    Ok(r) => r.map_err(|e| e.to_string()),
+                    Err(_) => Err(
+                        "l'outil a echoue (panique interne) : la demande n'a pas ete appliquee"
+                            .to_string(),
+                    ),
+                }
+            }
             autre => Err(format!("methode inconnue : {autre}")),
         };
 
@@ -71,6 +104,74 @@ fn main() {
         };
         let _ = writeln!(stdout, "{corps}");
         let _ = stdout.flush();
+    }
+}
+
+/// Taille maximale d'une ligne de protocole.
+///
+/// Une requete JSON-RPC tient largement en 4 Mio ; au-dela, c'est un fichier
+/// redirige par erreur ou un client qui n'envoie jamais de saut de ligne. Dans
+/// les deux cas, allouer davantage ne sert a rien : le processus grossirait
+/// jusqu'a l'OOM.
+const MAX_LIGNE: usize = 4 * 1024 * 1024;
+
+/// Lit une ligne de stdin, bornee.
+///
+/// `Ok(None)` = fin de flux. `Err(())` = ligne plus longue que `max` : elle a
+/// ete **entierement jetee**, jusqu'au saut de ligne, pour que la requete
+/// suivante soit lue au bon endroit.
+fn lire_ligne(entree: &mut impl std::io::BufRead, max: usize) -> Result<Option<String>, ()> {
+    let mut ligne: Vec<u8> = Vec::new();
+    loop {
+        let tampon = match entree.fill_buf() {
+            Ok(b) => b,
+            Err(_) => return Ok(None),
+        };
+        if tampon.is_empty() {
+            // Fin de flux : ce qui reste forme la derniere ligne.
+            return Ok(if ligne.is_empty() {
+                None
+            } else {
+                Some(String::from_utf8_lossy(&ligne).to_string())
+            });
+        }
+        match tampon.iter().position(|b| *b == b'\n') {
+            Some(i) => {
+                ligne.extend_from_slice(&tampon[..i]);
+                entree.consume(i + 1);
+                if ligne.len() > max {
+                    return Err(());
+                }
+                return Ok(Some(String::from_utf8_lossy(&ligne).to_string()));
+            }
+            None => {
+                let n = tampon.len();
+                ligne.extend_from_slice(tampon);
+                entree.consume(n);
+                if ligne.len() > max {
+                    // On draine jusqu'au saut suivant sans rien garder.
+                    loop {
+                        let suite = match entree.fill_buf() {
+                            Ok(b) => b,
+                            Err(_) => return Err(()),
+                        };
+                        if suite.is_empty() {
+                            return Err(());
+                        }
+                        match suite.iter().position(|b| *b == b'\n') {
+                            Some(j) => {
+                                entree.consume(j + 1);
+                                return Err(());
+                            }
+                            None => {
+                                let m = suite.len();
+                                entree.consume(m);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

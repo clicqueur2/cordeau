@@ -19,6 +19,14 @@ const ENTITY: i64 = 1;
 const LOGIN: &str = "zz_test_connexion";
 const MDP: &str = "Copie2026!";
 
+/// Ces tests partagent un identifiant et la meme base MySQL : ils doivent
+/// s'executer l'un apres l'autre. Deux tests simultanes effacaient et
+/// reinseraient le compte de l'autre.
+fn verrou_test() -> std::sync::MutexGuard<'static, ()> {
+    static VERROU: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    VERROU.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn oublier(pool: &Pool) -> Result<(), Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     conn.exec_drop(
@@ -31,6 +39,7 @@ fn oublier(pool: &Pool) -> Result<(), Box<dyn Error>> {
 /// Le cas de la production : empreinte dans `pass_crypted`, `pass` a NULL.
 #[test]
 fn un_compte_dolibarr_reel_peut_se_connecter() -> Result<(), Box<dyn Error>> {
+    let _verrou = verrou_test();
     let Some(pool) = pool_or_skip() else {
         return Ok(());
     };
@@ -63,6 +72,7 @@ fn un_compte_dolibarr_reel_peut_se_connecter() -> Result<(), Box<dyn Error>> {
 /// comparer a cette colonne reviendrait a accepter le clair.
 #[test]
 fn un_mot_de_passe_en_clair_ne_sert_pas_de_preuve() -> Result<(), Box<dyn Error>> {
+    let _verrou = verrou_test();
     let Some(pool) = pool_or_skip() else {
         return Ok(());
     };
@@ -85,6 +95,7 @@ fn un_mot_de_passe_en_clair_ne_sert_pas_de_preuve() -> Result<(), Box<dyn Error>
 /// n'ont que celle-la.
 #[test]
 fn une_empreinte_md5_heritee_passe_encore() -> Result<(), Box<dyn Error>> {
+    let _verrou = verrou_test();
     let Some(pool) = pool_or_skip() else {
         return Ok(());
     };
@@ -106,6 +117,7 @@ fn une_empreinte_md5_heritee_passe_encore() -> Result<(), Box<dyn Error>> {
 /// `pass_crypted`, `pass` reste vide.
 #[test]
 fn un_compte_cree_ecrit_l_empreinte_au_bon_endroit() -> Result<(), Box<dyn Error>> {
+    let _verrou = verrou_test();
     let Some(pool) = pool_or_skip() else {
         return Ok(());
     };

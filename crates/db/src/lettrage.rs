@@ -226,7 +226,19 @@ mod tests_base {
 
     use super::*;
 
-    const ENTITE: i64 = 999;
+    // Numero propre a ce module : deux modules qui partagent une
+    // entite s'effacent mutuellement leurs lignes.
+    const ENTITE: i64 = 997;
+    /// Les tests de ce module partagent une entite et une base MySQL : ils
+    /// doivent s'executer **l'un apres l'autre**. Deux tests simultanes se
+    /// supprimaient mutuellement leurs lignes (`nettoyer` efface toute
+    /// l'entite), et la meme reference de recette entrait en collision — d'ou
+    /// des echecs aleatoires qui n'avaient rien a voir avec le code teste.
+    fn verrou_entite() -> std::sync::MutexGuard<'static, ()> {
+        static VERROU: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        VERROU.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     const COMPTE: &str = "411000";
 
     fn pool() -> Option<Pool> {
@@ -273,6 +285,7 @@ mod tests_base {
     /// et le code est bien ecrit en base.
     #[test]
     fn un_lettrage_ecrit_le_code_et_laisse_le_reste_ouvert() {
+        let _verrou = verrou_entite();
         let Some(p) = pool() else { return };
         nettoyer(&p);
 
@@ -337,6 +350,7 @@ mod tests_base {
 
     #[test]
     fn un_compte_sans_ligne_ne_produit_aucune_paire() {
+        let _verrou = verrou_entite();
         let Some(p) = pool() else { return };
         nettoyer(&p);
         let bilan = lettrer(&p, ENTITE, COMPTE).expect("lettrage");

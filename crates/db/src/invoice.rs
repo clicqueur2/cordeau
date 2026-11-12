@@ -327,6 +327,23 @@ fn is_deadlock(e: &mysql::Error) -> bool {
     matches!(e, mysql::Error::MySqlError(me) if me.code == 1213 || me.code == 1205)
 }
 
+/// Une reference de brouillon, unique par construction.
+///
+/// `(PROV<horodatage><compteur>)` : l'horodatage en nanosecondes distingue deux
+/// processus, le compteur distingue deux appels du meme processus dans la meme
+/// nanoseconde. Elle est remplacee par `(PROV<rowid>)` juste apres l'insertion,
+/// puis par le numero legal a la validation.
+fn reference_provisoire() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COMPTEUR: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let n = COMPTEUR.fetch_add(1, Ordering::Relaxed);
+    format!("(PROV{nanos}-{n})")
+}
+
 pub(crate) fn next_ref<Q>(
     conn: &mut Q,
     entity: i64,
@@ -382,16 +399,16 @@ pub fn create(pool: &Pool, entity: i64, new: &NewInvoice) -> Result<i64, Box<dyn
         return Err("verrou de numerotation indisponible (10 s)".into());
     }
 
-    let resultat = create_sous_verrou(&mut conn, entity, new, PREFIX_INVOICE, TYPE_FACTURE, None);
+    let resultat = create_sous_verrou(&mut conn, entity, new, TYPE_FACTURE, None);
     let _: Option<i64> = conn.exec_first("SELECT RELEASE_LOCK(?)", (verrou.as_str(),))?;
     resultat
 }
 
+/// Ecrit une facture en brouillon. Le numero legal viendra a la validation.
 fn create_sous_verrou(
     conn: &mut mysql::PooledConn,
     entity: i64,
     new: &NewInvoice,
-    prefixe: &str,
     type_document: i16,
     source: Option<i64>,
 ) -> Result<i64, Box<dyn Error>> {
@@ -534,9 +551,15 @@ fn create_sous_verrou(
         }
     };
 
-    for attempt in 0..5u32 {
+    // Le numero legal n'est PAS attribue ici : un brouillon porte
+    // `(PROV<rowid>)`, comme chez Dolibarr. Attribuer `FA2611-0007` a un
+    // brouillon consommait le numero ; le supprimer laissait un trou dans la
+    // suite, sans que rien ne le signale. La reference provisoire est unique par
+    // construction (horodatage + compteur), donc l'insertion ne peut pas
+    // entrer en collision avec celle d'un autre processus.
+    let provisoire = reference_provisoire();
+    {
         let mut tx = conn.start_transaction(TxOpts::default())?;
-        let reference = next_ref(&mut tx, entity, prefixe, attempt)?;
 
         let inserted = tx.exec_drop(
             "INSERT INTO llx_facture \
@@ -550,7 +573,7 @@ fn create_sous_verrou(
               :cond, :projet)",
             params! {
                 "entity" => entity,
-                "ref" => reference.as_str(),
+                "ref" => provisoire.as_str(),
                 "fk_soc" => new.fk_soc,
                 "type" => type_document,
                 "source" => source,
@@ -571,6 +594,13 @@ fn create_sous_verrou(
         match inserted {
             Ok(()) => {
                 let rowid = tx.last_insert_id().unwrap_or(0) as i64;
+                // `(PROV<rowid>)` : la forme que Dolibarr affiche, et qui se
+                // lit sans ambiguite dans une liste ou un PDF de brouillon.
+                tx.exec_drop(
+                    "UPDATE llx_facture SET ref = CONCAT('(PROV', rowid, ')') \
+                     WHERE rowid = :rowid",
+                    params! { "rowid" => rowid },
+                )?;
                 for (i, l) in lignes.iter().enumerate() {
                     tx.exec_drop(
                         "INSERT INTO llx_facturedet \
@@ -602,15 +632,15 @@ fn create_sous_verrou(
                     )?;
                 }
                 tx.commit()?;
-                return Ok(rowid);
+                Ok(rowid)
             }
-            Err(e) if (is_duplicate(&e) || is_deadlock(&e)) && attempt < 4 => {
+            Err(e) if is_deadlock(&e) => {
                 tx.rollback()?;
+                Err(e.into())
             }
-            Err(e) => return Err(e.into()),
+            Err(e) => Err(e.into()),
         }
     }
-    Err("impossible d'attribuer une reference de facture unique".into())
 }
 
 /// Cree une facture a partir d'un devis et enregistre le lien dans
@@ -665,16 +695,43 @@ pub fn create_from_proposal(
 
     // Un devis ne se facture qu'une fois : deux factures pour le meme devis,
     // c'est une double facturation.
+    // Le garde ignore les **acomptes** : un acompte est lie au devis, mais il ne
+    // le facture pas. Le compter ici refusait de facturer tout devis ayant recu
+    // un acompte — la facture finale ne pouvait donc jamais sortir.
     {
         let mut conn = pool.get_conn()?;
         let deja: Option<i64> = conn.exec_first(
-            "SELECT fk_target FROM llx_element_element \
-             WHERE sourcetype = 'propal' AND fk_source = :devis \
-               AND targettype = 'facture' LIMIT 1",
-            params! { "devis" => fk_propal },
+            "SELECT e.fk_target FROM llx_element_element e \
+             JOIN llx_facture f ON f.rowid = e.fk_target AND f.entity = :entity \
+             WHERE e.sourcetype = 'propal' AND e.fk_source = :devis \
+               AND e.targettype = 'facture' AND f.type <> :acompte LIMIT 1",
+            params! { "devis" => fk_propal, "entity" => entity, "acompte" => TYPE_ACOMPTE },
         )?;
         if let Some(existante) = deja {
             return Err(format!("ce devis a deja ete facture (facture n° {existante})").into());
+        }
+    }
+
+    // L'acompte deja facture se deduit, exactement comme depuis une commande.
+    // Sans cette deduction, le total de la facture finale est le prix plein
+    // alors que le client a deja regle une part : il paie deux fois.
+    for (acompte_id, acompte_ref, parts) in acomptes_du_devis(pool, entity, fk_propal, &devis.ref_)?
+    {
+        for (taux, (ht, _remise)) in parts {
+            new.lines.push(NewInvoiceLine {
+                fk_product: None,
+                fk_unit: Some(2),
+                label: format!("Acompte déjà facturé ({acompte_ref})"),
+                description: Some(format!("Déduction de la facture d'acompte n° {acompte_id}")),
+                qty: Decimal::ONE,
+                // Deduction negative : c'est une ligne de facture, pas un avoir.
+                // Un avoir changerait le chiffre d'affaires, une deduction le
+                // ramene au juste montant.
+                unit_price: -ht,
+                tva_tx: taux,
+                remise_percent: Decimal::ZERO,
+                section: None,
+            });
         }
     }
 
@@ -688,6 +745,81 @@ pub fn create_from_proposal(
         params! { "source" => fk_propal, "cible" => id },
     )?;
     Ok(id)
+}
+
+/// Montant d'un taux : `(taux, (hors taxes, remise))`.
+type PartParTaux = (Decimal, (Decimal, Decimal));
+
+/// Un acompte de devis : `(rowid de la facture, reference, montants par taux)`.
+type AcompteDevis = (i64, String, Vec<PartParTaux>);
+
+/// Les lignes d'un acompte, agregees par taux de TVA : `(taux, (hors taxes,
+/// remise))`.
+///
+/// On relit ce qui a ete **facture** plutot que de recalculer le pourcentage :
+/// si l'acompte a ete corrige a la main, c'est ce montant-la qui se deduit, pas
+/// celui qu'on croit avoir demande.
+fn acompte_par_taux(
+    pool: &Pool,
+    entity: i64,
+    facture_id: i64,
+) -> Result<Vec<PartParTaux>, Box<dyn Error>> {
+    let lignes = lines(pool, entity, facture_id)?;
+    let mut par_taux: std::collections::BTreeMap<String, (Decimal, (Decimal, Decimal))> =
+        std::collections::BTreeMap::new();
+    for l in &lignes {
+        if l.product_type == 9 {
+            continue;
+        }
+        let taux = l.tva_tx.unwrap_or_default();
+        let ht = l.total_ht.unwrap_or_default();
+        let e = par_taux
+            .entry(taux.normalize().to_string())
+            .or_insert((taux, (Decimal::ZERO, Decimal::ZERO)));
+        e.1 .0 += ht;
+        e.1 .1 += l.remise_percent.unwrap_or_default();
+    }
+    Ok(par_taux.into_values().collect())
+}
+
+/// Les acomptes **valides** d'un devis : `(rowid, reference, lignes par taux)`.
+///
+/// Trois marques coexistent dans les bases reelles : le lien
+/// `llx_element_element`, `ref_ext = 'PA-ACOMPTE-<id>'` (automatisations n8n) et
+/// `ref_ext = 'AC-<ref>'` (ce noyau). Les chercher toutes est le seul moyen de
+/// ne pas refacturer un acompte deja encaisse.
+fn acomptes_du_devis(
+    pool: &Pool,
+    entity: i64,
+    fk_propal: i64,
+    ref_propal: &str,
+) -> Result<Vec<AcompteDevis>, Box<dyn Error>> {
+    let mut conn = pool.get_conn()?;
+    let marque_n8n = format!("PA-ACOMPTE-{fk_propal}");
+    let marque_noyau = format!("AC-{ref_propal}");
+    let ids: Vec<(i64, String)> = conn.exec(
+        "SELECT f.rowid, f.ref FROM llx_facture f \
+         WHERE f.entity = :entity AND f.type = :type AND f.fk_statut >= 1 \
+           AND (f.ref_ext IN (:n8n, :noyau) \
+                OR EXISTS (SELECT 1 FROM llx_element_element e \
+                            WHERE e.sourcetype = 'propal' AND e.fk_source = :devis \
+                              AND e.targettype = 'facture' AND e.fk_target = f.rowid)) \
+         ORDER BY f.rowid",
+        params! {
+            "entity" => entity,
+            "type" => TYPE_ACOMPTE,
+            "n8n" => marque_n8n.as_str(),
+            "noyau" => marque_noyau.as_str(),
+            "devis" => fk_propal,
+        },
+    )?;
+    drop(conn);
+    let mut sortie = Vec::new();
+    for (id, reference) in ids {
+        let parts = acompte_par_taux(pool, entity, id)?;
+        sortie.push((id, reference, parts));
+    }
+    Ok(sortie)
 }
 
 /// L'acompte facture d'une commande : son numero, sa reference, et le montant
@@ -739,27 +871,11 @@ fn acompte_de_commande(
     let Some((id, reference)) = trouve else {
         return Ok(None);
     };
-    drop(conn);
-
     // On relit les lignes de l'acompte plutot que de recalculer le pourcentage :
     // si l'acompte a ete modifie a la main, c'est ce qui a ete facture qui se
     // deduit, pas ce qu'on croit avoir facture.
-    let lignes = lines(pool, entity, id)?;
-    let mut par_taux: std::collections::BTreeMap<String, (Decimal, (Decimal, Decimal))> =
-        std::collections::BTreeMap::new();
-    for l in &lignes {
-        if l.product_type == 9 {
-            continue;
-        }
-        let taux = l.tva_tx.unwrap_or_default();
-        let ht = l.total_ht.unwrap_or_default();
-        let e = par_taux
-            .entry(taux.normalize().to_string())
-            .or_insert((taux, (Decimal::ZERO, Decimal::ZERO)));
-        e.1 .0 += ht;
-        e.1 .1 += l.remise_percent.unwrap_or_default();
-    }
-    Ok(Some((id, reference, par_taux.into_values().collect())))
+    let parts = acompte_par_taux(pool, entity, id)?;
+    Ok(Some((id, reference, parts)))
 }
 
 pub fn acompte_existe(
@@ -1015,14 +1131,7 @@ fn avoir_sous_verrou(
         })
         .collect();
 
-    let id = create_sous_verrou(
-        conn,
-        entity,
-        &new,
-        PREFIX_CREDIT_NOTE,
-        TYPE_AVOIR,
-        Some(fk_facture),
-    )?;
+    let id = create_sous_verrou(conn, entity, &new, TYPE_AVOIR, Some(fk_facture))?;
     Ok(id)
 }
 
@@ -1051,23 +1160,64 @@ fn lines_par_id(
 
 pub fn validate(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
-    let statut: Option<i64> = conn.exec_first(
-        "SELECT fk_statut FROM llx_facture WHERE entity = :entity AND rowid = :rowid",
+    let etat: Option<(i64, i16)> = conn.exec_first(
+        "SELECT fk_statut, type FROM llx_facture WHERE entity = :entity AND rowid = :rowid",
         params! { "entity" => entity, "rowid" => rowid },
     )?;
-    match statut {
+    let (statut, type_document) = match etat {
         None => return Err(format!("facture {rowid} introuvable").into()),
-        Some(s) if s != i64::from(STATUT_BROUILLON) => {
+        Some((s, _)) if s != i64::from(STATUT_BROUILLON) => {
             return Err(format!("la facture {rowid} n'est pas en brouillon").into())
         }
-        _ => {}
+        Some((_, type_doc)) => (STATUT_VALIDEE, type_doc),
+    };
+
+    // Le numero legal s'attribue **ici**, et sous le verrou : deux validations
+    // simultanees ne peuvent pas tirer le meme numero. C'est ce qui manquait
+    // quand le brouillon consommait deja un numero : un brouillon supprime
+    // laissait un trou dans la suite legale.
+    let verrou = format!("dolibarr_rs_facture_{entity}");
+    let pris: Option<i64> = conn.exec_first("SELECT GET_LOCK(?, 10)", (verrou.as_str(),))?;
+    if pris != Some(1) {
+        return Err("verrou de numerotation indisponible (10 s)".into());
     }
-    conn.exec_drop(
-        "UPDATE llx_facture SET fk_statut = :statut, date_valid = NOW(), tms = NOW() \
-         WHERE entity = :entity AND rowid = :rowid",
-        params! { "statut" => STATUT_VALIDEE, "entity" => entity, "rowid" => rowid },
-    )?;
+    let prefixe = if type_document == TYPE_AVOIR {
+        PREFIX_CREDIT_NOTE
+    } else {
+        PREFIX_INVOICE
+    };
+    let mut resultat: Result<(), Box<dyn Error>> =
+        Err("impossible d'attribuer un numero de facture unique".into());
+    for attempt in 0..5u32 {
+        let reference = next_ref(&mut conn, entity, prefixe, attempt)?;
+        match conn.exec_drop(
+            "UPDATE llx_facture SET ref = :ref, fk_statut = :statut, \
+             date_valid = NOW(), tms = NOW() \
+             WHERE entity = :entity AND rowid = :rowid AND fk_statut = :brouillon",
+            params! {
+                "ref" => reference.as_str(),
+                "statut" => statut,
+                "entity" => entity,
+                "rowid" => rowid,
+                "brouillon" => STATUT_BROUILLON,
+            },
+        ) {
+            Ok(()) => {
+                resultat = Ok(());
+                break;
+            }
+            // Collision de numero (validation concurrente d'une autre entite
+            // ou d'un autre processus) : on retente avec le numero suivant.
+            Err(e) if is_duplicate(&e) && attempt < 4 => continue,
+            Err(e) => {
+                resultat = Err(e.into());
+                break;
+            }
+        }
+    }
+    let _: Option<i64> = conn.exec_first("SELECT RELEASE_LOCK(?)", (verrou.as_str(),))?;
     drop(conn);
+    resultat?;
 
     // L'ecriture comptable, dans la table que Dolibarr lit. Elle est ecrite
     // **ici** et pas dans un ecran : tout appelant — ecran, CLI, test — doit

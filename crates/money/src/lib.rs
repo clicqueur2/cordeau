@@ -104,6 +104,15 @@ pub fn dec(s: &str) -> Decimal {
     Decimal::from_str(s).expect("decimal invalide")
 }
 
+/// Magnitude maximale acceptee pour un montant, une quantite ou un taux.
+///
+/// `10^12` : mille milliards. Le produit de deux valeurs bornees (`10^24`) reste
+/// tres loin du maximum de `Decimal` (`7,9e28`), donc aucune multiplication
+/// interne ne peut plus deborder.
+// 10^12 en mots de 32 bits : 232 * 2^32 + 3 567 587 328. Le test
+// `max_montant_vaut_un_billion` verifie l'egalite avec « 1000000000000 ».
+pub const MAX_MONTANT: Decimal = Decimal::from_parts(3_567_587_328, 232, 0, false, 0);
+
 /// Un decimal venu de l'exterieur : rend une erreur lisible au lieu de paniquer.
 ///
 /// Accepte la virgule decimale (`12,50`) et les espaces de milliers, parce que
@@ -117,11 +126,43 @@ pub fn tenter(s: &str) -> Result<Decimal, String> {
         .chars()
         .filter(|c| !c.is_whitespace() && *c != '\u{00a0}' && *c != '\u{20ac}')
         .collect();
-    Decimal::from_str(&nettoye.replace(',', "."))
-        .map_err(|_| format!("« {brut} » n'est pas un nombre"))
+    let valeur = Decimal::from_str(&nettoye.replace(',', "."))
+        .map_err(|_| format!("« {brut} » n'est pas un nombre"))?;
+    // Mille milliards d'euros, dans un sens ou dans l'autre. Au-dela, ce n'est
+    // plus un montant : c'est une faute de frappe. La borne existe parce que
+    // `rust_decimal` **panique** quand une multiplication depasse 7,9e28 — le
+    // fil de la requete mourait et le client recevait un 500 muet.
+    if valeur.abs() > MAX_MONTANT {
+        return Err(format!(
+            "« {brut} » depasse la limite de {} (mille milliards)",
+            MAX_MONTANT
+        ));
+    }
+    Ok(valeur)
 }
 
 pub fn line_totals(i: &LineInput) -> LineTotals {
+    // Derniere barriere : une valeur relue en base ou importee ne passe pas par
+    // `tenter`. `rust_decimal` panique quand `*` ou `+` depassent 7,9e28, ce
+    // qui tuait le fil de la requete. On borne donc a l'entree du calcul ; les
+    // portes (API, MCP, formulaires) refusent deja ces valeurs avec un message,
+    // ceci ne se declenche que sur une donnee deja fausse en base.
+    let borner = |v: Decimal| {
+        if v > MAX_MONTANT {
+            MAX_MONTANT
+        } else if v < -MAX_MONTANT {
+            -MAX_MONTANT
+        } else {
+            v
+        }
+    };
+    let i = &LineInput {
+        qty: borner(i.qty),
+        unit_price: borner(i.unit_price),
+        discount_percent: borner(i.discount_percent),
+        vat_rate: borner(i.vat_rate),
+        ..i.clone()
+    };
     let hundred = dec("100");
 
     // `$tot_sans_remise = $pu * $qty * ($progress / 100)` puis
@@ -324,5 +365,11 @@ mod tests {
         assert!(tenter("12,50,00").is_err());
         // Le message nomme la valeur : on sait quoi corriger.
         assert!(tenter("abc").unwrap_err().contains("abc"));
+    }
+
+    #[test]
+    fn max_montant_vaut_un_billion() {
+        assert_eq!(MAX_MONTANT, dec("1000000000000"));
+        assert_eq!(-MAX_MONTANT, dec("-1000000000000"));
     }
 }

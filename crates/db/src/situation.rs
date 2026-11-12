@@ -181,6 +181,35 @@ pub fn creer(
         return Err("un devis non valide ne se facture pas par situation".into());
     }
 
+    // Un devis deja facture **en une fois** ne se facture pas en situations : ce
+    // serait la meme prestation comptee deux fois. Le controle ne regardait que
+    // les situations, donc une facture unique liee au devis passait inapercue —
+    // c'est le sens unique que la revue a trouve. Les acomptes (type 3) sont
+    // exclus : ils n'ont pas facture le devis, ils ont encaisse une part.
+    {
+        let mut conn = pool.get_conn()?;
+        let deja_facture: Option<(i64, String)> = conn.exec_first(
+            "SELECT f.rowid, f.ref FROM llx_facture f \
+             JOIN llx_element_element e ON e.fk_target = f.rowid AND e.targettype = 'facture' \
+             WHERE f.entity = :entity AND e.sourcetype = 'propal' AND e.fk_source = :propal \
+               AND f.type NOT IN (:situation, :acompte) AND f.fk_statut >= 1 \
+             ORDER BY f.rowid LIMIT 1",
+            params! {
+                "entity" => entity,
+                "propal" => fk_propal,
+                "situation" => TYPE_SITUATION,
+                "acompte" => crate::invoice::TYPE_ACOMPTE,
+            },
+        )?;
+        if let Some((id, reference)) = deja_facture {
+            return Err(format!(
+                "ce devis est deja facture en une fois (facture {reference}, n° {id}) : \
+                 des situations s'ajouteraient par-dessus et compteraient la prestation deux fois"
+            )
+            .into());
+        }
+    }
+
     let deja = situations(pool, entity, fk_propal)?;
     let cumul: Decimal = deja.iter().map(|s| s.pourcentage).sum();
     let total_pct = cumul + pourcentage;

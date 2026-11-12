@@ -76,8 +76,14 @@ fn cree_une_facture_avec_sections_et_totaux() -> Result<(), Box<dyn Error>> {
     let id = db::invoice::create(&pool, ENTITY, &new)?;
 
     let f = db::invoice::get(&pool, ENTITY, id)?.expect("facture relue");
-    assert_eq!(f.ref_.len(), 11, "FA + AAAMM + - + 4 chiffres: {}", f.ref_);
-    assert!(f.ref_.starts_with("FA"), "reference inattendue: {}", f.ref_);
+    // Un brouillon porte une reference provisoire : consommer un numero legal
+    // avant la validation laissait un trou dans la suite legale des qu'on
+    // supprimait un brouillon.
+    assert!(
+        f.ref_.starts_with("(PROV"),
+        "reference provisoire attendue: {}",
+        f.ref_
+    );
     assert_eq!(f.fk_statut, db::invoice::STATUT_BROUILLON);
     assert!(f.est_brouillon());
     assert_eq!(f.total_ht, Some(dec("500")), "300 + 200, titres exclus");
@@ -88,6 +94,9 @@ fn cree_une_facture_avec_sections_et_totaux() -> Result<(), Box<dyn Error>> {
     assert!(lignes[2].is_section());
 
     db::invoice::validate(&pool, ENTITY, id)?;
+    let f = db::invoice::get(&pool, ENTITY, id)?.expect("facture validee");
+    assert_eq!(f.ref_.len(), 11, "FA + AAAMM + - + 4 chiffres: {}", f.ref_);
+    assert!(f.ref_.starts_with("FA"), "reference inattendue: {}", f.ref_);
     assert_eq!(
         db::invoice::get(&pool, ENTITY, id)?.unwrap().fk_statut,
         db::invoice::STATUT_VALIDEE

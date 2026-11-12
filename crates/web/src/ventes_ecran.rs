@@ -447,18 +447,21 @@ pub(crate) async fn devis_creer(
         if lib.is_empty() {
             continue;
         }
-        let qte: Decimal = f
-            .get(&format!("l{i}_qte"))
-            .and_then(|v| v.replace(',', ".").parse().ok())
-            .unwrap_or_default();
-        let pu: Decimal = f
-            .get(&format!("l{i}_pu"))
-            .and_then(|v| v.replace(',', ".").parse().ok())
-            .unwrap_or_default();
-        let tva: Decimal = f
-            .get(&format!("l{i}_tva"))
-            .and_then(|v| v.replace(',', ".").parse().ok())
-            .unwrap_or_default();
+        // `parse().ok().unwrap_or_default()` transformait « abc » en 0 et
+        // laissait passer 1e30, que `Decimal` refuse ensuite en pleine
+        // multiplication (panic). On lit donc avec `money::tenter`, qui nomme
+        // la valeur fautive.
+        let nombre = |suffixe: &str, nom: &str| -> Res<Decimal> {
+            let brut = f
+                .get(&format!("l{i}_{suffixe}"))
+                .map(|v| v.as_str())
+                .unwrap_or("");
+            let brut = if brut.trim().is_empty() { "0" } else { brut };
+            money::tenter(brut).map_err(|e| Erreur(format!("ligne {i}, {nom} : {e}")))
+        };
+        let qte = nombre("qte", "quantite")?;
+        let pu = nombre("pu", "prix unitaire")?;
+        let tva = nombre("tva", "TVA")?;
         lignes.push(db::proposal::NewProposalLine::new(lib, qte, pu, tva));
     }
     if lignes.is_empty() {

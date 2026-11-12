@@ -131,6 +131,19 @@ pub fn importer_tiers(
     let i_siret = colonne(&table.entetes, &["siret"]);
     let i_tva = colonne(&table.entetes, &["tva", "tva intra", "tva_intra", "vat"]);
 
+    // Une seule connexion pour tout l'import : un emprunt de pool par ligne
+    // coutait 10 000 connexions sur un fichier de 10 000 lignes, dans un fil qui
+    // monopolisait un permis du semaphore du serveur.
+    let mut conn = pool.get_conn()?;
+    use mysql::prelude::Queryable;
+    let mut connus: std::collections::HashSet<String> = conn
+        .exec::<String, _, _>(
+            "SELECT nom FROM llx_societe WHERE entity = :entity",
+            (entity,),
+        )?
+        .into_iter()
+        .collect();
+
     let mut rapport = RapportImport::default();
     for (n, ligne) in table.lignes.iter().enumerate() {
         let nom = valeur(ligne, Some(i_nom));
@@ -138,14 +151,10 @@ pub fn importer_tiers(
             rapport.ignores += 1;
             continue;
         };
-        // Doublon sur le nom : on ne recree pas.
-        let mut conn = pool.get_conn()?;
-        use mysql::prelude::Queryable;
-        let existe: Option<i64> = conn.exec_first(
-            "SELECT rowid FROM llx_societe WHERE entity = ? AND nom = ? LIMIT 1",
-            (entity, nom.as_str()),
-        )?;
-        if existe.is_some() {
+        // Doublon sur le nom : on ne recree pas. L'ensemble est tenu a jour au
+        // fil de l'import, donc un fichier qui contient deux fois le meme nom
+        // ne cree pas deux fiches.
+        if !connus.insert(nom.clone()) {
             rapport.ignores += 1;
             continue;
         }

@@ -99,9 +99,28 @@ pub fn exploser(
 
     // Une pile plutot qu'une recursion : la profondeur est une donnee, pas une
     // limite de la pile d'appels.
-    let mut pile: Vec<(String, Decimal, usize)> = vec![(produit.to_string(), quantite, 0)];
+    //
+    // Chaque noeud ouvert pose une marque `Fermer` **avant** ses composants :
+    // en depilant, les composants passent d'abord (LIFO), puis la marque retire
+    // le noeud du chemin. Sans cela, le chemin gardait toutes les branches
+    // visitees et la meme piece presente dans deux sous-ensembles — cas
+    // ordinaire d'une nomenclature — etait declaree « cycle ».
+    enum Tache {
+        Ouvrir(String, Decimal, usize),
+        Fermer,
+    }
+    let mut pile: Vec<Tache> = vec![Tache::Ouvrir(produit.to_string(), quantite, 0)];
 
-    while let Some((courant, qte, niveau)) = pile.pop() {
+    while let Some(tache) = pile.pop() {
+        let (courant, qte, niveau) = match tache {
+            Tache::Fermer => {
+                // Fin de la branche : on remonte d'un cran.
+                chemin.pop();
+                continue;
+            }
+            Tache::Ouvrir(courant, qte, niveau) => (courant, qte, niveau),
+        };
+
         let Some(nomenclature) = index.get(courant.as_str()) else {
             // Feuille : matiere premiere.
             let entree = besoins.entry(courant.clone()).or_insert(Besoin {
@@ -123,12 +142,13 @@ pub fn exploser(
             return Err(Erreur::Cycle(cycle));
         }
         chemin.push(courant.clone());
+        pile.push(Tache::Fermer);
 
         for composant in &nomenclature.composants {
             if composant.quantite <= Decimal::ZERO {
                 return Err(Erreur::Quantite(composant.quantite.to_string()));
             }
-            pile.push((
+            pile.push(Tache::Ouvrir(
                 composant.reference.clone(),
                 qte * composant.quantite,
                 niveau + 1,
@@ -450,5 +470,42 @@ mod tests {
             exploser(&n, "Z", d("1"), 3),
             Err(Erreur::Inconnu(_))
         ));
+    }
+
+    /// Nomenclature en diamant : A contient B et C, B et C contiennent la meme
+    /// vis. Ce n'est pas un cycle, et la vis doit sortir une fois, sommee.
+    ///
+    /// Le chemin n'etait jamais depile : la seconde branche retrouvait la vis
+    /// deja visitee et l'explosion etait refusee avec « Cycle ».
+    #[test]
+    fn une_piece_partagee_n_est_pas_un_cycle() {
+        use rust_decimal::Decimal;
+        use std::str::FromStr;
+
+        let d = |s: &str| Decimal::from_str(s).unwrap();
+        let nom = |produit: &str, composants: &[(&str, &str)]| Nomenclature {
+            produit: produit.to_string(),
+            composants: composants
+                .iter()
+                .map(|(r, q)| Composant {
+                    reference: r.to_string(),
+                    quantite: d(q),
+                })
+                .collect(),
+        };
+
+        let nomenclatures = vec![
+            nom("A", &[("B", "1"), ("C", "1")]),
+            nom("B", &[("vis", "2")]),
+            nom("C", &[("vis", "3")]),
+        ];
+
+        let besoins = exploser(&nomenclatures, "A", d("1"), 10).expect("pas un cycle");
+        let vis = besoins
+            .iter()
+            .find(|b| b.reference == "vis")
+            .expect("la vis doit sortir");
+        assert_eq!(vis.quantite, d("5"), "2 + 3");
+        assert_eq!(besoins.len(), 1, "une seule reference, agregee");
     }
 }

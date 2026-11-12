@@ -373,7 +373,18 @@ mod tests_base {
         Decimal::from_str(s).unwrap()
     }
 
-    const ENTITE: i64 = 999;
+    // Numero propre a ce module : deux modules qui partagent une
+    // entite s'effacent mutuellement leurs lignes.
+    const ENTITE: i64 = 995;
+    /// Les tests de ce module partagent une entite et une base MySQL : ils
+    /// doivent s'executer **l'un apres l'autre**. Deux tests simultanes se
+    /// supprimaient mutuellement leurs lignes (`nettoyer` efface toute
+    /// l'entite), et la meme reference de recette entrait en collision — d'ou
+    /// des echecs aleatoires qui n'avaient rien a voir avec le code teste.
+    fn verrou_entite() -> std::sync::MutexGuard<'static, ()> {
+        static VERROU: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        VERROU.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     fn pool() -> Option<Pool> {
         let dsn = std::env::var("DOLIBARR_DSN").ok()?;
@@ -440,6 +451,7 @@ mod tests_base {
 
     #[test]
     fn un_taux_se_fige_sur_la_piece_et_sur_ses_lignes() {
+        let _verrou = verrou_entite();
         let Some(p) = pool() else { return };
         nettoyer(&p);
         let id = poser_facture(&p);
@@ -507,6 +519,7 @@ mod tests_base {
 
     #[test]
     fn un_document_valide_ne_se_revalue_pas() {
+        let _verrou = verrou_entite();
         let Some(p) = pool() else { return };
         nettoyer(&p);
         let id = poser_facture(&p);
@@ -527,6 +540,7 @@ mod tests_base {
 
     #[test]
     fn un_taux_nul_ou_une_devise_inconnue_sont_refuses() {
+        let _verrou = verrou_entite();
         let Some(p) = pool() else { return };
         nettoyer(&p);
         let id = poser_facture(&p);

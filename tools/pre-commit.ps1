@@ -22,6 +22,13 @@ Set-Location $racine
 $env:CARGO_TARGET_DIR = "C:/Users/Maxime/.cargo-target/cordeau"
 $env:DOLIBARR_DSN = $Base
 
+# Les tests qui touchent MySQL partagent **une seule base** : lances en
+# parallele, deux tests s'effacent mutuellement leurs lignes (`nettoyer()`
+# efface toute l'entite) et deux insertions de la meme reference de recette
+# entrent en collision. Les echecs sont alors aleatoires et n'ont rien a voir
+# avec le code teste. Une base, un fil de tests.
+$env:RUST_TEST_THREADS = "1"
+
 $echecs = @()
 function Etape($nom, $bloc) {
     Write-Host "  $nom ... " -NoNewline

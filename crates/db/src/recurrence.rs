@@ -575,7 +575,18 @@ pub fn depuis_facture(
 mod tests_serie {
     use super::*;
 
-    const ENTITE: i64 = 999;
+    // Numero propre a ce module : deux modules qui partagent une
+    // entite s'effacent mutuellement leurs lignes.
+    const ENTITE: i64 = 994;
+    /// Les tests de ce module partagent une entite et une base MySQL : ils
+    /// doivent s'executer **l'un apres l'autre**. Deux tests simultanes se
+    /// supprimaient mutuellement leurs lignes (`nettoyer` efface toute
+    /// l'entite), et la meme reference de recette entrait en collision — d'ou
+    /// des echecs aleatoires qui n'avaient rien a voir avec le code teste.
+    fn verrou_entite() -> std::sync::MutexGuard<'static, ()> {
+        static VERROU: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        VERROU.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     fn pool() -> Option<Pool> {
         let dsn = std::env::var("DOLIBARR_DSN").ok()?;
@@ -640,6 +651,7 @@ mod tests_serie {
 
     #[test]
     fn une_serie_recopie_l_entete_et_les_lignes() {
+        let _verrou = verrou_entite();
         let Some(p) = pool() else { return };
         nettoyer(&p);
         let source = facture(&p);
@@ -695,6 +707,7 @@ mod tests_serie {
 
     #[test]
     fn une_facture_sans_ligne_est_refusee() {
+        let _verrou = verrou_entite();
         let Some(p) = pool() else { return };
         nettoyer(&p);
         let mut conn = p.get_conn().expect("connexion");
@@ -721,6 +734,7 @@ mod tests_serie {
 
     #[test]
     fn une_frequence_absurde_est_refusee() {
+        let _verrou = verrou_entite();
         let Some(p) = pool() else { return };
         nettoyer(&p);
         let source = facture(&p);

@@ -66,6 +66,7 @@ fn un_avoir_annule_une_facture_validee() -> Result<(), Box<dyn Error>> {
     assert_eq!(f.total_ttc, Some(dec("1200")));
 
     let avoir = db::invoice::create_avoir(&pool, ENTITY, facture)?;
+    db::invoice::validate(&pool, ENTITY, avoir)?;
     let a = db::invoice::get(&pool, ENTITY, avoir)?.expect("avoir");
 
     assert!(

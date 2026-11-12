@@ -260,6 +260,63 @@ scan vert ne prouve donc presque rien, et ne remplace pas la revue manuelle.
 
 ---
 
+## Passe du 12 novembre (fin) — les cinq chantiers de fond
+
+### 1. Comptabilite des ventes
+
+| Constat | Correction |
+|---|---|
+| le chemin **devis -> facture** ne deduisait pas l'acompte deja encaisse (seul le chemin commande -> facture le faisait) : le client payait deux fois la part versee | `acomptes_du_devis` cherche les acomptes valides par les **trois** marques qui coexistent (lien `llx_element_element`, `ref_ext = PA-ACOMPTE-<id>` des automatisations, `ref_ext = AC-<ref>` du noyau) et les deduit par taux de TVA ; **test d'integration** : 1 000 HT - 300 d'acompte = 700 HT / 840 TTC |
+| le garde « ce devis a deja ete facture » comptait **l'acompte** comme une facturation : impossible de sortir la facture finale des qu'un acompte existait | le garde ignore le type acompte |
+| les **situations** ne controlaient que les situations : un devis deja facture en une fois passait inapercu, et les situations s'ajoutaient par-dessus | refus explicite, avec le numero de la facture en cause |
+| le **numero legal** etait attribue au **brouillon** : le supprimer laissait un trou dans la suite, et rien n'obligeait a valider dans l'ordre chronologique | un brouillon porte `(PROV<rowid>)` ; `FA<periode>-<nnnn>` est attribue **a la validation**, sous le verrou de numerotation. Comme Dolibarr |
+
+### 2. Montants
+
+`money::tenter` refuse au-dela de **10^12** (mille milliards) : `rust_decimal`
+**panique** quand une multiplication depasse 7,9e28, ce qui tuait le fil de la
+requete. Le formulaire de devis lit ses nombres avec `tenter` et nomme le champ
+fautif ; `line_totals` borne ses entrees en derniere barriere (donnee relue en
+base, fichier importe). Test : `MAX_MONTANT == 10^12`, et la constante est
+verifiee contre la chaine.
+
+### 3. Vieillissement
+
+| Constat | Correction |
+|---|---|
+| chaque ticket de caisse relisait **tout** le journal pour trouver la derniere ligne (O(n2) cumule, verrou tenu pendant la lecture) | lecture par la fin, par blocs de 4 Kio : cout constant. Pas de rotation — la chaine de hachage doit rester entiere, et le cout ne depend plus de l'age du journal. Test : 400 ecritures, chaine verifiable |
+| l'import CSV prenait **une connexion MySQL par ligne** | une connexion hors de la boucle, et les noms existants charges en une requete |
+
+### 4. Serveur MCP
+
+Ligne stdin bornee a **4 Mio** (au-dela : erreur -32600 et la ligne est jetee
+jusqu'au saut suivant, pour que la requete suivante soit lue au bon endroit), et
+`catch_unwind` autour de chaque outil : une panique rend une erreur JSON-RPC au
+lieu de tuer le service. Verifie en reel : `initialize` -> 200 logique,
+ligne de 5 Mio -> -32600, `tools/list` -> reponse normale.
+
+### 5. Nomenclature
+
+`mrp::exploser` empilait son chemin sans jamais le depiler : la meme piece
+presente dans deux sous-ensembles (cas ordinaire) etait declaree « Cycle ».
+Chaque noeud pose desormais une marque de fermeture, et le chemin ne contient
+plus que la branche en cours. Test : diamant A -> B, C -> vis, quantites 2 + 3.
+
+### Ce qui reste ouvert, et pourquoi
+
+- **Encaissement superieur au du** : accepte, le trop-percu est masque par
+  l'ecretage du solde. A traiter avec la question du trop-percu (remboursement,
+  avoir) — c'est une decision metier, pas un correctif.
+- **Deux commandes issues du meme devis** : aucun garde. Le lien devis ->
+  commande n'est pas verifie.
+- **Deduction de l'acompte sur une situation** : un acompte encaisse avant des
+  situations n'est pas deduit des situations (seule la facture finale l'est).
+- **Numerotation Dolibarr PHP** : notre noyau attribue le numero a la validation,
+  mais une facture creee **par Dolibarr PHP** garde ses conventions ; les deux
+  outils partagent la table, pas la politique de numerotation.
+
+---
+
 ## Reste ouvert
 
 | # | Gravité | Constat | Proposition |

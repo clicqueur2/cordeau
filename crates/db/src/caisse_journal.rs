@@ -49,7 +49,7 @@
 
 use std::error::Error;
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
@@ -146,6 +146,51 @@ fn chemin(dossier: &Path) -> PathBuf {
     dossier.join(FICHIER)
 }
 
+/// La derniere ligne du journal, sans lire tout le fichier.
+///
+/// On part de la fin et on remonte par blocs de 4 Kio jusqu'au premier saut de
+/// ligne trouve. Le cout ne depend plus de l'age du journal : c'est ce qui
+/// permet de garder un fichier unique (et donc une chaine de hachage entiere)
+/// sans que chaque ticket paie la relecture complete.
+fn derniere_ligne(f: &mut File) -> Result<Option<String>, Box<dyn Error>> {
+    let taille = f.metadata()?.len();
+    if taille == 0 {
+        return Ok(None);
+    }
+    const BLOC: u64 = 4096;
+    let mut fin = taille;
+    let mut morceau: Vec<u8> = Vec::new();
+    while fin > 0 {
+        let debut = fin.saturating_sub(BLOC);
+        f.seek(SeekFrom::Start(debut))?;
+        let mut tampon = vec![0u8; (fin - debut) as usize];
+        f.read_exact(&mut tampon)?;
+        tampon.extend_from_slice(&morceau);
+        morceau = tampon;
+        // Le fichier se termine par un saut de ligne : la derniere ligne est
+        // celle qui precede le **dernier** saut, donc on cherche l'avant-dernier.
+        let sauts: Vec<usize> = morceau
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| **b == b'\n')
+            .map(|(i, _)| i)
+            .collect();
+        if sauts.len() >= 2 {
+            let debut_ligne = sauts[sauts.len() - 2] + 1;
+            let fin_ligne = sauts[sauts.len() - 1];
+            return Ok(Some(
+                String::from_utf8_lossy(&morceau[debut_ligne..fin_ligne]).to_string(),
+            ));
+        }
+        fin = debut;
+    }
+    // Fichier d'une seule ligne, sans saut final : elle est entiere ici.
+    let texte = String::from_utf8_lossy(&morceau)
+        .trim_end_matches('\n')
+        .to_string();
+    Ok(if texte.is_empty() { None } else { Some(texte) })
+}
+
 fn lire(dossier: &Path) -> Result<String, Box<dyn Error>> {
     let p = chemin(dossier);
     if !p.is_file() {
@@ -182,9 +227,9 @@ pub fn ajouter(dossier: &Path, sorte: &str, charge: &str) -> Result<(u64, String
     // Exclusif et bloquant. Le verrou tombe au plus tard au `drop`.
     f.lock()?;
 
-    let mut existant = String::new();
-    f.read_to_string(&mut existant)?;
-    let (rang, precedente) = match existant.lines().last() {
+    // Seule la derniere ligne est relue : le reste du journal n'a aucune
+    // influence sur le rang ni sur l'empreinte de la ligne a ecrire.
+    let (rang, precedente) = match derniere_ligne(&mut f)? {
         None => (1u64, "GENESE".to_string()),
         Some(l) => {
             let champs: Vec<&str> = l.split('|').collect();
@@ -425,6 +470,36 @@ mod tests {
         assert!(
             rapport.premiere_erreur.is_none(),
             "chaine scindee : {:?}",
+            rapport.motif
+        );
+
+        let _ = std::fs::remove_dir_all(&dossier);
+    }
+
+    /// Quatre cents ecritures : le rang suit, et la chaine reste verifiable.
+    ///
+    /// Ce test eprouve la lecture par la fin (`derniere_ligne`) : une erreur
+    /// d'un octet sur la derniere ligne ferait deraper le rang suivant, ou
+    /// casserait l'empreinte et `verifier` accuserait une falsification.
+    #[test]
+    fn quatre_cents_ecritures_gardent_la_chaine() {
+        let dossier = std::env::temp_dir().join(format!(
+            "cordeau-journal-long-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::remove_dir_all(&dossier);
+
+        for i in 1..=400u64 {
+            let (rang, _) = ajouter(&dossier, "vente", &format!("ticket={i}")).expect("ajout");
+            assert_eq!(rang, i, "le rang doit suivre le nombre de lignes");
+        }
+
+        let rapport = verifier(&dossier).expect("verification");
+        assert_eq!(rapport.lignes, 400);
+        assert!(
+            rapport.premiere_erreur.is_none(),
+            "chaine cassee : {:?}",
             rapport.motif
         );
 
