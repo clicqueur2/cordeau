@@ -193,15 +193,82 @@ la main dans un document finit toujours par mentir.
 
 ---
 
+## Passe du 12 novembre (suite) — logique metier, paniques, outils
+
+### Revue « logique metier » — 12 constats, 6 corriges
+
+| Constat | Correction |
+|---|---|
+| **critique** — le droit d'**ecriture** n'etait verifie que sur 21 prefixes d'URL sur 71 : ailleurs `exiges` etait vide, donc **aucun controle** — un simple utilisateur connecte pouvait payer un salaire, valider un don, encaisser en caisse | la carte couvre tous les prefixes, et une ecriture sans droit mappe est **refusee** (403 nomme, journalise) au lieu d'etre libre |
+| **eleve** — les identifiants d'ecriture 9011..9019 etaient utilises sans etre **definis** : impossible de les attribuer, tout non-administrateur etait refuse sans recours | les neuf droits existent dans `llx_rights_def`, avec un libelle ; `coeur` vide, donc une autorisation « lire » de Dolibarr n'ouvre pas l'ecriture |
+| **eleve** — le garde echouait en **ouvert** (`unwrap_or(true)`) : base muette ou utilisateur supprime = tous les ecrans ouverts | echec ferme (`false`) : « ne pas savoir » ne vaut pas « autoriser » |
+| **eleve** — `payment::delete` ne ramenait jamais une facture de « payee » a « validee » : reste du invisible dans les deux filtres de relance | `CASE WHEN soldee THEN 2 WHEN fk_statut = 2 THEN 1` |
+| **eleve** — supprimer un reglement laissait son ecriture au grand livre et au FEC | l'ecriture du reglement part avec lui (filtre journal BQ + `doc_type`) |
+| **eleve** — `invoice delete` (CLI) supprimait une facture **validee**, son numero legal, ses reglements et son ecriture | refuse : « emettez un avoir, ou remettez-la en brouillon » |
+| moyen — le PDF n'etait pas archive en validation de masse, et l'echec etait avale | signale au bilan, comme a l'unite |
+| moyen — `fk_unit` n'etait pas recopie du devis vers la facture : le PDF client perdait « m2 », « ml », « forfait » | l'unite voyage (devis, commande, avoir, recurrentes, caisse = piece) |
+
+**Reste ouvert** (non corrige, dit franchement) : la deduction de l'acompte n'est
+faite que sur le chemin commande → facture (devis → facture refacture
+l'acompte) ; le controle des factures de situation est a sens unique ; un numero
+legal peut etre consomme par un brouillon supprime ; le numero d'une facture
+validee n'est pas force dans l'ordre chronologique ; un encaissement superieur au
+du est accepte (le trop-percu est masque par l'ecretage du solde) ; aucun garde
+n'empeche deux commandes issues du meme devis.
+
+### Revue « paniques et ressources » — 11 constats, 8 corriges
+
+| Constat | Correction |
+|---|---|
+| **haute** — le MCP mourait sur `creer_devis` des qu'un montant etait illisible (`"qty":"deux"`) | `money::tenter`, erreur JSON-RPC nommee par ligne ; un nombre JSON est lu comme un nombre |
+| **haute** — `POST /prets` avec `nbterm=1e9` : une boucle de 4 milliards d'iterations puis une allocation mortelle (le processus entier tombait) | borne a 600 echeances, dans `echeancier` **et** dans `create` (refus explicite) |
+| moyenne — API : `money::dec` sur `pourcentage` et `montant` ⇒ 500 muet, meme sur `"30,5"` | `money::tenter` ⇒ 400 nomme |
+| moyenne — `extrafields::php_tableau` : compte lu dans la base (`a:100000000:{`) et `split_at` hors frontiere UTF-8 | compte borne a 64, frontiere de caractere verifiee ; **test** ajoute |
+| moyenne — verrous de session du middleware en `unwrap()` : un panic sous verrou rendait 500 sur **toutes** les requetes | `auth::sessions()` recupere la table empoisonnee |
+| faible — PDF temporaire du MCP ecrit sous un nom previsible dans le dossier partage | nom unique (processus + horodatage) et `create_new` : un fichier deja present est refuse, jamais suivi |
+
+**Reste ouvert** : `money::line_totals` peut deborder `Decimal` (montant ×
+quantite proche de 8e28) et `rust_decimal` panique sur ses operateurs — la
+borne n'est posee qu'aux portes qui passent par `money::tenter` ; le journal de
+caisse se relit entierement a chaque ticket (O(n2) cumule, pas de rotation) ; le
+serveur MCP lit stdin sans plafond et rien n'englobe les outils dans
+`catch_unwind` ; `mrp::exploser` ne depile pas son chemin (faux « Cycle » sur une
+nomenclature en diamant) ; l'import CSV prend une connexion MySQL par ligne.
+
+### Outils, cette fois installes et passes
+
+**semgrep 1.185.0** (`uv tool install semgrep`) : 21 constats sur 308 fichiers.
+
+| Regle | Nombre | Verdict |
+|---|---|---|
+| `unsafe-usage` | 10 | le chargeur de greffons (FFI) — deja audite par le cluster `unsafe-boundary`, et la DLL n'est plus chargee depuis le depot |
+| `temp-dir` | 8 | un seul dans du code de production (le PDF du MCP, corrige ci-dessus) ; les sept autres sont dans des tests |
+| `args` | 3 | faux positifs : `std::env::args()` de la ligne de commande et de deux exemples |
+
+Limites constatees : un scan **par dossier** rend 0 fichier sur cette machine
+(semgrep ne resout pas les chemins de repertoire sous Windows), il faut passer
+la liste `git ls-files '*.rs'` ; et `p/rust` ne contient que **11 regles**. Un
+scan vert ne prouve donc presque rien, et ne remplace pas la revue manuelle.
+
+**cargo-audit 0.23.0** : 497 dependances, **3 vulnerabilites**, 9 avertissements.
+
+| Crate | Constat | Traitement |
+|---|---|---|
+| `lopdf` 0.35 | debordement de pile sur un PDF profondement imbrique (7.5) | **corrige** : passe en 0.42, compilation et tests verts |
+| `quick-xml` 0.38 | deux denis de service par XML (7.5) | **non corrigeable ici** : la version vient de `typst` (styles bibliographiques), qui ne lit que des fichiers embarques. A suivre a chaque montee de typst |
+| `bincode` 1.3.3 | plus maintenu | depend de `typst` aussi, sur des donnees internes ; rien a faire de notre cote |
+
+---
+
 ## Reste ouvert
 
 | # | Gravité | Constat | Proposition |
 |---|---|---|---|
 | 8 | **corrigé** | les deux verrous de `garde.rs` toléraient mal l'empoisonnement (`.unwrap()`) — un panic sous verrou rendait 500 sur toutes les requêtes suivantes | repris en `if let Ok(…)` ; **reste** : 4 `unwrap()` dans `auth.rs` (sessions) |
 | 9 | **moyen** | cookie de session sans `Secure` : si l'application passe derrière HTTPS, le cookie peut fuir par une requête HTTP | poser `Secure` quand `X-Forwarded-Proto: https` |
-| 10 | **moyen** | dépendances non auditées : `cargo-audit` absent | `cargo install cargo-audit && cargo audit` |
-| 11 | **partiel** | scan par règles : semgrep est installé le 12/11 (1.185.0) ; le scan par dossier rend 0 fichier sous Windows, le scan par liste de fichiers est en cours | voir la section « semgrep » ci-dessus |
-| 12 | **faible** | la clé d'API (`DOLAPIKEY`) est comparée par `==` : une comparaison à temps non constant | comparer les empreintes, ou une comparaison à temps constant |
+| 10 | **corrigé** | dépendances non auditées | `cargo-audit 0.23.0` installé et passé : 3 vulnérabilités, `lopdf` corrigée, `quick-xml` et `bincode` viennent de `typst` (voir la passe du 12) |
+| 11 | **corrigé** | scan par règles | semgrep 1.185.0 installé et passé sur 308 fichiers : 21 constats, un seul dans du code de production (corrigé), les autres sont le FFI deja audité, des tests, et trois faux positifs |
+| 12 | **corrigé** | la clé d'API (`DOLAPIKEY`) était comparée par `==` | `egal_temps_constant` (ou exclusif octet par octet), avec test unitaire |
 
 ---
 

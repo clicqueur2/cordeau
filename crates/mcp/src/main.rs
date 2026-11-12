@@ -510,17 +510,37 @@ fn appeler_outil(pool: &db::Pool, requete: &Value) -> Result<Value, Box<dyn Erro
             .collect::<Vec<_>>())),
         "pdf_devis" => {
             let id = arg_i64(&corps, "id")?;
-            let chemin = arg(&corps, "chemin")
+            let demande = arg(&corps, "chemin")
                 .and_then(|v| v.as_str())
-                .map(str::to_string)
-                .unwrap_or_else(|| {
-                    std::env::temp_dir()
-                        .join(format!("devis-{id}.pdf"))
-                        .display()
-                        .to_string()
-                });
+                .map(str::to_string);
+            let chemin = demande.clone().unwrap_or_else(|| {
+                // Le dossier temporaire est partage entre comptes : un nom
+                // previsible (`devis-12.pdf`) peut avoir ete cree a l'avance
+                // comme lien symbolique vers un fichier quelconque, et un
+                // `write` le suivrait. Nom unique (processus + horodatage) et
+                // creation exclusive : si le nom existe, on refuse.
+                let sel = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_nanos())
+                    .unwrap_or(0);
+                std::env::temp_dir()
+                    .join(format!("devis-{id}-{}-{sel}.pdf", std::process::id()))
+                    .display()
+                    .to_string()
+            });
             let rendu = app::devis_pdf(pool, ENTITY, id)?;
-            std::fs::write(&chemin, &rendu.bytes)?;
+            if demande.is_some() {
+                // Chemin choisi par l'appelant : il sait ce qu'il ecrase.
+                std::fs::write(&chemin, &rendu.bytes)?;
+            } else {
+                use std::io::Write;
+                let mut f = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&chemin)
+                    .map_err(|e| format!("ecriture impossible dans « {chemin} » : {e}"))?;
+                f.write_all(&rendu.bytes)?;
+            }
             Ok(json!({
                 "chemin": chemin,
                 "octets": rendu.bytes.len(),
