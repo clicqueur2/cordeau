@@ -150,6 +150,10 @@ pub struct NewInvoice {
     pub fk_cond_reglement: Option<i64>,
     /// Chantier auquel la facture se rattache.
     pub fk_projet: Option<i64>,
+    /// Reference externe (`llx_facture.ref_ext`) : marque une piece pour les
+    /// automatisations et pour la deduction d'acompte (`AC-<ref>`). Ecrite des
+    /// la creation, dans la meme instruction que le reste.
+    pub ref_ext: Option<String>,
     pub lines: Vec<NewInvoiceLine>,
 }
 
@@ -379,7 +383,8 @@ where
 /// La numerotation est serialisee par un verrou consultatif MySQL (`GET_LOCK`) :
 /// deux processus du noyau Rust ne peuvent pas tirer le meme numero. Aucun
 /// changement de schema, et Dolibarr n'est pas impacte.
-pub fn create(pool: &Pool, entity: i64, new: &NewInvoice) -> Result<i64, Box<dyn Error>> {
+/// Les controles d'entree communs a tous les chemins de creation.
+fn valider(new: &NewInvoice) -> Result<(), Box<dyn Error>> {
     if new.fk_soc <= 0 {
         return Err("le tiers (fk_soc) est obligatoire".into());
     }
@@ -388,9 +393,14 @@ pub fn create(pool: &Pool, entity: i64, new: &NewInvoice) -> Result<i64, Box<dyn
     }
     for l in &new.lines {
         if l.qty <= Decimal::ZERO {
-            return Err(format!("quantite invalide sur la ligne « {} »", l.label).into());
+            return Err(format!("quantite invalide sur la ligne « « {} » »", l.label).into());
         }
     }
+    Ok(())
+}
+
+pub fn create(pool: &Pool, entity: i64, new: &NewInvoice) -> Result<i64, Box<dyn Error>> {
+    valider(new)?;
 
     let mut conn = pool.get_conn()?;
     let verrou = format!("dolibarr_rs_facture_{entity}");
@@ -565,12 +575,13 @@ fn create_sous_verrou(
             "INSERT INTO llx_facture \
              (entity, ref, fk_soc, type, fk_facture_source, ref_client, datec, datef, \
               date_lim_reglement, fk_statut, paye, total_ht, total_tva, total_ttc, \
-              remise_percent, note_private, note_public, fk_cond_reglement, fk_projet) \
+              remise_percent, note_private, note_public, fk_cond_reglement, fk_projet, \
+              ref_ext) \
              VALUES (:entity, :ref, :fk_soc, :type, :source, :ref_client, NOW(), \
               :datef, \
               :echeance, :statut, 0, \
               :total_ht, :total_tva, :total_ttc, 0, :note_private, :note_public, \
-              :cond, :projet)",
+              :cond, :projet, :ref_ext)",
             params! {
                 "entity" => entity,
                 "ref" => provisoire.as_str(),
@@ -588,6 +599,7 @@ fn create_sous_verrou(
                 "total_ttc" => total_ttc.to_string(),
                 "note_private" => new.note_private.as_deref(),
                 "note_public" => new.note_public.as_deref(),
+                "ref_ext" => new.ref_ext.as_deref(),
             },
         );
 
@@ -693,25 +705,6 @@ pub fn create_from_proposal(
         })
         .collect();
 
-    // Un devis ne se facture qu'une fois : deux factures pour le meme devis,
-    // c'est une double facturation.
-    // Le garde ignore les **acomptes** : un acompte est lie au devis, mais il ne
-    // le facture pas. Le compter ici refusait de facturer tout devis ayant recu
-    // un acompte — la facture finale ne pouvait donc jamais sortir.
-    {
-        let mut conn = pool.get_conn()?;
-        let deja: Option<i64> = conn.exec_first(
-            "SELECT e.fk_target FROM llx_element_element e \
-             JOIN llx_facture f ON f.rowid = e.fk_target AND f.entity = :entity \
-             WHERE e.sourcetype = 'propal' AND e.fk_source = :devis \
-               AND e.targettype = 'facture' AND f.type <> :acompte LIMIT 1",
-            params! { "devis" => fk_propal, "entity" => entity, "acompte" => TYPE_ACOMPTE },
-        )?;
-        if let Some(existante) = deja {
-            return Err(format!("ce devis a deja ete facture (facture n° {existante})").into());
-        }
-    }
-
     // L'acompte deja facture se deduit, exactement comme depuis une commande.
     // Sans cette deduction, le total de la facture finale est le prix plein
     // alors que le client a deja regle une part : il paie deux fois.
@@ -735,16 +728,43 @@ pub fn create_from_proposal(
         }
     }
 
-    let id = create(pool, entity, &new)?;
-
+    // Un devis ne se facture qu'une fois : deux factures pour le meme devis,
+    // c'est une double facturation. Le garde ignore les **acomptes** — un
+    // acompte est lie au devis, mais il ne le facture pas.
+    //
+    // Le garde, la creation et le lien tiennent sous le **meme verrou** : lus
+    // dehors, deux clics simultanes le voyaient tous les deux vide et creaient
+    // deux factures. Le lien est pose avant de rendre le verrou, puisque c'est
+    // lui qui rend le garde vrai pour l'appel suivant.
     let mut conn = pool.get_conn()?;
-    conn.exec_drop(
-        "INSERT INTO llx_element_element \
-         (fk_source, sourcetype, fk_target, targettype) \
-         VALUES (:source, 'propal', :cible, 'facture')",
-        params! { "source" => fk_propal, "cible" => id },
-    )?;
-    Ok(id)
+    let verrou = format!("dolibarr_rs_facture_{entity}");
+    let pris: Option<i64> = conn.exec_first("SELECT GET_LOCK(?, 10)", (verrou.as_str(),))?;
+    if pris != Some(1) {
+        return Err("verrou de numerotation indisponible (10 s)".into());
+    }
+    let resultat = (|| -> Result<i64, Box<dyn Error>> {
+        let deja: Option<i64> = conn.exec_first(
+            "SELECT e.fk_target FROM llx_element_element e \
+             JOIN llx_facture f ON f.rowid = e.fk_target AND f.entity = :entity \
+             WHERE e.sourcetype = 'propal' AND e.fk_source = :devis \
+               AND e.targettype = 'facture' AND f.type <> :acompte LIMIT 1",
+            params! { "devis" => fk_propal, "entity" => entity, "acompte" => TYPE_ACOMPTE },
+        )?;
+        if let Some(existante) = deja {
+            return Err(format!("ce devis a deja ete facture (facture n° {existante})").into());
+        }
+
+        let id = create_sous_verrou(&mut conn, entity, &new, TYPE_FACTURE, None)?;
+        conn.exec_drop(
+            "INSERT INTO llx_element_element \
+             (fk_source, sourcetype, fk_target, targettype) \
+             VALUES (:source, 'propal', :cible, 'facture')",
+            params! { "source" => fk_propal, "cible" => id },
+        )?;
+        Ok(id)
+    })();
+    let _: Option<i64> = conn.exec_first("SELECT RELEASE_LOCK(?)", (verrou.as_str(),))?;
+    resultat
 }
 
 /// Montant d'un taux : `(taux, (hors taxes, remise))`.
@@ -1008,17 +1028,19 @@ pub fn create_deposit_from_commande(
         return Err("l'acompte calcule est nul".into());
     }
 
-    let id = create(pool, entity, &new)?;
-    conn.exec_drop(
-        "UPDATE llx_facture SET type = :type, ref_ext = :marque, tms = NOW() \
-         WHERE entity = :entity AND rowid = :id",
-        params! {
-            "type" => TYPE_ACOMPTE,
-            "marque" => marque.as_str(),
-            "entity" => entity,
-            "id" => id,
-        },
-    )?;
+    // Le type et la marque partent **dans l'INSERT** : les requalifier par un
+    // UPDATE separe laissait, si l'UPDATE echouait, une facture de 30 % de type
+    // ordinaire — invisible pour la deduction d'acompte, donc facturee deux
+    // fois. Et le tout tient sous le verrou de numerotation.
+    new.ref_ext = Some(marque.clone());
+    let verrou = format!("dolibarr_rs_facture_{entity}");
+    let pris: Option<i64> = conn.exec_first("SELECT GET_LOCK(?, 10)", (verrou.as_str(),))?;
+    if pris != Some(1) {
+        return Err("verrou de numerotation indisponible (10 s)".into());
+    }
+    let resultat = create_sous_verrou(&mut conn, entity, &new, TYPE_ACOMPTE, None);
+    let _: Option<i64> = conn.exec_first("SELECT RELEASE_LOCK(?)", (verrou.as_str(),))?;
+    let id = resultat?;
     Ok(id)
 }
 

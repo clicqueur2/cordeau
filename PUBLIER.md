@@ -2,7 +2,7 @@
 
 > **Publié le 10 novembre 2026.** Le dépôt est sur GitHub :
 > **`https://github.com/clicqueur2/cordeau`** — **privé**.
-> Branche `main`, étiquette `v0.1.0`, **248 commits**.
+> Branche `main`, étiquette `v0.1.0`, **258 commits**.
 
 ## Ce qui est en place
 
@@ -54,12 +54,12 @@ Danger Zone → Change visibility**. Deux choses à faire **avant** :
 - **Un troisième endroit.** Le code n'existe plus seulement sur ce disque et sur
   `X:`.
 - **L'historique lisible.** Chaque commit dit *pourquoi*.
-- **Le partage possible.** Un lien vers un dépôt vert (1 088 tests) vaut mieux
+- **Le partage possible.** Un lien vers un dépôt vert (1 099 tests) vaut mieux
   qu'un message « j'ai fait un fork » sur le forum Dolibarr.
 
 ## Vérifier avant de publier
 
 ```powershell
-.\tools\verifier.ps1          # 8 étages, 1 088 tests
+.\tools\verifier.ps1          # 8 étages, 1 099 tests
 git status --porcelain         # doit être vide
 ```

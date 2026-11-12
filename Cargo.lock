@@ -57,6 +57,7 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "db",
+ "facturx",
  "legal",
  "mail",
  "money",
@@ -632,6 +633,7 @@ dependencies = [
  "annuaire",
  "app",
  "db",
+ "facturx",
  "legal",
  "mail",
  "money",

@@ -1489,6 +1489,38 @@ fn invoice_run(
             println!("facture {id} validee");
             Ok(())
         }
+        // Factur-X : le PDF avec le XML EN 16931 attache. La crate existait et
+        // etait testee ; rien ne l'appelait.
+        "facturx" => {
+            let id = flag(args, "--id")
+                .and_then(|v| v.parse::<i64>().ok())
+                .ok_or("--id requis")?;
+            let out = flag(args, "--out").ok_or("--out requis")?;
+            let profil = match flag(args, "--profil").unwrap_or("en16931") {
+                "minimum" => facturx::Profil::Minimum,
+                "basic" => facturx::Profil::Basic,
+                "en16931" | "en-16931" => facturx::Profil::En16931,
+                autre => {
+                    return Err(
+                        format!("profil inconnu : « {autre} » (minimum, basic, en16931)").into(),
+                    )
+                }
+            };
+            let bytes = app::facture_facturx(pool, entity, id, profil)?;
+            std::fs::write(out, &bytes)?;
+            // `out` est un `&str` : on l'affiche tel quel.
+            // Le XML est relu depuis le PDF produit : c'est la preuve que la
+            // piece jointe est bien la, et pas seulement annoncee.
+            let xml = facturx::extraire(&bytes).map_err(|e| e.to_string())?;
+            println!(
+                "{}  {} octets  Factur-X {}  XML {} octets",
+                out,
+                bytes.len(),
+                profil.code(),
+                xml.len()
+            );
+            Ok(())
+        }
         "pdf" => {
             let id = flag(args, "--id")
                 .and_then(|v| v.parse::<i64>().ok())

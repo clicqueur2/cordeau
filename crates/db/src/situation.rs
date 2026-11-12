@@ -76,6 +76,20 @@ pub fn situations(
 ) -> Result<Vec<Situation>, Box<dyn Error>> {
     let total = total_devis(pool, entity, fk_propal)?;
     let mut conn = pool.get_conn()?;
+    situations_avec(&mut conn, entity, fk_propal, total)
+}
+
+/// Les situations d'un devis, sur une connexion donnee.
+///
+/// La variante publique ouvre la sienne ; celle-ci sert a lire **sous le
+/// verrou**, avec la connexion qui va ecrire : c'est ce qui empeche deux
+/// situations simultanees de voir le meme cumul.
+fn situations_avec(
+    conn: &mut mysql::PooledConn,
+    entity: i64,
+    fk_propal: i64,
+    total: Decimal,
+) -> Result<Vec<Situation>, Box<dyn Error>> {
     let rows: Vec<mysql::Row> = conn.exec(
         "SELECT f.rowid, f.ref, DATE_FORMAT(f.datef, '%Y-%m-%d'), \
                 f.situation_cycle_ref, f.situation_counter, f.situation_final, \
@@ -210,32 +224,37 @@ pub fn creer(
         }
     }
 
-    let deja = situations(pool, entity, fk_propal)?;
-    let cumul: Decimal = deja.iter().map(|s| s.pourcentage).sum();
-    let total_pct = cumul + pourcentage;
-    if total_pct > Decimal::from(100) {
-        return Err(format!(
-            "le cumul depasse 100 % : deja {} %, demande {} %",
-            cumul, pourcentage
-        )
-        .into());
-    }
-
+    // Le cumul se lit **sous le verrou** : deux situations simultanees voyaient
+    // chacune « rien de facture » et passaient toutes les deux (60 % + 60 % sur
+    // un devis, soit 120 %).
+    let total = total_devis(pool, entity, fk_propal)?;
     let mut conn = pool.get_conn()?;
     let verrou = format!("dolibarr_rs_facture_{entity}");
     let pris: Option<i64> = conn.exec_first("SELECT GET_LOCK(?, 10)", (verrou.as_str(),))?;
     if pris != Some(1) {
         return Err("verrou de numerotation indisponible (10 s)".into());
     }
-    let resultat = creer_sous_verrou(
-        &mut conn,
-        entity,
-        fk_propal,
-        &devis,
-        &deja,
-        pourcentage,
-        datef,
-    );
+    let resultat = (|| -> Result<i64, Box<dyn Error>> {
+        let deja = situations_avec(&mut conn, entity, fk_propal, total)?;
+        let cumul: Decimal = deja.iter().map(|s| s.pourcentage).sum();
+        let total_pct = cumul + pourcentage;
+        if total_pct > Decimal::from(100) {
+            return Err(format!(
+                "le cumul depasse 100 % : deja {} %, demande {} %",
+                cumul, pourcentage
+            )
+            .into());
+        }
+        creer_sous_verrou(
+            &mut conn,
+            entity,
+            fk_propal,
+            &devis,
+            &deja,
+            pourcentage,
+            datef,
+        )
+    })();
     let _: Option<i64> = conn.exec_first("SELECT RELEASE_LOCK(?)", (verrou.as_str(),))?;
     resultat
 }

@@ -9,6 +9,7 @@ license.workspace = true
 db = { path = "../db" }
 money = { path = "../money" }
 pdf = { path = "../pdf" }
+facturx = { path = "../facturx" }
 legal = { path = "../legal" }
 rust_decimal = { workspace = true }
 mail = { path = "../mail" }

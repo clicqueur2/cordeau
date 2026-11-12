@@ -119,7 +119,7 @@ correspondance : le jour où on les lira, le nom sera bon sans y penser.
 Rien ne se déclare fini sans ces quatre commandes, et sans avoir lu leur sortie :
 
 ```powershell
-.\tools\verifier.ps1                                    # 8 étages, 1 088 tests
+.\tools\verifier.ps1                                    # 8 étages, 1 099 tests
 cordeau audit --dsn … --entity 7                        # lecture seule
 python tools\balayage-ecrans.py                         # tous les GET, zéro 500
 python tools\compare-prod.py                            # compteurs base contre page

@@ -34,13 +34,38 @@ fn horodatage(pool: &Pool) -> Result<String, Box<dyn Error>> {
     Ok(v.unwrap_or_else(|| "sauvegarde".to_string()))
 }
 
+/// Profondeur maximale d'un arbre de documents.
+///
+/// Un dossier reel depasse rarement dix niveaux ; au-dela, c'est un lien qui
+/// boucle ou un montage mal fait. La borne evite de mourir sur la pile : le
+/// parcours est recursif, et un debordement de pile tue le **processus**, pas
+/// seulement la requete.
+const PROFONDEUR_MAX: usize = 64;
+
 fn compter(dossier: &Path) -> usize {
+    compter_a(dossier, 0)
+}
+
+fn compter_a(dossier: &Path, profondeur: usize) -> usize {
+    if profondeur > PROFONDEUR_MAX {
+        return 0;
+    }
     let mut n = 0;
     if let Ok(entrees) = fs::read_dir(dossier) {
         for e in entrees.flatten() {
             let p = e.path();
-            if p.is_dir() {
-                n += compter(&p);
+            // `symlink_metadata` ne suit pas le lien : un lien qui pointe vers
+            // son propre parent ferait recurrer sans fin, et le serveur
+            // tomberait sur un simple GET /parametres/sauvegarde.
+            let meta = match fs::symlink_metadata(&p) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            if meta.file_type().is_symlink() {
+                continue;
+            }
+            if meta.is_dir() {
+                n += compter_a(&p, profondeur + 1);
             } else {
                 n += 1;
             }
@@ -50,7 +75,11 @@ fn compter(dossier: &Path) -> usize {
 }
 
 fn copier(source: &Path, destination: &Path) -> std::io::Result<()> {
-    if !source.exists() {
+    copier_a(source, destination, 0)
+}
+
+fn copier_a(source: &Path, destination: &Path, profondeur: usize) -> std::io::Result<()> {
+    if profondeur > PROFONDEUR_MAX || !source.exists() {
         return Ok(());
     }
     for e in fs::read_dir(source)?.flatten() {
@@ -70,7 +99,7 @@ fn copier(source: &Path, destination: &Path) -> std::io::Result<()> {
         }
         if meta.is_dir() {
             fs::create_dir_all(&cible)?;
-            copier(&p, &cible)?;
+            copier_a(&p, &cible, profondeur + 1)?;
         } else {
             fs::copy(&p, &cible)?;
         }

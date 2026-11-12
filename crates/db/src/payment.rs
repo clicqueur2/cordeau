@@ -416,8 +416,28 @@ fn create_sous_verrou(
 }
 
 /// Supprime un reglement et son affectation, puis recalcule l'etat de la facture.
+///
+/// Le **meme verrou** que la creation est pris : sans lui, la suppression
+/// recalculait `paye` sur un instantane et pouvait ecraser l'encaissement qu'un
+/// autre fil venait d'enregistrer — facture « payee » avec un trou, et plus
+/// jamais relancee.
 pub fn delete(pool: &Pool, entity: i64, rowid: i64) -> Result<(), Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
+    let verrou = format!("dolibarr_rs_paiement_{entity}");
+    let pris: Option<i64> = conn.exec_first("SELECT GET_LOCK(?, 10)", (verrou.as_str(),))?;
+    if pris != Some(1) {
+        return Err("verrou de paiement indisponible (10 s)".into());
+    }
+    let resultat = delete_sous_verrou(&mut conn, entity, rowid);
+    let _: Option<i64> = conn.exec_first("SELECT RELEASE_LOCK(?)", (verrou.as_str(),))?;
+    resultat
+}
+
+fn delete_sous_verrou(
+    conn: &mut mysql::PooledConn,
+    entity: i64,
+    rowid: i64,
+) -> Result<(), Box<dyn Error>> {
     let factures: Vec<i64> = conn.exec(
         "SELECT pf.fk_facture FROM llx_paiement_facture pf \
          INNER JOIN llx_paiement p ON p.rowid = pf.fk_paiement \

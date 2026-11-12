@@ -1,4 +1,4 @@
-﻿//! Cas d'usage partages par le CLI et le web.
+//! Cas d'usage partages par le CLI et le web.
 //!
 //! Cette couche ne fait ni SQL ni mise en page : elle prend les objets de `db`,
 //! les traduit en vues `pdf` et en contexte `legal`, et rend le document.
@@ -868,6 +868,102 @@ pub fn facture_pdf(pool: &Pool, entity: i64, id: i64) -> Result<RenduPdf, Box<dy
         bytes: r.bytes,
         pages: r.pages,
     })
+}
+
+/// La facture au format Factur-X : le PDF habituel, avec le XML EN 16931
+/// attache dans un flux embarque.
+///
+/// C'est le format que la reforme francaise rend obligatoire a l'emission ; un
+/// PDF ordinaire ne suffit plus pour un client assujetti.
+///
+/// Le XML est construit a partir de la **facture validee** : meme reference,
+/// memes lignes, memes totaux que le PDF. Les deux ne peuvent pas diverger
+/// puisqu'ils lisent la meme source.
+pub fn facture_facturx(
+    pool: &Pool,
+    entity: i64,
+    id: i64,
+    profil: facturx::Profil,
+) -> Result<Vec<u8>, Box<dyn Error>> {
+    let f = db::invoice::get(pool, entity, id)?.ok_or("facture introuvable")?;
+    let soc = db::party::get(pool, entity, f.fk_soc.ok_or("facture sans tiers")?)?
+        .ok_or("tiers introuvable")?;
+    let lignes = db::invoice::lines(pool, entity, id)?;
+    let emit = db::company::get(pool, entity)?;
+    let unites = db::dict::unites_libelle(pool).unwrap_or_default();
+
+    // Le PDF d'abord : c'est lui qui porte le XML, et son rendu peut echouer
+    // (identite incomplete) — autant le savoir avant de construire le XML.
+    let rendu = facture_pdf(pool, entity, id)?;
+
+    let vendeur = facturx::Partie {
+        nom: emit.nom.clone(),
+        siret: emit.siret.clone(),
+        tva: emit.tva_intra.clone(),
+        rue: emit.adresse.clone(),
+        code_postal: emit.code_postal.clone(),
+        ville: emit.ville.clone(),
+        pays: emit.code_pays(),
+    };
+    let acheteur = facturx::Partie {
+        nom: soc.nom.clone(),
+        siret: soc.siret.clone(),
+        tva: soc.tva_intra.clone(),
+        rue: soc.address.clone(),
+        code_postal: soc.zip.clone(),
+        ville: soc.town.clone(),
+        // Le pays du tiers est un identifiant de dictionnaire ; sans resolution
+        // disponible ici, on laisse la France par defaut, cas de tres loin le
+        // plus frequent pour ce noyau. Un client etranger demandera la
+        // resolution du dictionnaire pays.
+        pays: Some("FR".to_string()),
+    };
+
+    let lignes_xml: Vec<facturx::Ligne> = lignes
+        .iter()
+        .filter(|l| l.product_type != 9)
+        .map(|l| facturx::Ligne {
+            designation: l.label.clone().unwrap_or_default(),
+            quantite: l.qty.unwrap_or_default(),
+            unite: l
+                .fk_unit
+                .and_then(|u| unites.get(&u).cloned())
+                .filter(|u| !u.trim().is_empty()),
+            prix_unitaire_ht: l.subprice.unwrap_or_default(),
+            taux_tva: l.tva_tx.unwrap_or_default(),
+            montant_ht: l.total_ht.unwrap_or_default(),
+            // Le code d'exoneration (VATEX) vit dans le dictionnaire de TVA ;
+            // une ligne a 0 % sans code sera signalee par `regles_metier`.
+            exoneration: None,
+        })
+        .collect();
+
+    let iban = db::invoice::compte_bancaire(pool, entity, id)
+        .ok()
+        .flatten()
+        .and_then(|compte| db::banque::compte(pool, entity, compte).ok().flatten())
+        .and_then(|c| c.iban);
+
+    let facture = facturx::Facture {
+        numero: f.ref_.clone(),
+        date: f.datef.clone().unwrap_or_default(),
+        echeance: f.date_lim_reglement.clone(),
+        vendeur,
+        acheteur,
+        lignes: lignes_xml,
+        total_ht: f.total_ht.unwrap_or_default(),
+        total_tva: f.total_tva.unwrap_or_default(),
+        total_ttc: f.total_ttc.unwrap_or_default(),
+        devise: "EUR".to_string(),
+        // 30 = virement (BT-81), le mode d'usage quand un RIB est imprime.
+        moyen_paiement: iban.as_ref().map(|_| "30".to_string()),
+        iban,
+        // A1 = « commande », valeur d'usage en France (BT-23).
+        processus: Some("A1".to_string()),
+    };
+
+    let xml = facturx::xml(&facture, profil).map_err(|e| e.to_string())?;
+    facturx::attacher(&rendu.bytes, &xml).map_err(|e| e.to_string().into())
 }
 
 #[cfg(test)]

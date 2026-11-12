@@ -16,6 +16,7 @@ serde_json = { workspace = true }
 db = { path = "../db" }
 pdf = { path = "../pdf" }
 app = { path = "../app" }
+facturx = { path = "../facturx" }
 legal = { path = "../legal" }
 annuaire = { path = "../annuaire" }
 mail = { path = "../mail" }

@@ -23,7 +23,7 @@ les modules du Dolistore.
 | Base de référence | 487 tables, empreinte `7293039a…8b2f` |
 
 **Vérification** : `tools/verifier.ps1` — huit étages (formatage, clippy `-D warnings`,
-1 088 tests, empreinte du schéma, chaîne métier, interface, migrations, annuaire).
+1 099 tests, empreinte du schéma, chaîne métier, interface, migrations, annuaire).
 
 ## Ce qui marche
 

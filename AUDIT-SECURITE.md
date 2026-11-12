@@ -1,6 +1,6 @@
 # Audit de sécurité — 10 novembre 2026
 
-> Périmètre : le dépôt `cordeau` (24 crates, 1 088 tests) et ses surfaces
+> Périmètre : le dépôt `cordeau` (24 crates, 1 099 tests) et ses surfaces
 > exposées — interface web, API REST, portail client, MCP.
 >
 > **Ce qui n'avait pas pu être fait le 10** : ni `semgrep` ni `cargo-audit`
@@ -319,6 +319,55 @@ plus que la branche en cours. Test : diamant A -> B, C -> vis, quantites 2 + 3.
 - **Deduction de l'acompte sur les situations intermediaires** : seule la
   situation finale deduit l'acompte (les intermediaires facturent leur
   pourcentage). Le plafond global, lui, empeche tout depassement.
+
+---
+
+## Passe du 12 novembre (cloture) — concurrence, recursion, Factur-X
+
+### Quatre courses qui produisaient des pieces fausses
+
+| Constat | Correction |
+|---|---|
+| **critique** — le garde « ce devis a deja ete facture » etait lu **hors du verrou**, et le lien `llx_element_element` pose **apres** que le verrou soit rendu : deux clics simultanes creaient deux factures pour un devis | garde, creation et lien tiennent sous le **meme** `GET_LOCK` ; le lien est pose avant de le rendre, puisque c'est lui qui rend le garde vrai pour l'appel suivant. Meme chose pour devis -> commande (deja sous verrou) |
+| **eleve** — les situations lisaient le cumul **avant** le verrou et reutilisaient une liste perimee : deux situations de 60 % facturaient 120 % du devis | la lecture du cumul et le controle passent sous le verrou, sur la connexion qui ecrit (`situations_avec`) |
+| **eleve** — l'acompte etait insere en facture **type 0**, puis requalifie type 3 par un `UPDATE` hors transaction : un echec laissait une facture de 30 % invisible pour la deduction, donc facturee deux fois | le type et la reference externe partent **dans l'INSERT** (`NewInvoice::ref_ext`), sous le verrou : une seule ecriture |
+| **eleve** — `payment::delete` ne prenait aucun verrou : il recalculait `paye` sur un instantane et pouvait ecraser un encaissement concurrent | meme `GET_LOCK` que la creation du reglement |
+
+### Une recursion qui tuait le processus
+
+`sauvegarde::compter` suivait les liens symboliques : un lien vers son propre
+parent faisait recurrer jusqu'a la mort de la pile — donc du **processus web**,
+atteignable par un simple `GET /parametres/sauvegarde`. `copier` avait le garde,
+`compter`, qui parcourt le meme arbre, ne l'avait pas. Les deux refusent
+desormais les liens et bornent la profondeur a 64.
+
+### Factur-X : une crate validee que rien n'appelait
+
+`facturx` produisait un XML EN 16931 et savait l'attacher a un PDF, avec ses
+tests verts — et **aucun** appel dans le web, la CLI ou le MCP. Autrement dit :
+la reforme francaise etait « prete » sur le papier seulement.
+
+Branchement fait :
+
+- `app::facture_facturx(pool, entity, id, profil)` : le PDF habituel, XML
+  attache, construit a partir de la **meme** facture que le PDF (memes lignes,
+  memes totaux — les deux ne peuvent pas diverger) ;
+- `cordeau invoice facturx --id N --out f.pdf [--profil minimum|basic|en16931]` ;
+- verifie en reel : PDF de 46 328 octets, XML de 4 239 octets relu **depuis le
+  PDF produit** (preuve que la piece jointe est bien la) ; profil BASIC :
+  4 236 octets.
+
+### Ce qui reste ouvert
+
+- `einvoicing` (reception via plateforme agreee) reste non branchee : il faut une
+  application declaree chez une plateforme, donc un partenariat, pas du code.
+- `devises`, `paie` ne sont dependues par personne : code ecrit, jamais appele.
+- `impex` : l'import des produits et des factures prend encore une connexion par
+  groupe de lignes (le correctif des tiers n'a pas ete applique aux deux autres),
+  et le regroupement y est en O(n2).
+- Deux codes de TVA d'exoneration (VATEX) ne sont pas lus depuis le dictionnaire :
+  une ligne a 0 % sur un assujetti sera signalee par `regles_metier` plutot que
+  remplie automatiquement.
 
 ---
 
