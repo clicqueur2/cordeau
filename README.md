@@ -1,473 +1,154 @@
-# cordeau
+# Cordeau
 
-> Pour contribuer : **[DEVELOPPEMENT.md](DEVELOPPEMENT.md)** — architecture, règles de code,
-> recettes pour ajouter un écran ou un module, et les pièges qui coûtent une heure.
-> Pour publier : **[PUBLIER.md](PUBLIER.md)**.
+**Dolibarr, même base, autre moteur.** Un noyau d'ERP écrit en Rust qui lit la
+base Dolibarr telle quelle — Dolibarr PHP continue de la lire sans rien voir, et
+on revient en arrière quand on veut.
 
-Noyau Dolibarr 24.0.1 réécrit en Rust, **sur le schéma de données officiel**.
-Écrans, calculs, PDF, API et serveur MCP en Rust ; PHP ne sert plus qu'à exécuter
-les modules du Dolistore.
+![Tableau de bord](docs/captures/01-tableau-de-bord.png)
 
-## État, mesuré le 10 novembre 2026
+---
 
-| | |
+## Le problème que ça règle
+
+Dolibarr est un bon logiciel avec un défaut de fabrication : chaque page est
+reconstruite à chaque clic, en PHP, avec des dizaines de requêtes SQL.
+
+Cordeau garde **la même base de données** — le même schéma, à l'octet près — et
+reconstruit la page autrement. Rien à migrer, rien à importer : on pointe
+Cordeau sur la base existante, il lit. Et si ça ne plaît pas, Dolibarr PHP la
+relit comme avant.
+
+## Ce que ça donne, mesuré
+
+Même machine, **même base** (copie de production : 932 tiers, 236 factures),
+modules du cœur seulement, build `release`, PHP 8.3 avec opcache :
+
+| Page | Dolibarr 24 | Cordeau |
+|---|---|---|
+| Connexion | 25 ms | **0,5 ms** |
+| Liste des tiers (932 fiches) | 46 ms | **4,4 ms** |
+| Liste des produits | 33 ms | **4,0 ms** |
+| Liste des devis | 48 ms | **10 ms** |
+| Fiche de facture | 28 ms | **17 ms** |
+
+Le protocole complet, les 95ᵉ centiles et **les limites** de cette mesure sont
+dans [COMPARAISON-MESUREE.md](COMPARAISON-MESUREE.md). En résumé : sur une fiche
+de facture — là où il y a du vrai travail par ligne — l'écart est de 1,6 ×, pas
+de 10 ×. `php -S` sert une requête à la fois, donc ces chiffres disent la
+latence, pas le débit à vingt utilisateurs.
+
+## Ce que ça fait
+
+| Domaine | État |
 |---|---|
-| Commits | **241**, étiquette `v0.1.0` |
-| Tests | **1 083**, 0 en échec |
-| Modules de base (`crates/db`) | **101** |
-| Crates | 24 |
-| Écrans | 97 fichiers |
-| Routes HTTP | ~280, dont **une API compatible Dolibarr** sous `/api/index.php` |
-| Serveur MCP | 26 outils, dont 7 qui écrivent |
-| Migrations prouvées | 12 → 24, 19 → 24, 23 → 24 |
-| Base de référence | 487 tables, empreinte `7293039a…8b2f` |
+| Tiers, contacts, doublons | liste, fiche, création, fusion, import/export CSV |
+| Devis, commandes, contrats | lignes, remises, TVA par taux, PDF, envoi par mail |
+| Factures, avoirs, situations | validation, numérotation légale, acomptes déduits, PDF |
+| Règlements, lettrage | affectation, solde, lettrage comptable, fichiers SEPA `pain.001` / `pain.008` |
+| Achats | commandes fournisseurs, réceptions, factures d'achat |
+| Chantiers | carnet de commandes, marge par affaire, Gantt |
+| Comptabilité | grand livre, balance, FEC, à-nouveaux, TVA sur encaissements |
+| Banques | comptes, relevés, import CSV, rapprochement |
+| Caisse, portail client, agenda, tickets, documents | oui |
+| **Factur-X** | XML EN 16931 attaché au PDF, codes d'exonération (VATEX) lus dans le dictionnaire |
+| **API** | compatible Dolibarr sous `/api/index.php` (devis, factures, commandes, tiers, contacts, projets, documents) |
+| **MCP** | 26 outils pour piloter l'ERP depuis un agent |
 
-**Vérification** : `tools/verifier.ps1` — huit étages (formatage, clippy `-D warnings`,
-1 099 tests, empreinte du schéma, chaîne métier, interface, migrations, annuaire).
+**298 routes, 66 écrans, 22 crates.** Les écrans qui manquent par rapport à
+Dolibarr sont listés plus bas, sans détour.
 
-## Ce qui marche
+## La même base, vraiment
 
-- **Devis → commande → facture → règlement → relance**, PDF au centime près,
-  RIB, décennale, pénalités.
-- **Achats fournisseurs**, banque et rapprochement, grand livre, journal, FEC,
-  lettrage, clôture.
-- **Chantiers**, tâches, **Gantt** en SVG (sans JavaScript), carnet de commandes,
-  marge par chantier.
-- **Tiers, contacts, produits, stock, lots et séries**, caisse, GED, contrats,
-  salaires, recrutement, ressources, réservations, inscriptions.
-- **Recherche globale en SQL**, filtres et **choix de colonnes par utilisateur**
-  (`llx_user_param`), **7 styles** d'affichage suivant le compte.
-- **Portail client** (`/public/portail`) : le client voit ses devis et ses
-  factures, en lecture seule, et rien d'autre.
-- **API compatible Dolibarr** : les intégrations n8n existantes marchent sans
-  changement.
-- **Presets de métier** : base nue, BTP, architecte, logistique, commerce,
-  bureau d'études, association.
+| Cas | Statut |
+|---|---|
+| Base Dolibarr **24.0.1** existante | **utilisée telle quelle** — c'est la base de toutes les mesures ci-dessus |
+| Base **12 → 24** | migrée et vérifiée (307 → 400 tables) |
+| Base **19 → 24** | migrée et vérifiée (372 → 406) |
+| Base **23 → 24** | migrée et vérifiée (399 → 407) |
+| Retour en arrière | Dolibarr PHP relit la base après passage de Cordeau |
+
+Le schéma du cœur est **inchangé** : 410 tables, empreinte vérifiée à chaque
+passe de vérification. Les tables propres aux fonctions qui n'existent pas chez
+Dolibarr (marges, journal de caisse) sont préfixées `llx_<module>_`.
+
+## Essayer en cinq minutes
+
+```
+cargo build --release
+.\tools\installer.ps1 -Base cordeau_test        # base vierge : 410 tables, admin, preset BTP
+.\target\release\cordeau-web.exe                # http://127.0.0.1:8090
+```
+
+Sur une base existante, il n'y a rien à installer :
+
+```
+$env:DOLIBARR_DSN = "mysql://user:motdepasse@127.0.0.1:3306/dolibarr"
+cargo run -p web --release
+```
+
+Détail : [INSTALLER.md](INSTALLER.md). ⚠️ **Windows uniquement** pour
+l'installateur.
+
+## Le portail client
+
+![Fiche de devis](docs/captures/03-devis-fiche.png)
+
+Chaque client a son accès (`/public/portail`) : ses devis, ses factures, ses
+PDF — et rien d'autre. La session est distincte de celle du bureau, et chaque
+page vérifie que la pièce appartient bien au client avant de l'afficher.
+
+## Comment c'est vérifié
+
+**1 057 tests**, `clippy -D warnings` propre, et un script qui refuse de
+continuer au premier échec :
+
+```
+.\tools\verifier.ps1
+```
+
+Huit étages : formatage, analyse statique, tests, **empreinte du schéma**
+Dolibarr, chaînes de migration (12, 19, 23 → 24), chaîne métier complète
+(devis → facture → règlement → PDF), dix écrans, annuaire.
 
 ## Ce qui ne marche pas encore
 
-- Les connecteurs externes : **Stripe, PayPal, LDAP, OAuth**, import de relevé
-  bancaire. Rien n'est livré sans clé de test et sans essai réel.
-- Le **rodage** : Cordeau n'a jamais servi un mois entier en production.
+- **réception de factures électroniques** : le code existe, il faut une
+  plateforme agréée — un partenariat, pas une ligne de Rust ;
+- **connecteurs externes** (Stripe, PayPal, LDAP, OAuth) : non livrés ;
+- **installateur Windows seulement** ;
+- **pas de test de charge** : personne n'a mesuré vingt utilisateurs simultanés ;
+- **66 écrans**, pas les 400 de Dolibarr : les fonctions rares (GRH avancée, MRP
+  fin, multi-entrepôts complexe) ne sont pas toutes là.
 
-## État
+## Les captures
 
-| Crate | Rôle | Tests |
-|---|---|---|
-| `money` | arrondis et totaux de ligne compatibles `price.lib.php` | 8 |
-| `schema` | parseur du schéma officiel, manifeste, préparation SQL | 10 |
-| `auth` | mots de passe `llx_user` (bcrypt `$2y$`, md5 historique) | 7 |
-| `db` | accès MySQL, vérification du schéma, tiers, produits, devis | 2 unités + 11 intégration |
-| `pdf` | rendu PDF Typst des documents (A4, multi-page, totaux insécables) | 5 |
-| `cli` | `schema …`, `party …`, `product …`, `proposal …`, `money line` | — |
-
-## Tiers
-
-```bash
-export DOLIBARR_DSN="mysql://root:root@127.0.0.1:3307/dolibarr"
-
-cargo run -q -p cordeau -- party add --nom "M&Mme Martin" \
-  --zip 69005 --town "Lyon"
-# cree  rowid=17  code_client=CU2611-00003  M&Mme Martin
-
-cargo run -q -p cordeau -- party list --limit 10
-cargo run -q -p cordeau -- party show --id 17
-```
-
-Le code client suit le format de `mod_codeclient_leopard` (`CU` + `AAAMM` + `-` +
-5 chiffres), attribué dans la transaction d'insertion, avec reprise en cas de
-collision sur `uk_societe_code_client`.
-
-Les tests d'intégration s'exécutent quand `DOLIBARR_DSN` est défini, et sont
-ignorés proprement sinon (la CI sans base reste verte).
-
-## Produits et services
-
-```bash
-cargo run -q -p cordeau -- product add --ref "BOR-030" \
-  --label "Bordure granit gris 30 cm" --prix 125.50 --tva 20 --unite M
-# cree  rowid=10  ref=BOR-030  Bordure granit gris 30 cm  prix=125.5  tva=20
-
-cargo run -q -p cordeau -- product add --ref "MO-MAC" \
-  --label "Main d oeuvre macon" --prix 48 --tva 10 --service
-
-cargo run -q -p cordeau -- product list
-```
-
-Les prix sont lus avec `CAST(price AS CHAR)` puis convertis en `Decimal` : le
-schéma les stocke en `double(24,8)`, on refuse de les faire transiter par un
-flottant. `price_ttc` est calculé à l'écriture à partir de `tva_tx`.
-`--unite` prend le `code` de `llx_c_units` (`M`, `KG`, `H`…).
-
-## Devis et PDF
-
-```bash
-cargo run -q -p cordeau -- proposal add --soc 17 \
-  --section "Dépose carrelage" \
-  --ligne "32|28.50|10|Dépose carrelage existant et évacuation" \
-  --ligne "32|42.00|10|Ragréage et préparation du support" \
-  --section "Reprise étanchéité" \
-  --ligne "1|1480.00|10|Reprise étanchéité sous carrelage"
-# cree  rowid=62  ref=PR2611-0002  total_ht=3736  total_ttc=4109.6
-
-cargo run -q -p cordeau -- proposal list
-cargo run -q -p cordeau -- proposal show --id 62
-cargo run -q -p cordeau -- proposal pdf --id 62 --out devis.pdf
-# devis.pdf  1 pages  42215 octets
-```
-
-Une ligne se saisit `quantite|prix_unitaire_ht|taux_tva|libelle[|remise]`.
-
-`--section` ouvre une section : une ligne de structure est écrite en base
-(`product_type = 9`, `special_code = 104777`, montants à zéro), ce que le cœur
-de Dolibarr reconnaît comme ligne spéciale (`core/lib/pdf.lib.php`). Ces lignes
-**ne comptent pas** dans les totaux, et les sous-totaux de section sont calculés
-au rendu, pas stockés : pas de risque de double compte.
-
-Numérotation `PR` + `AAAMM` + `-` + 4 chiffres, sans remise à zéro mensuelle,
-reprise sur collision, calculée dans la transaction (comme `mod_propale_marbre`).
-
-Le PDF est composé par Typst depuis `crates/pdf/templates/document.typ` : le
-montant de chaque cellule arrive **déjà formaté**, le crate `pdf` ne calcule rien.
-
-## Vérifier
-
-```powershell
-.\tools\verifier.ps1            # formatage, clippy, 576 tests, schéma, chaîne métier, 12 écrans
-.\tools\verifier.ps1 -Reseau    # + les tests des API de l'État (BAN, INSEE)
-```
-
-Sort en code 1 au premier échec. Utilisable en pré-commit ou en CI.
-
-## Démarrage
-
-```bash
-# 1. schéma officiel (sparse checkout de la source amont)
-cd _vendor/dolibarr-src
-git sparse-checkout add htdocs/install/mysql htdocs/core/lib htdocs/install
-cd ../..
-
-# 2. base de test (MariaDB portable, port 3307)
-C:/Users/Maxime/.mariadb/server/bin/mysqld.exe \
-  --defaults-file=C:/Users/Maxime/.mariadb/my.ini --port=3307 --console
-
-# 3. instructions SQL prêtes à charger
-cargo run -q -p cordeau -- schema prepare \
-  --src "_vendor/dolibarr-src/htdocs/install/mysql" --out "sql-ready"
-
-# 4. chargement (ordre Dolibarr : tables, clés, dictionnaires)
-mysql -h127.0.0.1 -P3307 -uroot -proot -e \
-  "CREATE DATABASE dolibarr CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -h127.0.0.1 -P3307 -uroot -proot dolibarr < sql-ready/1_tables.sql
-mysql --force -h127.0.0.1 -P3307 -uroot -proot dolibarr < sql-ready/2_keys.sql
-mysql --force -h127.0.0.1 -P3307 -uroot -proot dolibarr < sql-ready/3_data.sql
-
-# 5. vérification
-cargo run -q -p cordeau -- schema verify \
-  --dsn mysql://root:root@127.0.0.1:3307/dolibarr --manifest schema-24.0.1.json
-```
-
-```
-manifeste          24.0.1 (410 tables)
-base dolibarr      410 tables, 5362 colonnes
-tables absentes    0
-colonnes absentes  0
-types differents   0
-colonnes en plus   0 (modules)
-RESULTAT           compatible
-```
-
-## Schéma de référence
-
-Dolibarr **24.0.1**, commit `b795838`.
-
-```
-749 fichiers SQL · 410 tables · 5 362 colonnes · 749 index · 235 clés étrangères
-empreinte 7293039ac8f4426f3a4a102552ca681228c2e2ffaec7bac10c9e6cc2cae68b2f
-```
-
-Le manifeste est généré, jamais édité. Le test
-`schema_officiel_24_0_1_est_integralement_parsable` échoue si l'amont change.
-
-## Règles de code
-
-1. Jamais de `SELECT *`, jamais d'`INSERT` sans liste de colonnes.
-2. Aucun calcul monétaire en virgule flottante : `rust_decimal` uniquement.
-3. Arrondi demi hors de zéro (comportement de `round()` en PHP).
-4. Les tables et colonnes ajoutées par un module sont tolérées, jamais supprimées.
-5. `llx_const` fait foi pour l'état d'activation des modules.
-
-## Factures
-
-```bash
-cargo run -q -p cordeau -- invoice from-proposal --devis 62
-# cree  rowid=73  ref=FA2611-0001  total_ht=3736  total_ttc=4109.6
-
-cargo run -q -p cordeau -- invoice list
-cargo run -q -p cordeau -- invoice show --id 73
-cargo run -q -p cordeau -- invoice validate --id 73
-cargo run -q -p cordeau -- invoice pdf --id 73 --out facture.pdf
-```
-
-La conversion reprend les lignes du devis, recalcule les totaux avec `money`
-(elle ne fait pas confiance aux montants stockés) et écrit le lien dans
-`llx_element_element` (`propal` → `facture`), pour que Dolibarr affiche la
-facture depuis le devis.
-
-Numérotation `FA` (avoir `AV`, acompte `AC`), même schéma que `mod_facture_terre`.
-Elle est sérialisée par un **verrou consultatif MySQL** (`GET_LOCK`) : dix
-créations simultanées donnent dix numéros distincts, sans toucher au schéma.
-
-> Écart assumé : comme Dolibarr, le numéro est attribué **à la création**, pas à
-> la validation. Un brouillon supprimé consomme donc un numéro. Pour une
-> conformité stricte (séquence sans trou), il faudra déplacer l'attribution dans
-> `validate()`.
-
-## Société et conformité
-
-Les documents sont remplis depuis la fiche société stockée dans `llx_const`,
-**aux mêmes clés que Dolibarr** (`MAIN_INFO_SOCIETE_NOM`, `MAIN_INFO_SIRET`,
-`MAIN_INFO_TVAINTRA`, `MAIN_INFO_CAPITAL`, `MAIN_INFO_RCS`…). Une fiche saisie
-dans Dolibarr est donc reprise telle quelle, et inversement.
-
-```bash
-cargo run -q -p cordeau -- company set \
-  --nom "Pierre Angulaire" --forme "SAS" --capital "10 000 EUR" \
-  --rcs "RCS Lyon 123 456 789" --adresse "12 rue des Peupliers" \
-  --cp 69005 --ville "Lyon" \
-  --siret 12345678900012 --tva-intra FR12345678900 \
-  --email contact@maconnerie-architecture.fr --delai 30
-
-cargo run -q -p cordeau -- company show
-# conformite     complete
-```
-
-Le crate `legal` compose les mentions obligatoires (code de commerce L441-9,
-CGI art. 242 nonies A, 293 B, 283-2 nonies) selon le type de document, le régime
-de TVA et la nature du client :
-
-| Situation | Mention produite |
+| | |
 |---|---|
-| Facture | pénalités de retard, indemnité forfaitaire de 40 €, escompte |
-| Devis | validité, prix HT, TVA au taux en vigueur |
-| Avoir | référence de la facture d'origine, régularisation de TVA |
-| Franchise en base | « TVA non applicable, art. 293 B du CGI » |
-| Client pro hors France (UE) | « Autoliquidation, art. 283-2 nonies du CGI » |
+| ![Devis](docs/captures/02-devis-liste.png) | ![Factures](docs/captures/04-factures-liste.png) |
+| ![Tiers](docs/captures/05-tiers-liste.png) | ![Chantiers](docs/captures/06-chantiers.png) |
 
-Une **facture dont la société ou le client ne porte pas les champs légaux est
-refusée** à la génération :
+Jeu de démonstration **fictif** : aucun nom de client réel n'apparaît dans ce
+dépôt.
 
-```
-erreur: facture non conforme : il manque SIRET du vendeur
-```
+## Documents
 
-Un devis incomplet passe, avec un avertissement sur la sortie d'erreur.
-
-- `2_keys.sql` et `3_data.sql` se chargent avec `--force` : les fichiers Dolibarr
-  contiennent des doublons assumés (deux régions `7301`, index déjà déclaré en ligne).
-  L'installeur PHP les ignore de la même façon.
-- Les 90 fichiers `llx_accounting_account_*.sql` sont exclus, comme dans
-  `install/step2.php` : les plans comptables se chargent à la sélection du pays.
-- Le découpage des instructions est **aveugle aux guillemets**, comme
-  `explode(';')` de Dolibarr : une apostrophe dans un commentaire (`can't`)
-  ne doit pas casser le chargement.
-- Le dépôt vit sur le NAS (`Z:`). Les artefacts de compilation sont redirigés
-  vers le SSD local par `.cargo/config.toml`.
-
-
-## Règlements et lettrage
-
-```bash
-cargo run -q -p cordeau -- invoice validate --id 73
-cargo run -q -p cordeau -- payment add --facture 73 --montant 1000 \
-  --mode virement --num "VIR-2026-11"
-# reglement rowid=6  total TTC=4109.6  regle=1000  reste=3109.6
-
-cargo run -q -p cordeau -- payment add --facture 73 --montant 3109.60 \
-  --mode cheque --num "CHQ-1042"
-# reglement rowid=7  regle=4109.6  reste=0  FACTURE SOLDEE
-
-cargo run -q -p cordeau -- payment list --facture 73
-cargo run -q -p cordeau -- invoice show --id 73
-```
-
-Modes : `virement`, `cheque`, `especes`, `carte`, `prelevement` (identifiants de
-`llx_c_paiement`). Un règlement peut être partiel ; la facture passe à « payée »
-(`paye = 1`, `fk_statut = 2`) quand la somme des affectations atteint le TTC.
-Supprimer un règlement rouvre la facture.
-
-**Une facture en brouillon ne peut pas être réglée** : c'est refusé avant toute
-écriture, avec le message qui dit quoi faire.
-
-Références de règlement : `PAY` + `AAAMM` + 4 chiffres. Aucune obligation légale
-ne pèse sur cette numérotation, contrairement à celle des factures.
-
-## Interface web
-
-```bash
-cargo run -q -p web
-# cordeau-web sur http://127.0.0.1:8090
-```
-
-Rendu côté serveur (maud), sans JavaScript. Les actions sont des formulaires
-`POST` suivis d'une redirection, donc l'historique du navigateur fonctionne et
-rien ne casse sans JS.
-
-Navigation en **colonne de gauche** : la section courante est mise en évidence et
-déploie ses actions (Nouveau tiers, Nouveau produit, Nouveau devis). Sous 900 px
-la colonne passe en bandeau horizontal.
-
-| Écran | Contenu |
+| Fichier | Contenu |
 |---|---|
-| Tableau de bord | facturé, encaissé, reste à encaisser, montant en retard ; dernières factures et devis en attente |
-| Tiers | recherche, liste, fiche avec devis et factures du client, **création** |
-| Produits | catalogue, **création** avec TVA et unité prises dans les dictionnaires |
-| Devis | liste, fiche avec sections et sous-totaux, **création** (client + 4 lignes), bouton « facturer », PDF |
-| Factures | liste avec reste dû et statut, fiche avec règlements, validation, encaissement, PDF |
-| **Paramètres** | société, dictionnaires, base de données |
+| [COMPARAISON-MESUREE.md](COMPARAISON-MESUREE.md) | la comparaison de vitesse, protocole et limites |
+| [GUIDE-UTILISATION.md](GUIDE-UTILISATION.md) | le mode d'emploi écran par écran |
+| [INSTALLER.md](INSTALLER.md) | installation de zéro |
+| [REFERENCE-COMMANDES.md](REFERENCE-COMMANDES.md) | la ligne de commande, commande par commande |
+| [MISE-A-JOUR.md](MISE-A-JOUR.md) | monter une base d'une version à l'autre |
+| [AUDIT-SECURITE.md](AUDIT-SECURITE.md) | l'audit, ses correctifs et ce qui reste ouvert |
+| [DEVELOPPEMENT.md](DEVELOPPEMENT.md) | règles de code, schéma, tests |
 
-## Les options de base
+## Licence et attribution
 
-L'onglet **Paramètres** est découpé en trois sous-onglets :
+**GPL-3.0-or-later** — voir [LICENSE](LICENSE).
 
-| Sous-onglet | Contenu |
-|---|---|
-| Société | dénomination, forme juridique, capital, RCS, adresse, SIRET, TVA intracom, e-mail, délai de paiement, régime de TVA — tout est éditable et écrit dans `llx_const` aux clés de Dolibarr |
-| Dictionnaires | taux de TVA, conditions de règlement, modes de paiement, unités, **puis les 64 tables `llx_c_*`** de la base avec leur nombre de lignes |
-| Base de données | serveur et version, hôte et port, base, nombre de tables et de colonnes, schéma de référence, conformité de la fiche société, modules Dolibarr activés |
-
-```
-Serveur                  11.4.5-MariaDB
-Hôte                     MRI:3307
-Base                     dolibarr
-Tables                   410
-Colonnes                 5362
-Schéma de référence      Dolibarr 24.0.1
-Conformité de la société complète
-```
-
-## Dictionnaires
-
-Le crate `db::dict` lit les tables `llx_c_*` de Dolibarr, sans les dupliquer :
-
-| Dictionnaire | Table | Usage |
-|---|---|---|
-| Taux de TVA | `llx_c_tva` | sélecteur de taux dans les formulaires produit et devis |
-| Unités | `llx_c_units` | choix de l'unité produit |
-| Modes de paiement | `llx_c_paiement` | modes du formulaire d'encaissement |
-| Conditions de règlement | `llx_c_payment_term` | délais |
-
-Ajouter une unité ou un taux dans Dolibarr le rend immédiatement disponible ici :
-rien n'est recopié dans le code.
-
-La recherche du bandeau cherche dans les tiers, les devis et les factures.
-Les statuts sont des pastilles : brouillon, validée, payée, **en retard**
-(calculé sur l'échéance réelle, qui vaut par défaut date + 30 jours).
-
-## Édition
-
-| Écran | Ce qu'on peut faire |
-|---|---|
-| `/tiers/{id}/modifier` | corriger une fiche client (nom, adresse, SIRET, TVA…) |
-| `/devis/{id}/modifier` | remplacer toutes les lignes d'un devis **en brouillon** : ajouter, retirer, changer les quantités, poser des sections |
-| `/devis/{id}/valider` | passer un devis de brouillon à validé |
-
-Deux règles protègent la comptabilité :
-
-- **un devis validé ne se modifie plus** — il faut le laisser tel quel, la modification
-  est refusée avec un message ;
-- **un devis ne se facture qu'une fois** — la seconde tentative renvoie
-  `ce devis a deja ete facture (facture n° 73)`. La vérification passe par
-  `llx_element_element`, pas par une convention maison.
-
-Dans le formulaire d'édition, une ligne sans libellé mais avec un nom de section
-ouvre une section : c'est ainsi qu'on met « Reprise étanchéité » à part.
-
-## Avoirs
-
-```bash
-cargo run -q -p cordeau -- invoice avoir --id 73
-# avoir  rowid=278  ref=AV2611-0001  total_ttc=-4109.6
-```
-
-**On ne supprime jamais une facture validée** : on l'annule par un avoir. La
-convention Dolibarr est respectée — `type = 2`, lignes à quantité **négative**,
-référence `AV`, et `fk_facture_source` qui pointe sur la facture d'origine. Le
-PDF sort avec la mention « Avoir sur la facture n° FA2611-0001 ».
-
-Le bouton « Créer un avoir » apparaît sur toute facture validée. Un avoir ne
-peut pas recevoir d'avoir, et une facture n'en reçoit qu'un.
-
-## Journal et GED
-
-Deux tables que Dolibarr utilise et que nous remplissons désormais aussi :
-
-| Événement | Écrit dans `llx_actioncomm` |
-|---|---|
-| Devis validé | « Devis PR2611-0002 validé » |
-| Devis facturé | « Devis PR2611-0002 facturé » |
-| Facture validée | « Facture FA2611-0001 validée » |
-| Règlement | « Règlement de 3 109,60 € sur la facture FA2611-0001 » |
-
-Le type d'action est `AC_OTH_AUTO`, celui que Dolibarr réserve aux événements
-automatiques. Chaque ligne porte `elementtype` et `fk_element`, donc elle
-s'affiche dans l'onglet Agenda de la fiche, côté Dolibarr comme ici.
-
-À la validation d'un devis ou d'une facture, **le PDF est déposé dans la GED** :
-fichier écrit sous `documents/<modulepart>/<réf>/<réf>.pdf` (racine réglable par
-`DOLIBARR_DOCUMENTS`) et indexé dans `llx_ecm_files` avec `src_object_type`.
-Un PDF qui n'est pas archivé n'est pas une pièce.
-
-## Facture directe et relances
-
-| Écran | Contenu |
-|---|---|
-| `/factures/nouveau` | créer une facture sans devis (client + 6 lignes) |
-| `/relances` | factures échues non réglées, avec jours de retard, reste dû et **mail prêt à partir** |
-
-```
-FA2611-0002   M&Mme Martin   2026-10-13   20 j   1 080,00 €   [Préparer le mail]
-```
-
-Le lien `mailto:` ouvre le client courrier avec l'objet et le corps déjà écrits :
-
-> Bonjour,
->
-> Sauf erreur de notre part, la facture FA2611-0002 d'un montant de 1 080,00 EUR TTC,
-> échéance du 2026-10-13, demeure impayée (20 jours de retard).
->
-> Je vous serais reconnaissant de bien vouloir procéder au règlement, ou de me faire
-> savoir si un point bloque.
-
-L'envoi reste une action humaine : pas de SMTP branché, donc rien ne part tout seul.
-C'est volontaire — une relance qui part sur le mauvais client coûte plus cher qu'une
-relance manuelle.
-
-## Tâches planifiées
-
-Pas de démon, pas de cron PHP : **un binaire et un planificateur système**.
-
-```bash
-cordeau tache relances            # liste les factures échues
-cordeau tache relances --noter    # + un événement d'agenda par facture
-cordeau tache sauvegarde          # dump SQL + documents
-cordeau tache purge --jours 90    # supprime les vieilles sauvegardes
-```
-
-```
-1 facture(s) en retard, 1440 au total
-  FA2611-0002    M&Mme Martin                  20 j  reste 1440
-```
-
-Planification sous Windows (tous les jours à 8 h) :
-
-```powershell
-schtasks /create /tn "Dolibarr relances" /sc daily /st 08:00 ^
-  /tr "cordeau.exe tache relances --noter"
-```
-
-Sous Linux, une unité `systemd` + `OnCalendar=*-*-* 08:00:00`.
-
-## Notes d'exploitation
-
-- `2_keys.sql` et `3_data.sql` se chargent avec `--force`.
+Cordeau est une **œuvre dérivée de Dolibarr ERP & CRM 24.0.1** (GPL-3.0-or-later,
+<https://www.dolibarr.org>). Le schéma de base, les dictionnaires et les
+conventions métier viennent de Dolibarr. Le code Rust est original : aucune ligne
+PHP de Dolibarr n'est recopiée — les deux seuls fichiers `.php` du dépôt sont nos
+harnais d'oracle, qui chargent les sources officielles à l'exécution pour
+comparer les résultats.
