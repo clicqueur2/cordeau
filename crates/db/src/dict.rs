@@ -100,6 +100,24 @@ pub fn exoneration_tva(
     }))
 }
 
+/// Le code pays (`FR`, `BE`, `CH`...) d'un identifiant de `llx_c_country`.
+///
+/// `llx_societe.fk_pays` vaut 0 quand la fiche ne dit rien : on traite 0 comme
+/// une absence, pas comme un pays.
+pub fn pays_code(pool: &Pool, fk_pays: Option<i64>) -> Option<String> {
+    let fk_pays = fk_pays.filter(|id| *id > 0)?;
+    let mut conn = pool.get_conn().ok()?;
+    let code: Option<String> = conn
+        .exec_first(
+            "SELECT code FROM llx_c_country WHERE rowid = :id AND active = 1",
+            params! { "id" => fk_pays },
+        )
+        .ok()
+        .flatten();
+    code.map(|c| c.trim().to_ascii_uppercase())
+        .filter(|c| !c.is_empty())
+}
+
 /// Le code VATEX d'un taux de TVA, et son libelle.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodeExoneration {

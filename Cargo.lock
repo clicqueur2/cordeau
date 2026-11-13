@@ -836,13 +836,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "devises"
-version = "0.1.0"
-dependencies = [
- "rust_decimal",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2446,14 +2439,6 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "paie"
-version = "0.1.0"
-dependencies = [
- "rust_decimal",
- "serde_json",
 ]
 
 [[package]]

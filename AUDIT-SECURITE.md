@@ -366,15 +366,22 @@ Branchement fait :
 | une ligne au prix illisible **interrompait tout l'import** (`?` dans la boucle) : un fichier de 10 000 pieces s'arretait sur une virgule, et les factures deja creees n'etaient pas annoncees | seule la facture concernee est refusee, et nommee. **Test** : deux factures, une ligne illisible → 1 creee, 1 erreur « prix unitaire », l'import continue |
 | le code **VATEX** (BT-120) vivait dans `db::dict::exoneration_tva` et n'etait lu par **personne** : une ligne a 0 % partait sans motif, et la plateforme agreee la refuse a l'envoi | le pont Factur-X lit le dictionnaire de TVA **une fois par taux distinct** et remplit l'exoneration (code + motif). Verifie en reel : `VATEX-EU-132` et son motif presents dans le XML relu du PDF |
 
+### Pays du client, et menage dans les crates
+
+| Constat | Correction |
+|---|---|
+| le pays du **client** (BT-40) etait pose en dur a `FR` : une facture a un client belge declarait la France, ce qu'une plateforme agreee refuse | resolution depuis `llx_c_country.code`, et repli sur le pays du **vendeur** quand la fiche client n'en porte pas (jamais un pays invente). Verifie en reel : vendeur `FR`, client belge `BE` dans le XML |
+| `devises` et `paie` : deux crates ecrits, testes, et **dependus par personne** — aucun crate ne les declare, aucune ligne de code ne les appelle | supprimes du workspace (l'historique git les garde : `git show 7ddfcf1:crates/paie/src/lib.rs`) |
+
+`devises` faisait d'ailleurs doublon avec `db::multidevise` (deux semantiques de
+conversion qui divergeaient). Le supprimer retire la divergence.
+
 ### Ce qui reste ouvert
 
-- `einvoicing` (reception via plateforme agreee) reste non branchee : il faut une
-  application declaree chez une plateforme, donc un partenariat, pas du code.
-- `devises` et `paie` ne sont dependues par personne : code ecrit, jamais appele.
-  A brancher ou a supprimer — je ne supprime pas de module sans accord.
-- Le pays du **client** n'est pas resolu dans le pont Factur-X (la France est
-  posee par defaut) ; le dictionnaire de TVA, lui, est interroge sans filtre de
-  pays quand la fiche n'en porte pas.
+- `einvoicing` (reception via plateforme agreee) : le code existe, mais il faut
+  une **application declaree chez une plateforme agreee**. C'est un partenariat,
+  pas une ligne de Rust. La crate est donc gardee, et reste sans appelant tant
+  que la plateforme n'est pas choisie.
 
 ---
 

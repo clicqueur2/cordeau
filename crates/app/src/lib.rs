@@ -905,6 +905,10 @@ pub fn facture_facturx(
         ville: emit.ville.clone(),
         pays: emit.code_pays(),
     };
+    // Le pays du client (BT-40) se resout dans le dictionnaire. Une fiche sans
+    // pays prend celui du **vendeur** : c'est le cas ordinaire d'un artisan qui
+    // facture autour de chez lui, et jamais un pays invente.
+    let pays_client = db::dict::pays_code(pool, soc.fk_pays).or_else(|| emit.code_pays());
     let acheteur = facturx::Partie {
         nom: soc.nom.clone(),
         siret: soc.siret.clone(),
@@ -912,11 +916,7 @@ pub fn facture_facturx(
         rue: soc.address.clone(),
         code_postal: soc.zip.clone(),
         ville: soc.town.clone(),
-        // Le pays du tiers est un identifiant de dictionnaire ; sans resolution
-        // disponible ici, on laisse la France par defaut, cas de tres loin le
-        // plus frequent pour ce noyau. Un client etranger demandera la
-        // resolution du dictionnaire pays.
-        pays: Some("FR".to_string()),
+        pays: pays_client,
     };
 
     // Le motif d'exoneration (VATEX, BT-120) vient du dictionnaire de TVA, et

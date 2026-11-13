@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/money", "crates/schema", "crates/legal", "crates/app", "crates/annuaire", "crates/web", "crates/auth", "crates/db", "crates/pdf", "crates/cli", "crates/mcp", "crates/mail", "crates/sepa", "crates/greffons", "crates/greffon-exemple", "crates/mrp", "crates/devises", "crates/pos", "crates/paie", "crates/i18n", "crates/recurrence", "crates/comptabilite", "crates/facturx", "crates/einvoicing"]
+members = ["crates/money", "crates/schema", "crates/legal", "crates/app", "crates/annuaire", "crates/web", "crates/auth", "crates/db", "crates/pdf", "crates/cli", "crates/mcp", "crates/mail", "crates/sepa", "crates/greffons", "crates/greffon-exemple", "crates/mrp", "crates/pos", "crates/i18n", "crates/recurrence", "crates/comptabilite", "crates/facturx", "crates/einvoicing"]
 
 [workspace.package]
 version = "0.1.0"
