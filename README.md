@@ -141,8 +141,26 @@ dépôt.
 | [INSTALLER.md](INSTALLER.md) | installation de zéro |
 | [REFERENCE-COMMANDES.md](docs/REFERENCE-COMMANDES.md) | la ligne de commande, commande par commande |
 | [MISE-A-JOUR.md](docs/MISE-A-JOUR.md) | monter une base d'une version à l'autre |
+| [CE-QUE-REECRIRE-APPREND.md](docs/CE-QUE-REECRIRE-APPREND.md) | ce qu'une deuxième implémentation révèle du schéma Dolibarr |
+| [ANNONCE-FORUM.md](docs/ANNONCE-FORUM.md) | le texte de l'annonce au forum, prêt à copier |
 | [AUDIT-SECURITE.md](docs/AUDIT-SECURITE.md) | l'audit, ses correctifs et ce qui reste ouvert |
 | [DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md) | règles de code, schéma, tests |
+
+## Un projet de test, offert
+
+Cordeau est né d'une lecture du forum Dolibarr : la lenteur de certains écrans
+sur une base qui grossit, et les zones grises du schéma quand on veut brancher
+quelque chose à côté. C'est un **projet de test** — il pourrait devenir une
+« version 30 », ou rester une curiosité.
+
+**Il est offert à qui veut le reprendre.** La licence est GPL-3.0 comme
+Dolibarr, puisque c'est une œuvre dérivée. Ce qui compte, c'est que ça serve : à
+Dolibarr, à un développeur qui cherche une base pour expérimenter, ou à un
+artisan qui veut des écrans qui répondent.
+
+Ce n'est pas mon métier — je suis architecte et maçon. En revanche, c'est testé :
+**1 057 tests**, huit étages de vérification, et une empreinte du schéma Dolibarr
+contrôlée à chaque passe.
 
 ## Licence et attribution
 
