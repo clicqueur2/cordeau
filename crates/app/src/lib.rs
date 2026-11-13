@@ -919,6 +919,28 @@ pub fn facture_facturx(
         pays: Some("FR".to_string()),
     };
 
+    // Le motif d'exoneration (VATEX, BT-120) vient du dictionnaire de TVA, et
+    // non de la ligne : c'est le **taux** qui est exonere, pas la prestation.
+    // On le lit une fois par taux distinct, pas une fois par ligne.
+    let mut exonerations: BTreeMap<String, Option<facturx::Exoneration>> = BTreeMap::new();
+    for taux in lignes
+        .iter()
+        .filter(|l| l.product_type != 9)
+        .map(|l| l.tva_tx.unwrap_or_default())
+    {
+        let cle = taux.normalize().to_string();
+        if exonerations.contains_key(&cle) {
+            continue;
+        }
+        let trouve = db::dict::exoneration_tva(pool, entity, soc.fk_pays, taux)
+            .unwrap_or(None)
+            .map(|c| facturx::Exoneration {
+                code: c.code,
+                motif: c.libelle,
+            });
+        exonerations.insert(cle, trouve);
+    }
+
     let lignes_xml: Vec<facturx::Ligne> = lignes
         .iter()
         .filter(|l| l.product_type != 9)
@@ -931,10 +953,11 @@ pub fn facture_facturx(
                 .filter(|u| !u.trim().is_empty()),
             prix_unitaire_ht: l.subprice.unwrap_or_default(),
             taux_tva: l.tva_tx.unwrap_or_default(),
+            exoneration: exonerations
+                .get(&l.tva_tx.unwrap_or_default().normalize().to_string())
+                .cloned()
+                .flatten(),
             montant_ht: l.total_ht.unwrap_or_default(),
-            // Le code d'exoneration (VATEX) vit dans le dictionnaire de TVA ;
-            // une ligne a 0 % sans code sera signalee par `regles_metier`.
-            exoneration: None,
         })
         .collect();
 

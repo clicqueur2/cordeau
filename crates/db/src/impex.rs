@@ -199,6 +199,19 @@ pub fn importer_produits(
     let i_type = colonne(&table.entetes, &["type", "nature"]);
     let i_unite = colonne(&table.entetes, &["unite", "unit", "unit code"]);
 
+    // Une seule connexion, et les references deja presentes chargees d'un
+    // coup : un emprunt de pool par ligne coutait 100 000 connexions sur un
+    // fichier de 100 000 references.
+    let mut conn = pool.get_conn()?;
+    use mysql::prelude::Queryable;
+    let mut connues: std::collections::HashSet<String> = conn
+        .exec::<String, _, _>(
+            "SELECT ref FROM llx_product WHERE entity = :entity",
+            (entity,),
+        )?
+        .into_iter()
+        .collect();
+
     let mut rapport = RapportImport::default();
     for (n, ligne) in table.lignes.iter().enumerate() {
         let (Some(reference), Some(libelle)) =
@@ -208,13 +221,9 @@ pub fn importer_produits(
             continue;
         };
 
-        let mut conn = pool.get_conn()?;
-        use mysql::prelude::Queryable;
-        let existe: Option<i64> = conn.exec_first(
-            "SELECT rowid FROM llx_product WHERE entity = ? AND ref = ? LIMIT 1",
-            (entity, reference.as_str()),
-        )?;
-        if existe.is_some() {
+        // L'ensemble est tenu a jour : deux lignes du meme fichier portant la
+        // meme reference ne creent pas deux fiches.
+        if !connues.insert(reference.clone()) {
             rapport.ignores += 1;
             continue;
         }
@@ -291,8 +300,10 @@ pub fn importer_factures(
     let i_pu = colonne(&table.entetes, &["pu", "prix", "prix_ht", "price"]);
     let i_tva = colonne(&table.entetes, &["tva", "taux", "vat"]);
 
-    // Regroupement dans l'ordre d'apparition.
+    // Regroupement dans l'ordre d'apparition, avec un index : `find` lineaire
+    // faisait 5 milliards de comparaisons sur 100 000 lignes.
     let mut groupes: Vec<(String, Vec<Vec<String>>)> = Vec::new();
+    let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for ligne in &table.lignes {
         let Some(client) = valeur(ligne, Some(i_client)) else {
             continue;
@@ -301,11 +312,27 @@ pub fn importer_factures(
             Some(r) => format!("{client}|{r}"),
             None => client.clone(),
         };
-        match groupes.iter_mut().find(|(c, _)| *c == cle) {
-            Some((_, lignes)) => lignes.push(ligne.clone()),
-            None => groupes.push((cle, vec![ligne.clone()])),
+        match index.get(&cle) {
+            Some(i) => groupes[*i].1.push(ligne.clone()),
+            None => {
+                index.insert(cle.clone(), groupes.len());
+                groupes.push((cle, vec![ligne.clone()]));
+            }
         }
     }
+
+    // Une connexion pour tout l'import, et les fiches clients chargees d'un
+    // coup : un emprunt de pool par facture faisait autant de connexions que de
+    // pieces reprises.
+    let mut conn = pool.get_conn()?;
+    use mysql::prelude::Queryable;
+    let mut tiers: std::collections::HashMap<String, i64> = conn
+        .exec::<(String, i64), _, _>(
+            "SELECT nom, rowid FROM llx_societe WHERE entity = :entity",
+            (entity,),
+        )?
+        .into_iter()
+        .collect();
 
     let mut rapport = RapportImport::default();
     for (cle, lignes) in groupes {
@@ -313,42 +340,46 @@ pub fn importer_factures(
 
         // Le tiers est cree s'il n'existe pas : on ne perd pas une facture
         // parce que la fiche client manque.
-        let mut conn = pool.get_conn()?;
-        use mysql::prelude::Queryable;
-        let mut fk_soc: Option<i64> = conn.exec_first(
-            "SELECT rowid FROM llx_societe WHERE entity = ? AND nom = ? LIMIT 1",
-            (entity, client.as_str()),
-        )?;
-        if fk_soc.is_none() {
-            fk_soc = Some(crate::party::create(
-                pool,
-                entity,
-                &crate::party::NewParty::client(&client),
-            )?);
-        }
-        let fk_soc = fk_soc.unwrap_or(0);
+        let fk_soc = match tiers.get(&client) {
+            Some(id) => *id,
+            None => {
+                let id =
+                    crate::party::create(pool, entity, &crate::party::NewParty::client(&client))?;
+                tiers.insert(client.clone(), id);
+                id
+            }
+        };
 
         let mut nouvelle = crate::invoice::NewInvoice::new(fk_soc);
         let premiere = &lignes[0];
         nouvelle.datef = valeur(premiere, i_date);
         nouvelle.date_lim_reglement = valeur(premiere, i_echeance);
 
-        for ligne in &lignes {
-            let Some(libelle) = valeur(ligne, Some(i_libelle)) else {
-                continue;
-            };
-            // Un prix illisible ne vaut **pas** zero : une facture a 0 € qui
-            // part chez le client est pire qu'une ligne refusee. On refuse la
-            // ligne, on dit pourquoi, et la facture ne sera pas creee.
-            let qte = lire_decimal(valeur(ligne, i_qte).as_deref(), rust_decimal::Decimal::ONE)
-                .map_err(|e| format!("{cle} : quantite {e}"))?;
-            let pu = lire_decimal(valeur(ligne, i_pu).as_deref(), rust_decimal::Decimal::ZERO)
-                .map_err(|e| format!("{cle} : prix unitaire {e}"))?;
-            let tva = lire_decimal(valeur(ligne, i_tva).as_deref(), rust_decimal::Decimal::ZERO)
-                .map_err(|e| format!("{cle} : TVA {e}"))?;
-            nouvelle
-                .lines
-                .push(crate::invoice::NewInvoiceLine::new(&libelle, qte, pu, tva));
+        // Une ligne illisible refuse **cette facture**, pas l'import entier :
+        // un fichier de 10 000 pieces ne doit pas s'arreter sur une virgule.
+        let construction = (|| -> Result<(), String> {
+            for ligne in &lignes {
+                let Some(libelle) = valeur(ligne, Some(i_libelle)) else {
+                    continue;
+                };
+                // Un prix illisible ne vaut **pas** zero : une facture a 0 € qui
+                // part chez le client est pire qu'une ligne refusee.
+                let qte = lire_decimal(valeur(ligne, i_qte).as_deref(), rust_decimal::Decimal::ONE)
+                    .map_err(|e| format!("{cle} : quantite {e}"))?;
+                let pu = lire_decimal(valeur(ligne, i_pu).as_deref(), rust_decimal::Decimal::ZERO)
+                    .map_err(|e| format!("{cle} : prix unitaire {e}"))?;
+                let tva =
+                    lire_decimal(valeur(ligne, i_tva).as_deref(), rust_decimal::Decimal::ZERO)
+                        .map_err(|e| format!("{cle} : TVA {e}"))?;
+                nouvelle
+                    .lines
+                    .push(crate::invoice::NewInvoiceLine::new(&libelle, qte, pu, tva));
+            }
+            Ok(())
+        })();
+        if let Err(e) = construction {
+            rapport.erreurs.push(e);
+            continue;
         }
         if nouvelle.lines.is_empty() {
             rapport.ignores += 1;
@@ -371,6 +402,7 @@ pub fn importer_factures(
             Err(e) => rapport.erreurs.push(format!("{cle} : {e}")),
         }
     }
+
     Ok(rapport)
 }
 
@@ -480,5 +512,66 @@ mod tests {
     #[test]
     fn echappe_a_l_export() {
         assert_eq!(csv(&["a;b".into(), "c".into()]), "\"a;b\";c");
+    }
+
+    /// Deux factures dans un meme fichier, dont une ligne au prix illisible :
+    /// la premiere passe, la seconde est refusee et nommee, l'import continue.
+    ///
+    /// Ce test touche la base : il se saute sans `DOLIBARR_DSN`.
+    #[test]
+    fn une_ligne_illisible_ne_bloque_que_sa_facture() {
+        let Ok(dsn) = std::env::var("DOLIBARR_DSN") else {
+            return;
+        };
+        let Ok(pool) = crate::pool(&dsn) else {
+            return;
+        };
+
+        let nom = "Tiers Import Regroupement";
+        // Menage prealable : le test doit pouvoir se rejouer.
+        {
+            use mysql::params;
+            use mysql::prelude::Queryable;
+            let mut conn = pool.get_conn().expect("connexion");
+            let ids: Vec<i64> = conn
+                .exec(
+                    "SELECT rowid FROM llx_societe WHERE entity = 1 AND nom = :nom",
+                    params! { "nom" => nom },
+                )
+                .unwrap_or_default();
+            for id in ids {
+                let _ = conn.exec_drop(
+                    "UPDATE llx_facture SET fk_facture_source = NULL WHERE fk_soc = :soc",
+                    params! { "soc" => id },
+                );
+                let _ = conn.exec_drop(
+                    "DELETE d FROM llx_facturedet d JOIN llx_facture f ON f.rowid = d.fk_facture \
+                     WHERE f.fk_soc = :soc",
+                    params! { "soc" => id },
+                );
+                let _ = conn.exec_drop(
+                    "DELETE FROM llx_facture WHERE fk_soc = :soc",
+                    params! { "soc" => id },
+                );
+                let _ = conn.exec_drop(
+                    "DELETE FROM llx_societe WHERE rowid = :soc",
+                    params! { "soc" => id },
+                );
+            }
+        }
+
+        let csv = "client;facture;date;libelle;qte;pu;tva\n\
+                   Tiers Import Regroupement;F-1;2026-03-01;Macconnerie;1;1000;20\n\
+                   Tiers Import Regroupement;F-2;2026-03-02;Pierre;1;abc;20\n\
+                   Tiers Import Regroupement;F-2;2026-03-02;Pose;2;500;20\n";
+
+        let rapport = importer_factures(&pool, 1, csv).expect("import");
+        assert_eq!(rapport.crees, 1, "une seule facture valide");
+        assert_eq!(rapport.erreurs.len(), 1, "la facture illisible est nommee");
+        assert!(
+            rapport.erreurs[0].contains("prix unitaire"),
+            "message : {:?}",
+            rapport.erreurs
+        );
     }
 }

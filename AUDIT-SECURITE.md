@@ -357,17 +357,24 @@ Branchement fait :
   PDF produit** (preuve que la piece jointe est bien la) ; profil BASIC :
   4 236 octets.
 
+### Imports et codes d'exoneration (les deux derniers points)
+
+| Constat | Correction |
+|---|---|
+| `importer_produits` et `importer_factures` prenaient une connexion MySQL **par ligne** (ou par facture) : 100 000 references = 100 000 emprunts de pool | une connexion pour tout l'import, references et fiches clients chargees d'un coup, ensemble tenu a jour (deux lignes du meme fichier ne creent pas deux fiches) |
+| le regroupement des factures etait en **O(n2)** (`find` lineaire sur un `Vec`) : 100 000 lignes = 5 milliards de comparaisons, worker epingle plusieurs minutes | index par table de hachage, ordre d'apparition conserve |
+| une ligne au prix illisible **interrompait tout l'import** (`?` dans la boucle) : un fichier de 10 000 pieces s'arretait sur une virgule, et les factures deja creees n'etaient pas annoncees | seule la facture concernee est refusee, et nommee. **Test** : deux factures, une ligne illisible → 1 creee, 1 erreur « prix unitaire », l'import continue |
+| le code **VATEX** (BT-120) vivait dans `db::dict::exoneration_tva` et n'etait lu par **personne** : une ligne a 0 % partait sans motif, et la plateforme agreee la refuse a l'envoi | le pont Factur-X lit le dictionnaire de TVA **une fois par taux distinct** et remplit l'exoneration (code + motif). Verifie en reel : `VATEX-EU-132` et son motif presents dans le XML relu du PDF |
+
 ### Ce qui reste ouvert
 
 - `einvoicing` (reception via plateforme agreee) reste non branchee : il faut une
   application declaree chez une plateforme, donc un partenariat, pas du code.
-- `devises`, `paie` ne sont dependues par personne : code ecrit, jamais appele.
-- `impex` : l'import des produits et des factures prend encore une connexion par
-  groupe de lignes (le correctif des tiers n'a pas ete applique aux deux autres),
-  et le regroupement y est en O(n2).
-- Deux codes de TVA d'exoneration (VATEX) ne sont pas lus depuis le dictionnaire :
-  une ligne a 0 % sur un assujetti sera signalee par `regles_metier` plutot que
-  remplie automatiquement.
+- `devises` et `paie` ne sont dependues par personne : code ecrit, jamais appele.
+  A brancher ou a supprimer — je ne supprime pas de module sans accord.
+- Le pays du **client** n'est pas resolu dans le pont Factur-X (la France est
+  posee par defaut) ; le dictionnaire de TVA, lui, est interroge sans filtre de
+  pays quand la fiche n'en porte pas.
 
 ---
 

@@ -70,13 +70,16 @@ pub fn unites(pool: &Pool) -> Result<Vec<Entree>, Box<dyn Error>> {
 pub fn exoneration_tva(
     pool: &Pool,
     entity: i64,
-    fk_pays: i64,
+    // `None` : on ne connait pas le pays du client, on cherche dans tous. Une
+    // fiche sans pays ne doit pas priver la ligne de son motif — une ligne a
+    // 0 % muette est refusee par les plateformes.
+    fk_pays: Option<i64>,
     taux: Decimal,
 ) -> Result<Option<CodeExoneration>, Box<dyn Error>> {
     let mut conn = pool.get_conn()?;
     let ligne: Option<(Option<String>, Option<String>)> = conn.exec_first(
         "SELECT einvoice_vatex, note FROM llx_c_tva \
-         WHERE active = 1 AND (fk_pays IS NULL OR fk_pays = :pays) \
+         WHERE active = 1 AND (:pays IS NULL OR fk_pays IS NULL OR fk_pays = :pays) \
            AND (entity = :entity OR entity = 0) \
            AND taux = :taux \
            AND einvoice_vatex IS NOT NULL AND TRIM(einvoice_vatex) <> '' \
@@ -127,7 +130,7 @@ pub fn exiger_motif_tva_zero(
     }
     // Pays 0 : on interroge les taux communs (`fk_pays IS NULL`), ceux qu'un
     // document porte par defaut. Un taux propre a un pays n'a pas de sens ici.
-    match exoneration_tva(pool, entity, 0, Decimal::ZERO)? {
+    match exoneration_tva(pool, entity, None, Decimal::ZERO)? {
         Some(code) if !code.code.trim().is_empty() => Ok(()),
         _ => Err(
             "une ligne à 0 % de TVA exige un motif d'exonération : renseignez le code \
