@@ -236,7 +236,7 @@ pub(crate) async fn tiers_fiche(State(app): State<App>, Path(id): Path<i64>) -> 
                             tr {
                                 td .ref { a href={ "/devis/" (d.rowid) } { (d.ref_) } }
                                 td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
-                                td { (ui::pastille(d.fk_statut, 0, false)) }
+                                td { (ui::pastille_devis(d.fk_statut)) }
                             }
                         }
                     }

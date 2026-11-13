@@ -416,6 +416,33 @@ pub fn echec(message: &str) -> Markup {
     html! { p .erreur { (message) } }
 }
 
+/// La pastille d'un **devis**.
+///
+/// Les statuts d'un devis ne sont pas ceux d'une facture : 2 veut dire
+/// « signée », pas « payée ». Afficher « payée » sur un devis fait douter de
+/// tout le reste de l'ecran.
+pub fn pastille_devis(statut: i16) -> Markup {
+    let (classe, texte) = match statut {
+        0 => ("p-brouillon", "brouillon"),
+        2 => ("p-payee", "signée"),
+        3 => ("p-brouillon", "abandonnée"),
+        4 => ("p-validee", "facturée"),
+        _ => ("p-validee", "ouverte"),
+    };
+    html! { span .pastille[classe == "p-payee"] .(classe) {(crate::langue::tr(texte)) } }
+}
+
+/// La pastille d'une **commande** : 2 = livrée, pas « payée ».
+pub fn pastille_commande(statut: i16) -> Markup {
+    let (classe, texte) = match statut {
+        0 => ("p-brouillon", "brouillon"),
+        2 => ("p-payee", "livrée"),
+        3 => ("p-brouillon", "annulée"),
+        _ => ("p-validee", "validée"),
+    };
+    html! { span .pastille[classe == "p-payee"] .(classe) {(crate::langue::tr(texte)) } }
+}
+
 pub fn pastille(statut: i16, paye: i16, en_retard: bool) -> Markup {
     if en_retard {
         html! { span .pastille.p-retard {(crate::langue::tr("en retard")) } }

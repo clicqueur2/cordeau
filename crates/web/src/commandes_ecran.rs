@@ -108,7 +108,7 @@ pub(crate) async fn commande_fiche(
         &c.ref_,
         html! {
             (message(q.get("ok")))
-            h1 { "Commande " (c.ref_) " " (ui::pastille(c.fk_statut, 0, false)) }
+            h1 { "Commande " (c.ref_) " " (ui::pastille_commande(c.fk_statut)) }
             p .sous-titre {
                 "Client : " strong { (nom_tiers(p, Some(c.fk_soc))?) }
                 @if let Some(d) = &c.date_commande { " — du " (app::fmt_date_fr(Some(d))) }

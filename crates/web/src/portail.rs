@@ -150,7 +150,7 @@ pub async fn accueil(State(app): State<App>, headers: HeaderMap) -> Res<Response
                                 td .ref { (d.ref_.clone()) }
                                 td .ref { (app::fmt_date_fr(d.datec.as_deref())) }
                                 td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
-                                td { (ui::pastille(d.fk_statut, 0, false)) }
+                                td { (ui::pastille_devis(d.fk_statut)) }
                                 td { a .bouton.petit.secondaire href={ "/public/portail/devis/" (d.rowid) } {(crate::langue::tr("Voir")) } }
                             }
                         }
@@ -297,7 +297,7 @@ pub async fn devis(
             h1 { "Devis " (d.ref_.clone()) }
             p .sous-titre {
                 @if let Some(dt) = &d.datec { (app::fmt_date_fr(Some(dt))) " — " }
-                (ui::pastille(d.fk_statut, 0, false))
+                (ui::pastille_devis(d.fk_statut))
             }
             table {
                 thead { tr { th {(crate::langue::tr("Désignation")) } th .num {(crate::langue::tr("Qté")) } th .num {(crate::langue::tr("P.U. HT")) } th .num {(crate::langue::tr("Total HT")) } } }

@@ -136,7 +136,7 @@ pub(crate) async fn devis(
                                     td .num { (ui::euros(d.total_ttc.unwrap_or_default())) }
                                 }
                                 @if colonnes::montre(&visibles, "statut") {
-                                    td { (ui::pastille(d.fk_statut, 0, false)) }
+                                    td { (ui::pastille_devis(d.fk_statut)) }
                                 }
                                 td { a .bouton.petit.secondaire href={ "/devis/" (d.rowid) } {(crate::langue::tr("Ouvrir")) } }
                             }
@@ -174,7 +174,7 @@ pub(crate) async fn devis_fiche(
         &d.ref_,
         html! {
             (message(q.get("ok")))
-            h1 { "Devis " (d.ref_) " " (ui::pastille(d.fk_statut, 0, false)) }
+            h1 { "Devis " (d.ref_) " " (ui::pastille_devis(d.fk_statut)) }
             p .sous-titre { "Client : " strong { (nom_tiers(p, d.fk_soc)?) }
                 @if let Some(r) = &reglement { " — règlement " (r) }
                 @if let Some(a) = d.deposit_percent { " — acompte " (app::fmt_qte(Some(a))) " %" } }

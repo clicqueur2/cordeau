@@ -84,3 +84,19 @@ Si des gens sont intéressés, je publie le dépôt et un mode d'emploi « essay
 dix minutes ».
 
 Merci.
+
+---
+
+## Captures à joindre au post
+
+Les images sont dans le dépôt, jeu de données **fictif** (aucun nom de client) :
+
+- `docs/captures/01-tableau-de-bord.png`
+- `docs/captures/02-devis-liste.png`
+- `docs/captures/03-devis-fiche.png`
+- `docs/captures/04-factures-liste.png`
+- `docs/captures/05-tiers-liste.png`
+- `docs/captures/06-chantiers.png`
+
+Ordre conseillé dans le message : tableau de bord, fiche de devis, liste des
+devis, liste des factures. Les autres servent de complément.

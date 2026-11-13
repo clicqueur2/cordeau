@@ -408,7 +408,9 @@ table {
   box-shadow: var(--ombre-1); font-size: 13.5px;
 }
 thead th {
-  position: sticky; top: 52px; z-index: 2;
+  /* Pas de `position: sticky` ici : dans un tableau a coins arrondis
+     (`overflow: hidden`), Chromium decalait l'en-tete de 52 px et il recouvrait
+     la premiere ligne — une liste de 5 devis n'en montrait que 4. */
   text-align: left; font-weight: 500; font-size: 11px;
   letter-spacing: .01em; color: var(--muet);
   padding: 9px 14px; border-bottom: 0.5px solid var(--trait-fort);

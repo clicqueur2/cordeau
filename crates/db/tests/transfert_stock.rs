@@ -123,12 +123,8 @@ fn jeu(pool: &Pool, prefixe: &str) -> Result<Jeu, Box<dyn Error>> {
     )?;
     let source =
         db::stock::creer_entrepot(pool, ENTITY, &format!("{prefixe}-SRC"), Some("Charly"))?;
-    let destination = db::stock::creer_entrepot(
-        pool,
-        ENTITY,
-        &format!("{prefixe}-DST"),
-        Some("Lyon"),
-    )?;
+    let destination =
+        db::stock::creer_entrepot(pool, ENTITY, &format!("{prefixe}-DST"), Some("Lyon"))?;
     Ok(Jeu {
         produit,
         source,
