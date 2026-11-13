@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="470" viewBox="0 0 980 470" font-family="-apple-system, Segoe UI, Roboto, sans-serif">
+<rect width="980" height="470" fill="#ffffff"/>
+<text x="24" y="34" font-size="17" font-weight="600" fill="#1d1d1f">Temps de réponse, même base et même machine</text>
+<text x="24" y="56" font-size="12.5" fill="#6b7280">médiane sur 12 mesures, modules du cœur seulement — Dolibarr 24.0.1 (PHP 8.3, opcache) contre Cordeau (build release)</text>
+<line x1="250.0" y1="82" x2="250.0" y2="400" stroke="#e5e7eb" stroke-width="1"/>
+<text x="250.0" y="420" font-size="11" fill="#6b7280" text-anchor="middle">0</text>
+<line x1="370.0" y1="82" x2="370.0" y2="400" stroke="#e5e7eb" stroke-width="1"/>
+<text x="370.0" y="420" font-size="11" fill="#6b7280" text-anchor="middle">10</text>
+<line x1="490.0" y1="82" x2="490.0" y2="400" stroke="#e5e7eb" stroke-width="1"/>
+<text x="490.0" y="420" font-size="11" fill="#6b7280" text-anchor="middle">20</text>
+<line x1="610.0" y1="82" x2="610.0" y2="400" stroke="#e5e7eb" stroke-width="1"/>
+<text x="610.0" y="420" font-size="11" fill="#6b7280" text-anchor="middle">30</text>
+<line x1="730.0" y1="82" x2="730.0" y2="400" stroke="#e5e7eb" stroke-width="1"/>
+<text x="730.0" y="420" font-size="11" fill="#6b7280" text-anchor="middle">40</text>
+<line x1="850.0" y1="82" x2="850.0" y2="400" stroke="#e5e7eb" stroke-width="1"/>
+<text x="850.0" y="420" font-size="11" fill="#6b7280" text-anchor="middle">50</text>
+<text x="550" y="454" font-size="11" fill="#6b7280" text-anchor="middle">millisecondes</text>
+<text x="232" y="102" font-size="13" fill="#1d1d1f" text-anchor="end">Connexion</text>
+<rect x="250.0" y="92.0" width="300.0" height="15" rx="3" fill="#9aa4b2"/>
+<text x="558.0" y="102" font-size="12" fill="#6b7280">25.0 ms</text>
+<rect x="250.0" y="111.0" width="6.0" height="15" rx="3" fill="#1f6feb"/>
+<text x="264.0" y="121" font-size="12" font-weight="600" fill="#1f6feb">0.5 ms</text>
+<text x="956" y="108" font-size="13" font-weight="600" fill="#1d1d1f" text-anchor="end">×50</text>
+<text x="232" y="154" font-size="13" fill="#1d1d1f" text-anchor="end">Liste des tiers (932 fiches)</text>
+<rect x="250.0" y="144.0" width="549.6" height="15" rx="3" fill="#9aa4b2"/>
+<text x="807.6" y="154" font-size="12" fill="#6b7280">45.8 ms</text>
+<rect x="250.0" y="163.0" width="52.8" height="15" rx="3" fill="#1f6feb"/>
+<text x="310.8" y="173" font-size="12" font-weight="600" fill="#1f6feb">4.4 ms</text>
+<text x="956" y="160" font-size="13" font-weight="600" fill="#1d1d1f" text-anchor="end">×10</text>
+<text x="232" y="206" font-size="13" fill="#1d1d1f" text-anchor="end">Liste des produits</text>
+<rect x="250.0" y="196.0" width="391.2" height="15" rx="3" fill="#9aa4b2"/>
+<text x="649.2" y="206" font-size="12" fill="#6b7280">32.6 ms</text>
+<rect x="250.0" y="215.0" width="48.0" height="15" rx="3" fill="#1f6feb"/>
+<text x="306.0" y="225" font-size="12" font-weight="600" fill="#1f6feb">4.0 ms</text>
+<text x="956" y="212" font-size="13" font-weight="600" fill="#1d1d1f" text-anchor="end">×8</text>
+<text x="232" y="258" font-size="13" fill="#1d1d1f" text-anchor="end">Liste des devis</text>
+<rect x="250.0" y="248.0" width="573.6" height="15" rx="3" fill="#9aa4b2"/>
+<text x="831.6" y="258" font-size="12" fill="#6b7280">47.8 ms</text>
+<rect x="250.0" y="267.0" width="120.0" height="15" rx="3" fill="#1f6feb"/>
+<text x="378.0" y="277" font-size="12" font-weight="600" fill="#1f6feb">10.0 ms</text>
+<text x="956" y="264" font-size="13" font-weight="600" fill="#1d1d1f" text-anchor="end">×5</text>
+<text x="232" y="310" font-size="13" fill="#1d1d1f" text-anchor="end">Liste des factures (236)</text>
+<rect x="250.0" y="300.0" width="326.4" height="15" rx="3" fill="#9aa4b2"/>
+<text x="584.4" y="310" font-size="12" fill="#6b7280">27.2 ms</text>
+<rect x="250.0" y="319.0" width="223.2" height="15" rx="3" fill="#1f6feb"/>
+<text x="481.2" y="329" font-size="12" font-weight="600" fill="#1f6feb">18.6 ms</text>
+<text x="956" y="316" font-size="13" fill="#6b7280" text-anchor="end">×1.5</text>
+<text x="232" y="362" font-size="13" fill="#1d1d1f" text-anchor="end">Fiche de facture</text>
+<rect x="250.0" y="352.0" width="339.6" height="15" rx="3" fill="#9aa4b2"/>
+<text x="597.6" y="362" font-size="12" fill="#6b7280">28.3 ms</text>
+<rect x="250.0" y="371.0" width="208.8" height="15" rx="3" fill="#1f6feb"/>
+<text x="466.8" y="381" font-size="12" font-weight="600" fill="#1f6feb">17.4 ms</text>
+<text x="956" y="368" font-size="13" fill="#6b7280" text-anchor="end">×1.6</text>
+<rect x="24" y="442" width="14" height="10" rx="2" fill="#9aa4b2"/>
+<text x="44" y="451" font-size="12" fill="#6b7280">Dolibarr 24.0.1 (PHP)</text>
+<rect x="204" y="442" width="14" height="10" rx="2" fill="#1f6feb"/>
+<text x="224" y="451" font-size="12" fill="#6b7280">Cordeau (Rust)</text>
+<text x="956" y="451" font-size="11" fill="#6b7280" text-anchor="end">×N = facteur — sur la fiche de facture, l'écart est de 1,6, pas de 10</text>
+</svg>

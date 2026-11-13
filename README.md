@@ -31,8 +31,10 @@ modules du cœur seulement, build `release`, PHP 8.3 avec opcache :
 | Liste des devis | 48 ms | **10 ms** |
 | Fiche de facture | 28 ms | **17 ms** |
 
+![Comparaison des temps de réponse](docs/captures/graphique-temps.svg)
+
 Le protocole complet, les 95ᵉ centiles et **les limites** de cette mesure sont
-dans [COMPARAISON-MESUREE.md](COMPARAISON-MESUREE.md). En résumé : sur une fiche
+dans [COMPARAISON-MESUREE.md](docs/COMPARAISON-MESUREE.md). En résumé : sur une fiche
 de facture — là où il y a du vrai travail par ligne — l'écart est de 1,6 ×, pas
 de 10 ×. `php -S` sert une requête à la fois, donc ces chiffres disent la
 latence, pas le débit à vingt utilisateurs.
@@ -134,13 +136,13 @@ dépôt.
 
 | Fichier | Contenu |
 |---|---|
-| [COMPARAISON-MESUREE.md](COMPARAISON-MESUREE.md) | la comparaison de vitesse, protocole et limites |
-| [GUIDE-UTILISATION.md](GUIDE-UTILISATION.md) | le mode d'emploi écran par écran |
+| [COMPARAISON-MESUREE.md](docs/COMPARAISON-MESUREE.md) | la comparaison de vitesse, protocole et limites |
+| [GUIDE-UTILISATION.md](docs/GUIDE-UTILISATION.md) | le mode d'emploi écran par écran |
 | [INSTALLER.md](INSTALLER.md) | installation de zéro |
-| [REFERENCE-COMMANDES.md](REFERENCE-COMMANDES.md) | la ligne de commande, commande par commande |
-| [MISE-A-JOUR.md](MISE-A-JOUR.md) | monter une base d'une version à l'autre |
-| [AUDIT-SECURITE.md](AUDIT-SECURITE.md) | l'audit, ses correctifs et ce qui reste ouvert |
-| [DEVELOPPEMENT.md](DEVELOPPEMENT.md) | règles de code, schéma, tests |
+| [REFERENCE-COMMANDES.md](docs/REFERENCE-COMMANDES.md) | la ligne de commande, commande par commande |
+| [MISE-A-JOUR.md](docs/MISE-A-JOUR.md) | monter une base d'une version à l'autre |
+| [AUDIT-SECURITE.md](docs/AUDIT-SECURITE.md) | l'audit, ses correctifs et ce qui reste ouvert |
+| [DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md) | règles de code, schéma, tests |
 
 ## Licence et attribution
 

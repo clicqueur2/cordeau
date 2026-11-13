@@ -51,6 +51,10 @@ je ne publie pas un chiffre que je n'ai pas vérifié.
 
 ---
 
+![Comparaison des temps de réponse](captures/graphique-temps.svg)
+
+> Le graphique est un SVG produit par `tools/graphique_comparatif.py` à partir des valeurs de ce document : il se régénère quand les mesures changent.
+
 ## 3. Ce que ces chiffres ne disent pas
 
 - **`php -S` sert une requête à la fois.** Une production php-fpm avec huit
